@@ -122,7 +122,8 @@ jobs:
           set -euo pipefail
           mkdir -p bin
           tar -xzf dist/totion-x86_64-unknown-linux-gnu.tar.gz -C bin
-          chmod +x bin/totion-server
+          cp bin/totion-server bin/totion-server.new
+          chmod +x bin/totion-server.new
           ls -la bin
 
       - name: Upload server binary and unit
@@ -131,7 +132,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "bin/totion-server,deploy/totion.service"
+          source: "bin/totion-server.new,deploy/totion.service"
           target: /home/${{ secrets.DEPLOY_USER }}/totion
           strip_components: 1
           overwrite: true
@@ -148,7 +149,6 @@ jobs:
           script: |
             set -euo pipefail
             cd "$HOME/totion"
-            chmod +x totion-server
             mkdir -p data
 
             if [ ! -f totion.env ]; then
@@ -162,12 +162,26 @@ jobs:
               chmod 600 totion.env
             fi
 
+            # 先停服务：避免覆盖运行中的二进制（ETXTBSY），并让 SQLite 刷 WAL。
+            sudo systemctl stop totion 2>/dev/null || true
+
+            STAMP=$(date +%Y%m%d%H%M%S)
+            for f in data/totion.db data/totion.db-wal data/totion.db-shm; do
+              if [ -f "$f" ]; then
+                cp -a "$f" "$f.bak.$STAMP"
+              fi
+            done
+            echo "database backup: data/totion.db.bak.$STAMP"
+
+            mv -f totion-server.new totion-server
+            chmod +x totion-server
+
             sed -e "s|__DEPLOY_USER__|$USER|g" -e "s|__DEPLOY_HOME__|$HOME|g" \
               totion.service > /tmp/totion.service
             sudo install -m 644 /tmp/totion.service /etc/systemd/system/totion.service
             sudo systemctl daemon-reload
             sudo systemctl enable totion
-            sudo systemctl restart totion
+            sudo systemctl start totion
 
             for _ in $(seq 1 10); do
               if curl -fsS http://127.0.0.1:8080/api/health >/dev/null; then

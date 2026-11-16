@@ -1,5 +1,6 @@
 mod api;
 mod app;
+mod charts;
 mod config;
 mod ui;
 

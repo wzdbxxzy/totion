@@ -5,9 +5,11 @@ use reqwest::Method;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use totion_core::{
-    AuthResponse, ChallengeRequest, ChallengeResponse, CreateBlockRequest, CreatePageRequest,
-    RegisterRequest, Snapshot, SyncResponse, UpdateBlockRequest, UpdatePageRequest, VerifyRequest,
-    WriteBlockResponse, WritePageResponse,
+    AuthResponse, ChallengeRequest, ChallengeResponse, CheckinRequest, CreateBlockRequest,
+    CreateCommentRequest, CreateHabitRequest, CreatePageRequest, EnsureDayResponse,
+    RegisterRequest, Snapshot, SyncResponse, UpdateBlockRequest, UpdateCheckinRequest,
+    UpdateCommentRequest, UpdateHabitRequest, UpdatePageRequest, VerifyRequest, WriteBlockResponse,
+    WriteCheckinResponse, WriteCommentResponse, WriteHabitResponse, WritePageResponse,
 };
 
 #[derive(Debug)]
@@ -165,6 +167,68 @@ impl Api {
     ) -> Result<WriteBlockResponse, ApiError> {
         self.send(
             self.authed(Method::PATCH, &format!("/api/blocks/{id}"))
+                .json(request),
+        )
+    }
+
+    pub fn ensure_day(&self, date: &str) -> Result<EnsureDayResponse, ApiError> {
+        self.send(self.authed(Method::POST, &format!("/api/days/{date}/ensure")))
+    }
+
+    pub fn create_habit(
+        &self,
+        request: &CreateHabitRequest,
+    ) -> Result<WriteHabitResponse, ApiError> {
+        self.send(self.authed(Method::POST, "/api/habits").json(request))
+    }
+
+    pub fn update_habit(
+        &self,
+        id: &str,
+        request: &UpdateHabitRequest,
+    ) -> Result<WriteHabitResponse, ApiError> {
+        self.send(
+            self.authed(Method::PATCH, &format!("/api/habits/{id}"))
+                .json(request),
+        )
+    }
+
+    pub fn check_in(
+        &self,
+        habit_id: &str,
+        request: &CheckinRequest,
+    ) -> Result<WriteCheckinResponse, ApiError> {
+        self.send(
+            self.authed(Method::POST, &format!("/api/habits/{habit_id}/checkins"))
+                .json(request),
+        )
+    }
+
+    pub fn update_checkin(
+        &self,
+        id: &str,
+        request: &UpdateCheckinRequest,
+    ) -> Result<WriteCheckinResponse, ApiError> {
+        self.send(
+            self.authed(Method::PATCH, &format!("/api/checkins/{id}"))
+                .json(request),
+        )
+    }
+
+    pub fn create_comment(
+        &self,
+        request: &CreateCommentRequest,
+    ) -> Result<WriteCommentResponse, ApiError> {
+        self.send(self.authed(Method::POST, "/api/comments").json(request))
+    }
+
+    pub fn update_comment(
+        &self,
+        id: &str,
+        request: &UpdateCommentRequest,
+    ) -> Result<WriteCommentResponse, ApiError> {
+        self.send(
+            self.authed(Method::PATCH, &format!("/api/comments/{id}"))
                 .json(request),
         )
     }

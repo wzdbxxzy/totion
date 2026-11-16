@@ -61,7 +61,8 @@ pub struct WorkspaceInfo {
 pub const API_VERSION: u32 = 2;
 
 fn default_api_version() -> u32 {
-    API_VERSION
+    // 旧服务器不会返回该字段，按 v1 处理。
+    1
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
