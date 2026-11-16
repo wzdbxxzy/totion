@@ -6,11 +6,12 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use totion_core::{
     AuthResponse, ChallengeRequest, ChallengeResponse, CheckinRequest, CreateBlockRequest,
-    CreateCommentRequest, CreateHabitRequest, CreateJournalRequest, CreatePageRequest,
-    EnsureDayResponse, RegisterRequest, Snapshot, SyncResponse, UpdateBlockRequest,
-    UpdateCheckinRequest, UpdateCommentRequest, UpdateHabitRequest, UpdateJournalRequest,
-    UpdatePageRequest, VerifyRequest, WriteBlockResponse, WriteCheckinResponse,
-    WriteCommentResponse, WriteHabitResponse, WriteJournalResponse, WritePageResponse,
+    CreateCommentRequest, CreateHabitRequest, CreateInviteRequest, CreateJournalRequest,
+    CreatePageRequest, EnsureDayResponse, InviteListResponse, RegisterRequest, Snapshot,
+    SyncResponse, UpdateBlockRequest, UpdateCheckinRequest, UpdateCommentRequest,
+    UpdateHabitRequest, UpdateInviteRequest, UpdateJournalRequest, UpdatePageRequest,
+    VerifyRequest, WriteBlockResponse, WriteCheckinResponse, WriteCommentResponse,
+    WriteHabitResponse, WriteInviteResponse, WriteJournalResponse, WritePageResponse,
 };
 
 #[derive(Debug)]
@@ -248,6 +249,28 @@ impl Api {
     ) -> Result<WriteJournalResponse, ApiError> {
         self.send(
             self.authed(Method::PATCH, &format!("/api/journals/{id}"))
+                .json(request),
+        )
+    }
+
+    pub fn list_invites(&self) -> Result<InviteListResponse, ApiError> {
+        self.send(self.authed(Method::GET, "/api/invites"))
+    }
+
+    pub fn create_invite(
+        &self,
+        request: &CreateInviteRequest,
+    ) -> Result<WriteInviteResponse, ApiError> {
+        self.send(self.authed(Method::POST, "/api/invites").json(request))
+    }
+
+    pub fn update_invite(
+        &self,
+        id: &str,
+        request: &UpdateInviteRequest,
+    ) -> Result<WriteInviteResponse, ApiError> {
+        self.send(
+            self.authed(Method::PATCH, &format!("/api/invites/{id}"))
                 .json(request),
         )
     }

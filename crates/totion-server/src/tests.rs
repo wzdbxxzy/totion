@@ -80,7 +80,7 @@ fn migrates_v1_database_in_place() {
 
     assert_eq!(
         db::get_meta(&conn, "schema_version").unwrap().as_deref(),
-        Some("3")
+        Some("4")
     );
     let pages: i64 = conn
         .query_row("SELECT COUNT(*) FROM pages", [], |row| row.get(0))
@@ -91,7 +91,10 @@ fn migrates_v1_database_in_place() {
     let journals: i64 = conn
         .query_row("SELECT COUNT(*) FROM journals", [], |row| row.get(0))
         .unwrap();
-    assert_eq!((pages, blocks, journals), (1, 1, 0));
+    let invites: i64 = conn
+        .query_row("SELECT COUNT(*) FROM invites", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!((pages, blocks, journals, invites), (1, 1, 0, 0));
 
     let page = db::find_page(&conn, "p1").unwrap().unwrap();
     assert_eq!(page.title, "old page");
@@ -400,6 +403,117 @@ async fn comments_validate_target_and_conflict() {
     .await;
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(body["current"]["version"], 2);
+}
+
+#[tokio::test]
+async fn multiple_invites_join_same_space_and_can_be_revoked() {
+    let (db, token) = setup();
+
+    let (status, first) = call(
+        db.clone(),
+        Some(&token),
+        Some("4"),
+        Method::POST,
+        "/api/invites",
+        Some(json!({ "note": "once", "max_uses": 1 })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let once_code = first["invite"]["code"].as_str().unwrap().to_string();
+
+    let (_, second) = call(
+        db.clone(),
+        Some(&token),
+        Some("4"),
+        Method::POST,
+        "/api/invites",
+        Some(json!({ "note": "open" })),
+    )
+    .await;
+    let open_code = second["invite"]["code"].as_str().unwrap().to_string();
+    let open_id = second["invite"]["id"].as_str().unwrap().to_string();
+
+    let (status, _) = call(
+        db.clone(),
+        None,
+        Some("4"),
+        Method::POST,
+        "/api/auth/register",
+        Some(json!({
+            "invite_code": once_code,
+            "name": "Bob",
+            "public_key": hex::encode([2u8; 32])
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = call(
+        db.clone(),
+        None,
+        Some("4"),
+        Method::POST,
+        "/api/auth/register",
+        Some(json!({
+            "invite_code": once_code,
+            "name": "Carol",
+            "public_key": hex::encode([3u8; 32])
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    let (status, _) = call(
+        db.clone(),
+        None,
+        Some("4"),
+        Method::POST,
+        "/api/auth/register",
+        Some(json!({
+            "invite_code": open_code,
+            "name": "Dave",
+            "public_key": hex::encode([4u8; 32])
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = call(
+        db.clone(),
+        Some(&token),
+        Some("4"),
+        Method::PATCH,
+        &format!("/api/invites/{open_id}"),
+        Some(json!({ "revoked": true })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = call(
+        db.clone(),
+        None,
+        Some("4"),
+        Method::POST,
+        "/api/auth/register",
+        Some(json!({
+            "invite_code": open_code,
+            "name": "Eve",
+            "public_key": hex::encode([5u8; 32])
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    let (_, snapshot) = call(
+        db.clone(),
+        Some(&token),
+        Some("4"),
+        Method::GET,
+        "/api/snapshot",
+        None,
+    )
+    .await;
+    assert_eq!(snapshot["workspace"]["users"].as_array().unwrap().len(), 3);
 }
 
 #[tokio::test]

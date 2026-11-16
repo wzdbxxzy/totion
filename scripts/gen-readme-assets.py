@@ -491,9 +491,9 @@ def setup_screenshot():
         x + 32, y + 88, "第一次使用需要邀请码注册，之后自动免密登录。", MUTED, 14
     )
     fields = [
-        ("服务器地址", "http://64.31.25.155:8080", True),
+        ("服务器地址", "http://your-server:8080", True),
         ("名字", "Guan", False),
-        ("邀请码", "36BB876E", False),
+        ("邀请码", "AB12-CD34", False),
     ]
     fy = y + 146
     for label, value, active in fields:
@@ -655,7 +655,7 @@ def help_screenshot():
         ("工作区", "J 查看总结列表；N 新页面；n/t/c 新建内容块"),
         ("日历", "h/l 选日；j/k 前后一周；[ ] 换月；v 或 Shift+右键框选"),
         ("习惯", "n 新建；Space 打卡；u 撤销；Ctrl+F 切换频率"),
-        ("协作", "C 评论；6 留言；/ 搜索；r 同步"),
+        ("协作", "C 评论；6 留言；i 邀请码；/ 搜索；r 同步"),
         ("编辑", "Enter 保存；总结/评论等多行内容用 Ctrl+S；Esc 取消"),
         ("其他", "? 帮助；q 或 Ctrl+C 退出"),
     ]
@@ -785,6 +785,47 @@ def journals_screenshot():
     return svg(width, height, body, defs)
 
 
+def invites_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 邀请码")
+
+    x, y, w, h = 250, 110, 780, 480
+    body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
+    body += "\n" + text(x + 30, y + 46, "邀请码", CYAN, 20, bold=True)
+    body += "\n" + text(x + 30, y + 72, "同一个空间的有效邀请码都能用来注册", MUTED, 13)
+
+    invites = [
+        ("▶ AB12CD34", "有效", "已用 0/1 · 不过期", "给小明 · Guan", True),
+        ("  EF56GH78", "已撤销", "已用 2 次 · 2027-01-01 00:00", "临时码 · 队友", False),
+        ("  JK90LM12", "有效", "已用 3 次 · 不过期", "家人 · Guan", False),
+    ]
+    line_y = y + 118
+    for code, status, detail, note, selected in invites:
+        if selected:
+            body += "\n" + rect(x + 18, line_y - 26, w - 36, 82, PANEL2, None, 8)
+        body += "\n" + text(x + 30, line_y, code, "#ffffff", 18, bold=True)
+        body += "\n" + text(
+            x + 210,
+            line_y,
+            status,
+            GREEN if status == "有效" else MUTED,
+            14,
+            bold=True,
+        )
+        body += "\n" + text(x + 300, line_y, detail, MUTED, 13)
+        body += "\n" + text(x + 38, line_y + 30, note, TEXT, 14)
+        line_y += 96
+
+    body += "\n" + text(
+        x + 30,
+        y + h - 26,
+        "g 生成新码 · x 撤销/恢复 · j/k 选择 · Esc 关闭",
+        MUTED,
+        13,
+    )
+    return svg(width, height, body, defs)
+
+
 def main():
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
     screenshots = os.path.join(out_dir, "screenshots")
@@ -803,6 +844,7 @@ def main():
         os.path.join(screenshots, "comments.svg"): comments_screenshot(),
         os.path.join(screenshots, "search.svg"): search_screenshot(),
         os.path.join(screenshots, "inbox.svg"): inbox_screenshot(),
+        os.path.join(screenshots, "invites.svg"): invites_screenshot(),
         os.path.join(screenshots, "help.svg"): help_screenshot(),
         os.path.join(screenshots, "new-event.svg"): new_event_screenshot(),
     }

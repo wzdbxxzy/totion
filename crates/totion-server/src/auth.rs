@@ -32,6 +32,7 @@ pub fn init_invite(conn: &Connection, env_code: Option<&str>) -> Result<String> 
         },
     };
     db::set_meta(conn, "invite_code", &code)?;
+    db::ensure_invite(conn, &code, "初始邀请码", "server")?;
     Ok(code)
 }
 

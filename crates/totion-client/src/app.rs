@@ -7,11 +7,12 @@ use ratatui::layout::Rect;
 use totion_core::{
     block_day_stats, checkin_on, completion_series, habit_check_in, habit_due_on, habit_stats,
     AuthResponse, Block, BlockKind, Change, CheckinRequest, Comment, CommentTargetKind,
-    CreateBlockRequest, CreateCommentRequest, CreateHabitRequest, CreateJournalRequest,
-    CreatePageRequest, DayStat, EntityKind, Habit, HabitCheckin, HabitFrequency, HabitStats,
-    JournalEntry, JournalTarget, Page, PageKind, RegisterRequest, Snapshot, UpdateBlockRequest,
-    UpdateCheckinRequest, UpdateCommentRequest, UpdateHabitRequest, UpdateJournalRequest,
-    UpdatePageRequest, User, VerifyRequest,
+    CreateBlockRequest, CreateCommentRequest, CreateHabitRequest, CreateInviteRequest,
+    CreateJournalRequest, CreatePageRequest, DayStat, EntityKind, Habit, HabitCheckin,
+    HabitFrequency, HabitStats, Invite, JournalEntry, JournalTarget, Page, PageKind,
+    RegisterRequest, Snapshot, UpdateBlockRequest, UpdateCheckinRequest, UpdateCommentRequest,
+    UpdateHabitRequest, UpdateInviteRequest, UpdateJournalRequest, UpdatePageRequest, User,
+    VerifyRequest,
 };
 
 use crate::api::{Api, ApiError};
@@ -156,12 +157,20 @@ pub struct AgendaPanel {
 }
 
 #[derive(Debug, Clone)]
+pub struct InvitePanel {
+    pub invites: Vec<Invite>,
+    pub selected: usize,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Modal {
     EventForm(EventForm),
     HabitForm(HabitForm),
     Comments(CommentPanel),
     Search(SearchState),
     Agenda(AgendaPanel),
+    Invites(InvitePanel),
     Help,
 }
 
@@ -1247,6 +1256,7 @@ impl MainState {
             KeyCode::Char('?') => self.modal = Some(Modal::Help),
             KeyCode::Char('/') => self.open_search(),
             KeyCode::Char('C') => self.open_comments(),
+            KeyCode::Char('i') => self.open_invites(),
             KeyCode::Char('r') => {
                 self.ensured_date = None;
                 self.ensure_today_page();
@@ -2494,6 +2504,19 @@ impl MainState {
         }));
     }
 
+    fn open_invites(&mut self) {
+        match self.api.list_invites() {
+            Ok(response) => {
+                self.modal = Some(Modal::Invites(InvitePanel {
+                    invites: response.invites,
+                    selected: 0,
+                    message: None,
+                }));
+            }
+            Err(err) => self.status = err.to_string(),
+        }
+    }
+
     fn compute_search(&self, query: &str) -> Vec<SearchHit> {
         let query = query.to_lowercase();
         if query.is_empty() {
@@ -2757,6 +2780,50 @@ impl MainState {
                             multiline: true,
                         });
                         return;
+                    }
+                }
+                _ => {}
+            },
+            Modal::Invites(panel) => match key.code {
+                KeyCode::Esc => return,
+                KeyCode::Up | KeyCode::Char('k') => {
+                    panel.selected = panel.selected.saturating_sub(1);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if !panel.invites.is_empty() {
+                        panel.selected = (panel.selected + 1).min(panel.invites.len() - 1);
+                    }
+                }
+                KeyCode::Char('g') => {
+                    let request = CreateInviteRequest {
+                        note: format!("由 {} 创建", self.me),
+                        expires_in_days: None,
+                        // 默认一次性邀请码，用一个后自动失效。
+                        max_uses: Some(1),
+                    };
+                    match self.api.create_invite(&request) {
+                        Ok(response) => {
+                            panel.invites.insert(0, response.invite);
+                            panel.selected = 0;
+                            panel.message = Some("已生成新邀请码".to_string());
+                        }
+                        Err(err) => panel.message = Some(err.to_string()),
+                    }
+                }
+                KeyCode::Char('x') => {
+                    if let Some(invite) = panel.invites.get(panel.selected).cloned() {
+                        match self.api.update_invite(
+                            &invite.id,
+                            &UpdateInviteRequest {
+                                revoked: Some(!invite.revoked),
+                            },
+                        ) {
+                            Ok(response) => {
+                                panel.invites[panel.selected] = response.invite;
+                                panel.message = Some("状态已更新".to_string());
+                            }
+                            Err(err) => panel.message = Some(err.to_string()),
+                        }
                     }
                 }
                 _ => {}

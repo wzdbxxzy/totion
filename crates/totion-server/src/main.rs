@@ -30,6 +30,10 @@ struct Args {
     /// 打印当前邀请码后退出
     #[arg(long)]
     print_invite: bool,
+
+    /// 生成一个新邀请码并退出；参数是备注
+    #[arg(long, value_name = "NOTE")]
+    new_invite: Option<String>,
 }
 
 #[tokio::main]
@@ -52,6 +56,32 @@ async fn main() -> Result<()> {
     if args.print_invite {
         println!("{invite}");
         return Ok(());
+    }
+
+    if let Some(note) = args.new_invite.as_deref() {
+        let now = chrono::Utc::now();
+        for _ in 0..8 {
+            let candidate = totion_core::Invite {
+                id: uuid::Uuid::new_v4().to_string(),
+                code: auth::generate_invite_code(),
+                note: note.to_string(),
+                created_by: "server".to_string(),
+                created_at: now,
+                expires_at: None,
+                max_uses: None,
+                used_count: 0,
+                revoked: false,
+            };
+            match db::insert_invite(&conn, &candidate) {
+                Ok(()) => {
+                    println!("{}", candidate.code);
+                    return Ok(());
+                }
+                Err(err) if err.to_string().contains("UNIQUE") => continue,
+                Err(err) => return Err(err.into()),
+            }
+        }
+        anyhow::bail!("生成邀请码失败，请重试");
     }
 
     let users: i64 = conn.query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))?;

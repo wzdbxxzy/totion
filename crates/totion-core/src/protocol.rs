@@ -61,7 +61,7 @@ pub struct WorkspaceInfo {
     pub users: Vec<User>,
 }
 
-pub const API_VERSION: u32 = 3;
+pub const API_VERSION: u32 = 4;
 
 fn default_api_version() -> u32 {
     // 旧服务器不会返回该字段，按 v1 处理。
@@ -284,6 +284,33 @@ pub struct UpdateJournalRequest {
 pub struct WriteJournalResponse {
     pub journal: JournalEntry,
     pub seq: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateInviteRequest {
+    #[serde(default)]
+    pub note: String,
+    /// 多少天后过期；None 表示不过期
+    #[serde(default)]
+    pub expires_in_days: Option<u32>,
+    /// 最多可用次数；None 表示不限
+    #[serde(default)]
+    pub max_uses: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateInviteRequest {
+    pub revoked: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InviteListResponse {
+    pub invites: Vec<Invite>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WriteInviteResponse {
+    pub invite: Invite,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

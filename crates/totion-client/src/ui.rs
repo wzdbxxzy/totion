@@ -1,4 +1,4 @@
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, Local, NaiveDate, Utc};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -9,8 +9,8 @@ use ratatui::{
 use totion_core::HabitStats;
 
 use crate::app::{
-    AgendaPanel, App, CommentPanel, Editing, EventForm, Focus, HabitForm, MainState, Modal, Screen,
-    SearchState, SetupForm, TodayRow, View,
+    AgendaPanel, App, CommentPanel, Editing, EventForm, Focus, HabitForm, InvitePanel, MainState,
+    Modal, Screen, SearchState, SetupForm, TodayRow, View,
 };
 use crate::charts;
 
@@ -213,10 +213,11 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
             Modal::Agenda(_) => {
                 " j/k 选择 · Space 勾选 · Enter 编辑 · d 删除 · t/c 新建 · Esc 关闭"
             }
+            Modal::Invites(_) => " g 生成新码 · x 撤销/恢复 · j/k 选择 · Esc 关闭",
             Modal::Help => " 按 Esc 关闭帮助",
         }
     } else {
-        " 1-6 视图 · j/k 移动 · Enter 编辑 · Space 勾选/打卡 · a 写总结 · C 评论 · / 搜索 · ? 帮助 · q 退出"
+        " 1-6 视图 · j/k 移动 · Enter 编辑 · Space 勾选/打卡 · a 写总结 · C 评论 · i 邀请码 · / 搜索 · ? 帮助 · q 退出"
     };
 
     let lines = vec![
@@ -1055,8 +1056,81 @@ fn draw_modal(frame: &mut Frame, main: &MainState, modal: &Modal) {
         Modal::Comments(panel) => draw_comments(frame, main, panel),
         Modal::Search(state) => draw_search(frame, state),
         Modal::Agenda(panel) => draw_agenda(frame, main, panel),
+        Modal::Invites(panel) => draw_invites(frame, panel),
         Modal::Help => draw_help(frame),
     }
+}
+
+fn draw_invites(frame: &mut Frame, panel: &InvitePanel) {
+    let area = centered_rect(70, 64, frame.area());
+    frame.render_widget(Clear, area);
+    let now = Utc::now();
+    let mut lines: Vec<Line> = Vec::new();
+    for (index, invite) in panel.invites.iter().enumerate() {
+        let selected = index == panel.selected;
+        let style = if selected {
+            Style::default().bg(Color::DarkGray)
+        } else {
+            Style::default()
+        };
+        let status = invite.status_label(now);
+        let uses = match invite.max_uses {
+            Some(max) => format!("{}/{}", invite.used_count, max),
+            None => format!("{} 次", invite.used_count),
+        };
+        let expires = match invite.expires_at {
+            Some(value) => value
+                .with_timezone(&Local)
+                .format("%m-%d %H:%M")
+                .to_string(),
+            None => "不过期".to_string(),
+        };
+        lines.push(Line::from(vec![
+            Span::styled(
+                if selected { "▶ " } else { "  " },
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::styled(
+                format!("{} ", invite.code),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{status} "),
+                Style::default().fg(if status == "有效" {
+                    Color::Green
+                } else {
+                    Color::Gray
+                }),
+            ),
+            Span::styled(
+                format!("已用 {uses} · {expires}"),
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+        lines.push(Line::from(Span::styled(
+            format!("    {} · {}", invite.note, invite.created_by),
+            style.fg(Color::Gray),
+        )));
+    }
+    if lines.is_empty() {
+        lines.push(Line::from(Span::styled(
+            " 还没有邀请码，按 g 生成一个",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+    if let Some(message) = &panel.message {
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            message.clone(),
+            Style::default().fg(Color::Yellow),
+        )));
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        " g 生成新码 · x 撤销/恢复 · j/k 选择 · Esc 关闭",
+        Style::default().fg(Color::DarkGray),
+    )));
+    frame.render_widget(Paragraph::new(lines).block(block_title(" 邀请码 ")), area);
 }
 
 fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {

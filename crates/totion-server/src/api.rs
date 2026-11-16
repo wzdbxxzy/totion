@@ -15,13 +15,13 @@ use serde_json::json;
 use totion_core::{
     valid_date, valid_time, ApiError, AuthResponse, Block, BlockKind, BlockSection,
     ChallengeRequest, ChallengeResponse, Change, CheckinRequest, Comment, CommentTargetKind,
-    CreateBlockRequest, CreateCommentRequest, CreateHabitRequest, CreateJournalRequest,
-    CreatePageRequest, EnsureDayResponse, EntityKind, Habit, HabitCheckin, JournalEntry,
-    JournalTarget, Page, PageKind, RegisterRequest, Snapshot, SyncResponse, UpdateBlockRequest,
-    UpdateCheckinRequest, UpdateCommentRequest, UpdateHabitRequest, UpdateJournalRequest,
-    UpdatePageRequest, User, VerifyRequest, WorkspaceInfo, WriteBlockResponse,
-    WriteCheckinResponse, WriteCommentResponse, WriteHabitResponse, WriteJournalResponse,
-    WritePageResponse, API_VERSION,
+    CreateBlockRequest, CreateCommentRequest, CreateHabitRequest, CreateInviteRequest,
+    CreateJournalRequest, CreatePageRequest, EnsureDayResponse, EntityKind, Habit, HabitCheckin,
+    Invite, InviteListResponse, JournalEntry, JournalTarget, Page, PageKind, RegisterRequest,
+    Snapshot, SyncResponse, UpdateBlockRequest, UpdateCheckinRequest, UpdateCommentRequest,
+    UpdateHabitRequest, UpdateInviteRequest, UpdateJournalRequest, UpdatePageRequest, User,
+    VerifyRequest, WorkspaceInfo, WriteBlockResponse, WriteCheckinResponse, WriteCommentResponse,
+    WriteHabitResponse, WriteInviteResponse, WriteJournalResponse, WritePageResponse, API_VERSION,
 };
 
 use crate::{auth, db};
@@ -44,6 +44,8 @@ pub fn router(db: Db) -> Router {
         .route("/api/comments/{id}", patch(update_comment))
         .route("/api/journals", post(create_journal))
         .route("/api/journals/{id}", patch(update_journal))
+        .route("/api/invites", get(list_invites).post(create_invite))
+        .route("/api/invites/{id}", patch(update_invite))
         .route("/api/days/{date}/ensure", post(ensure_day))
         .route_layer(axum::middleware::from_fn_with_state(
             db.clone(),
@@ -187,9 +189,14 @@ async fn register(
     let conn = db.lock().unwrap();
     auth::cleanup_expired(&conn);
 
-    let invite = db::get_meta(&conn, "invite_code")?.unwrap_or_default();
-    if req.invite_code.trim() != invite {
-        return Err(AppError::forbidden("邀请码不正确"));
+    let code = req.invite_code.trim();
+    let invite = db::find_invite_by_code(&conn, code)?;
+    let valid = invite
+        .as_ref()
+        .map(|item| item.is_active(Utc::now()))
+        .unwrap_or(false);
+    if !valid {
+        return Err(AppError::forbidden("邀请码无效、已过期或已用尽"));
     }
 
     if let Some(existing) = auth::find_user_by_key(&conn, req.public_key.trim()) {
@@ -214,6 +221,7 @@ async fn register(
             user.created_at.to_rfc3339()
         ],
     )?;
+    db::increment_invite_use(&conn, code)?;
 
     let token = auth::create_session(&conn, &user.id)?;
     let workspace_name =
@@ -867,6 +875,68 @@ fn journal_target_exists(
             .map(|habit| !habit.deleted)
             .unwrap_or(false)),
     }
+}
+
+async fn list_invites(State(db): State<Db>) -> Result<Json<InviteListResponse>, AppError> {
+    let conn = db.lock().unwrap();
+    Ok(Json(InviteListResponse {
+        invites: db::list_invites(&conn)?,
+    }))
+}
+
+async fn create_invite(
+    State(db): State<Db>,
+    Extension(user): Extension<User>,
+    Json(req): Json<CreateInviteRequest>,
+) -> Result<Json<WriteInviteResponse>, AppError> {
+    if req.max_uses == Some(0) {
+        return Err(AppError::bad_request("可用次数必须大于 0"));
+    }
+    let now = Utc::now();
+    let note = if req.note.trim().is_empty() {
+        format!("由 {} 创建", user.name)
+    } else {
+        req.note.trim().to_string()
+    };
+    let expires_at = req
+        .expires_in_days
+        .map(|days| now + chrono::Duration::days(days as i64));
+
+    let conn = db.lock().unwrap();
+    for _ in 0..8 {
+        let candidate = Invite {
+            id: uuid::Uuid::new_v4().to_string(),
+            code: auth::generate_invite_code(),
+            note: note.clone(),
+            created_by: user.name.clone(),
+            created_at: now,
+            expires_at,
+            max_uses: req.max_uses,
+            used_count: 0,
+            revoked: false,
+        };
+        match db::insert_invite(&conn, &candidate) {
+            Ok(()) => return Ok(Json(WriteInviteResponse { invite: candidate })),
+            Err(err) if err.to_string().contains("UNIQUE") => continue,
+            Err(err) => return Err(AppError::from(err)),
+        }
+    }
+    Err(AppError::internal("生成邀请码失败，请重试"))
+}
+
+async fn update_invite(
+    State(db): State<Db>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateInviteRequest>,
+) -> Result<Json<WriteInviteResponse>, AppError> {
+    let conn = db.lock().unwrap();
+    let mut invite =
+        db::find_invite(&conn, &id)?.ok_or_else(|| AppError::not_found("邀请码不存在"))?;
+    if let Some(revoked) = req.revoked {
+        invite.revoked = revoked;
+    }
+    db::update_invite(&conn, &invite)?;
+    Ok(Json(WriteInviteResponse { invite }))
 }
 
 async fn create_journal(

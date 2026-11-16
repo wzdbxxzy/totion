@@ -5,10 +5,10 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use totion_core::{
     Block, BlockKind, BlockSection, Comment, CommentTargetKind, EntityKind, Habit, HabitCheckin,
-    HabitFrequency, JournalEntry, JournalTarget, Page, PageKind, User,
+    HabitFrequency, Invite, JournalEntry, JournalTarget, Page, PageKind, User,
 };
 
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS meta (
@@ -138,6 +138,21 @@ CREATE INDEX IF NOT EXISTS idx_journals_date ON journals(date, created_at);
 CREATE INDEX IF NOT EXISTS idx_journals_target ON journals(target_kind, target_id);
 "#;
 
+const V4_TABLES: &str = r#"
+CREATE TABLE IF NOT EXISTS invites (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  note TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT,
+  max_uses INTEGER,
+  used_count INTEGER NOT NULL DEFAULT 0,
+  revoked INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_invites_code ON invites(code);
+"#;
+
 pub fn open(path: &Path) -> AnyResult<Connection> {
     let conn = Connection::open(path)?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
@@ -168,6 +183,10 @@ fn migrate(conn: &Connection) -> AnyResult<()> {
     if current < 3 {
         apply_v3(&tx)?;
         set_meta(&tx, "schema_version", "3")?;
+    }
+    if current < 4 {
+        apply_v4(&tx)?;
+        set_meta(&tx, "schema_version", "4")?;
     }
     tx.commit()?;
     Ok(())
@@ -213,6 +232,11 @@ fn apply_v2(conn: &Connection) -> rusqlite::Result<()> {
 
 fn apply_v3(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(V3_TABLES)?;
+    Ok(())
+}
+
+fn apply_v4(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(V4_TABLES)?;
     Ok(())
 }
 
@@ -438,6 +462,20 @@ pub fn row_to_journal(row: &Row) -> rusqlite::Result<JournalEntry> {
     })
 }
 
+pub fn row_to_invite(row: &Row) -> rusqlite::Result<Invite> {
+    Ok(Invite {
+        id: row.get(0)?,
+        code: row.get(1)?,
+        note: row.get(2)?,
+        created_by: row.get(3)?,
+        created_at: parse_ts(&row.get::<_, String>(4)?),
+        expires_at: parse_opt_ts(row.get(5)?),
+        max_uses: row.get::<_, Option<i64>>(6)?.map(|value| value as u32),
+        used_count: row.get::<_, i64>(7)? as u32,
+        revoked: row.get::<_, i64>(8)? != 0,
+    })
+}
+
 const PAGE_COLUMNS: &str =
     "id, title, icon, kind, position, version, updated_at, updated_by, deleted, date";
 const BLOCK_COLUMNS: &str = "id, page_id, kind, text, checked, due_date, streak, position, version,
@@ -450,6 +488,8 @@ const COMMENT_COLUMNS: &str = "id, target_kind, target_id, body, resolved, autho
     author_name, version, created_at, updated_at, deleted";
 const JOURNAL_COLUMNS: &str = "id, target_kind, target_id, date, time, body, author_id,
     author_name, version, created_at, updated_at, deleted";
+const INVITE_COLUMNS: &str =
+    "id, code, note, created_by, created_at, expires_at, max_uses, used_count, revoked";
 
 pub fn list_pages(conn: &Connection) -> rusqlite::Result<Vec<Page>> {
     let mut stmt = conn.prepare(&format!(
@@ -558,6 +598,101 @@ pub fn find_journal(conn: &Connection, id: &str) -> rusqlite::Result<Option<Jour
         row_to_journal,
     )
     .optional()
+}
+
+pub fn list_invites(conn: &Connection) -> rusqlite::Result<Vec<Invite>> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {INVITE_COLUMNS} FROM invites ORDER BY created_at DESC"
+    ))?;
+    let rows = stmt.query_map([], row_to_invite)?;
+    rows.collect()
+}
+
+pub fn find_invite(conn: &Connection, id: &str) -> rusqlite::Result<Option<Invite>> {
+    conn.query_row(
+        &format!("SELECT {INVITE_COLUMNS} FROM invites WHERE id = ?1"),
+        params![id],
+        row_to_invite,
+    )
+    .optional()
+}
+
+pub fn find_invite_by_code(conn: &Connection, code: &str) -> rusqlite::Result<Option<Invite>> {
+    conn.query_row(
+        &format!("SELECT {INVITE_COLUMNS} FROM invites WHERE code = ?1"),
+        params![code],
+        row_to_invite,
+    )
+    .optional()
+}
+
+pub fn insert_invite(conn: &Connection, invite: &Invite) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO invites(id, code, note, created_by, created_at, expires_at, max_uses,
+                             used_count, revoked)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            invite.id,
+            invite.code,
+            invite.note,
+            invite.created_by,
+            invite.created_at.to_rfc3339(),
+            invite.expires_at.map(|value| value.to_rfc3339()),
+            invite.max_uses.map(i64::from),
+            invite.used_count as i64,
+            invite.revoked as i64,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn update_invite(conn: &Connection, invite: &Invite) -> rusqlite::Result<()> {
+    conn.execute(
+        "UPDATE invites SET note = ?2, expires_at = ?3, max_uses = ?4, used_count = ?5,
+                            revoked = ?6
+         WHERE id = ?1",
+        params![
+            invite.id,
+            invite.note,
+            invite.expires_at.map(|value| value.to_rfc3339()),
+            invite.max_uses.map(i64::from),
+            invite.used_count as i64,
+            invite.revoked as i64,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn increment_invite_use(conn: &Connection, code: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "UPDATE invites SET used_count = used_count + 1 WHERE code = ?1",
+        params![code],
+    )?;
+    Ok(())
+}
+
+/// 确保某个邀请码存在（用于初始邀请码和环境变量固定码）。已存在时不改动。
+pub fn ensure_invite(
+    conn: &Connection,
+    code: &str,
+    note: &str,
+    created_by: &str,
+) -> rusqlite::Result<()> {
+    if find_invite_by_code(conn, code)?.is_some() {
+        return Ok(());
+    }
+    let invite = Invite {
+        id: uuid::Uuid::new_v4().to_string(),
+        code: code.to_string(),
+        note: note.to_string(),
+        created_by: created_by.to_string(),
+        created_at: Utc::now(),
+        expires_at: None,
+        max_uses: None,
+        used_count: 0,
+        revoked: false,
+    };
+    insert_invite(conn, &invite)
 }
 
 pub fn find_page_by_date(conn: &Connection, date: &str) -> rusqlite::Result<Option<Page>> {

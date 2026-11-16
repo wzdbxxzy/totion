@@ -341,3 +341,44 @@ pub struct JournalEntry {
     pub updated_at: DateTime<Utc>,
     pub deleted: bool,
 }
+
+/// 一个邀请码。同一个空间的多个邀请码都能用来注册。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Invite {
+    pub id: Id,
+    pub code: String,
+    pub note: String,
+    pub created_by: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub max_uses: Option<u32>,
+    pub used_count: u32,
+    pub revoked: bool,
+}
+
+impl Invite {
+    pub fn is_active(&self, now: DateTime<Utc>) -> bool {
+        !self.revoked
+            && self.expires_at.map(|expire| expire > now).unwrap_or(true)
+            && self
+                .max_uses
+                .map(|max| self.used_count < max)
+                .unwrap_or(true)
+    }
+
+    pub fn status_label(&self, now: DateTime<Utc>) -> &'static str {
+        if self.revoked {
+            "已撤销"
+        } else if self.expires_at.map(|expire| expire <= now).unwrap_or(false) {
+            "已过期"
+        } else if self
+            .max_uses
+            .map(|max| self.used_count >= max)
+            .unwrap_or(false)
+        {
+            "已用尽"
+        } else {
+            "有效"
+        }
+    }
+}
