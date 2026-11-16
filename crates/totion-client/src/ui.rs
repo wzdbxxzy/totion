@@ -203,7 +203,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
     };
 
     let help = if main.editing().is_some() {
-        " Enter 保存 · Shift+Enter 无效 · Esc 取消 · 日记/评论用 Ctrl+S 保存"
+        " Enter 保存 · Esc 取消 · 总结/评论等多行内容用 Ctrl+S 保存"
     } else if let Some(modal) = main.modal() {
         match modal {
             Modal::EventForm(_) => " Tab 切换字段 · Enter 提交 · Esc 取消",
@@ -332,7 +332,7 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
                 style,
             ),
             Span::styled(
-                if page.is_daily() { " [日记]" } else { "" },
+                if page.is_daily() { " [每日]" } else { "" },
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
@@ -346,7 +346,7 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
     }
     if main.show_all_pages() {
         lines.push(Line::from(Span::styled(
-            "（a 隐藏日记页 · J 查看总结列表）",
+            "（a 隐藏每日页面 · J 查看总结列表）",
             Style::default().fg(Color::DarkGray),
         )));
     } else {

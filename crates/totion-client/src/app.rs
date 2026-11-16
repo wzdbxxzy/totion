@@ -1002,7 +1002,7 @@ impl MainState {
                 Some(page_id)
             }
             Err(err) => {
-                self.status = format!("创建 {date} 日记页失败: {err}");
+                self.status = format!("创建 {date} 页面失败: {err}");
                 None
             }
         }
@@ -2812,7 +2812,7 @@ impl MainState {
         let mut created = 0;
         for date in &dates {
             let Some(page_id) = self.ensure_day(date) else {
-                return Some(format!("创建 {date} 的日记页失败"));
+                return Some(format!("创建 {date} 的页面失败"));
             };
             let position = self
                 .blocks

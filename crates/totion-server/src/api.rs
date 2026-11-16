@@ -985,7 +985,7 @@ async fn ensure_day(
             created = true;
             let page = Page {
                 id: uuid::Uuid::new_v4().to_string(),
-                title: format!("{date} 日记"),
+                title: format!("{date} 总结"),
                 icon: "📔".to_string(),
                 kind: PageKind::Doc,
                 position: 0,
