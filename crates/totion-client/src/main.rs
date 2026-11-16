@@ -16,6 +16,18 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 
 fn main() -> Result<()> {
+    if std::env::args().any(|arg| arg == "--version" || arg == "-V") {
+        println!("totion {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+    if std::env::args().any(|arg| arg == "--help" || arg == "-h") {
+        println!(
+            "totion {} — 终端共享空间\n\n用法: totion\n\n首次启动在界面中填写服务器地址、名字与邀请码。",
+            env!("CARGO_PKG_VERSION")
+        );
+        return Ok(());
+    }
+
     let mut app = app::App::boot();
 
     enable_raw_mode()?;

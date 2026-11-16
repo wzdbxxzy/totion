@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
+<defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b949e"/>
+    </marker>
+    </defs>
+<rect x="0" y="0" width="1200" height="620" rx="0" fill="#0d1117"/>
+<rect x="40" y="90" width="300" height="220" rx="12" fill="#161b22" stroke="#30363d"/>
+<text x="60" y="126" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="20" text-anchor="start">TUI Client</text>
+<text x="60" y="154" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Rust · ratatui</text>
+<text x="60" y="190" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Windows</text>
+<text x="60" y="216" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">macOS (arm64 / x64)</text>
+<text x="60" y="242" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Linux</text>
+<text x="60" y="282" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">本地缓存 + 乐观锁</text>
+<rect x="480" y="90" width="280" height="220" rx="12" fill="#161b22" stroke="#30363d"/>
+<text x="500" y="126" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="20" text-anchor="start">Sync</text>
+<text x="500" y="158" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">HTTP / JSON</text>
+<text x="500" y="188" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Ed25519 挑战登录</text>
+<text x="500" y="214" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">GET /api/sync?since=N</text>
+<text x="500" y="240" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">每 2 秒增量拉取</text>
+<text x="500" y="280" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">change log + cursor</text>
+<rect x="880" y="90" width="280" height="220" rx="12" fill="#161b22" stroke="#30363d"/>
+<text x="900" y="126" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="20" text-anchor="start">Server</text>
+<text x="900" y="156" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Rust · axum</text>
+<text x="900" y="188" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">SQLite (WAL)</text>
+<text x="900" y="214" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">pages / blocks</text>
+<text x="900" y="240" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">habits / checkins / comments</text>
+<text x="900" y="280" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">systemd · GaryServer</text>
+<line x1="340" y1="200" x2="472" y2="200" stroke="#8b949e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="472" y1="222" x2="340" y2="222" stroke="#8b949e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="760" y1="200" x2="872" y2="200" stroke="#8b949e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="872" y1="222" x2="760" y2="222" stroke="#8b949e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="40" y="370" width="1120" height="190" rx="12" fill="#161b22" stroke="#30363d"/>
+<text x="64" y="406" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="20" text-anchor="start">CI / CD</text>
+<rect x="64" y="430" width="236" height="96" rx="10" fill="#21262d" stroke="#30363d"/>
+<text x="82" y="466" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">push main</text>
+<text x="82" y="494" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">fmt · clippy · test</text>
+<line x1="300" y1="478" x2="338" y2="478" stroke="#8b949e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="342" y="430" width="236" height="96" rx="10" fill="#21262d" stroke="#30363d"/>
+<text x="360" y="466" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">tag v*</text>
+<text x="360" y="494" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">3 平台构建 + Release</text>
+<line x1="578" y1="478" x2="616" y2="478" stroke="#8b949e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="620" y="430" width="236" height="96" rx="10" fill="#21262d" stroke="#30363d"/>
+<text x="638" y="466" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">deploy</text>
+<text x="638" y="494" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">scp · 备份 · systemctl</text>
+<line x1="856" y1="478" x2="894" y2="478" stroke="#8b949e" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="898" y="430" width="236" height="96" rx="10" fill="#21262d" stroke="#30363d"/>
+<text x="916" y="466" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">health</text>
+<text x="916" y="494" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">/api/health 校验</text>
+<text x="64" y="586" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">SQLite 单实例 + 变更日志；客户端离线时从游标继续追赶。</text>
+</svg>
