@@ -115,7 +115,7 @@ def banner():
         text(
             84,
             232,
-            "Plan · Habits · Todos · Calendar · Journal — synced for two.",
+            "Plan · Habits · Todos · Calendar · Journal — synced for a small group.",
             MUTED,
             18,
         )
@@ -459,6 +459,220 @@ def architecture_screenshot():
     return svg(width, height, "\n".join(body), defs)
 
 
+def setup_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 首次连接")
+    x, y, w, h = 320, 150, 640, 360
+    body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
+    body += "\n" + text(x + 32, y + 52, "totion · 连接共享空间", CYAN, 22, bold=True)
+    body += "\n" + text(
+        x + 32, y + 88, "第一次使用需要邀请码注册，之后自动免密登录。", MUTED, 14
+    )
+    fields = [
+        ("服务器地址", "http://64.31.25.155:8080", True),
+        ("名字", "Guan", False),
+        ("邀请码", "36BB876E", False),
+    ]
+    fy = y + 146
+    for label, value, active in fields:
+        prefix = "▶ " if active else "  "
+        line = f"{prefix}{label}: {value}" + ("█" if active else "")
+        body += "\n" + text(
+            x + 32, fy, line, CYAN if active else TEXT, 16, bold=active
+        )
+        fy += 48
+    body += "\n" + text(
+        x + 32,
+        y + 306,
+        "Tab 切换字段   Enter 连接   Ctrl+R 重置密钥   Ctrl+C 退出",
+        MUTED,
+        13,
+    )
+    return svg(width, height, body, defs)
+
+
+def workspace_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 工作区")
+
+    body += "\n" + rect(24, 58, width - 48, 32, CYAN, None, 6)
+    body += "\n" + text(
+        40, 79, "totion · 我的共享空间 · Guan · 3 位成员 · 工作区 [2/5]", "#0d1117", 15, bold=True
+    )
+
+    body += "\n" + panel(24, 110, 380, 560, " 页面 ")
+    pages = [
+        ("🎯 计划", 0),
+        ("▶ 🎯 2026 计划", 0),
+        ("  📄 周会记录", 0),
+        ("  📄 数据库迁移笔记", 0),
+        ("📅 日历", 0),
+        ("  📅 十一月", 0),
+        ("✅ 待办", 0),
+        ("  ✅ 本周", 0),
+    ]
+    y = 156
+    for label, _ in pages:
+        if label.strip() == "2026 计划":
+            body += "\n" + rect(34, y - 22, 360, 34, PANEL2, None, 6)
+        body += "\n" + text(46, y, label, TEXT, 15)
+        y += 44
+
+    body += "\n" + panel(424, 110, 832, 560, " 2026 计划 ")
+    rows = [
+        ("# 2026 计划", TEXT, True),
+        ("", TEXT, False),
+        ("[ ] 完成 v0.2 发布   [2]", TEXT, False),
+        ("[x] 写迁移测试", GREEN, False),
+        ("· 明天把更新同步给队友", TEXT, False),
+        ("📅 2026-11-20  复盘会", YELLOW, False),
+        ("09:00  [ ] 晨跑 5km", TEXT, False),
+        ("────────", MUTED, False),
+        ("· 备注：迁移前先备份数据库", TEXT, False),
+    ]
+    y = 158
+    for value, color, bold in rows:
+        body += "\n" + text(448, y, value, color, 15, bold=bold)
+        y += 44
+
+    body += "\n" + text(
+        40, 700, "n 文本 · t 待办 · c 日程 · Enter 编辑 · C 评论 · N 新页面", MUTED, 13
+    )
+    return svg(width, height, body, defs)
+
+
+def comments_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 评论")
+
+    body += "\n" + rect(24, 58, width - 48, 32, CYAN, None, 6)
+    body += "\n" + text(
+        40, 79, "totion · 我的共享空间 · Guan · 3 位成员 · 工作区 [2/5]", "#0d1117", 15, bold=True
+    )
+
+    # 背景主界面（简化）
+    body += "\n" + panel(24, 110, 620, 560, " 2026 计划 ")
+    background_rows = [
+        ("# 2026 计划", TEXT),
+        ("[ ] 完成 v0.2 发布   [2]", TEXT),
+        ("[x] 写迁移测试", GREEN),
+        ("· 明天把更新同步给队友", TEXT),
+    ]
+    y = 158
+    for value, color in background_rows:
+        body += "\n" + text(48, y, value, color, 15)
+        y += 44
+
+    # 评论面板
+    px = 700
+    body += "\n" + rect(px, 40, width - px - 1, height - 41, PANEL, BORDER, 0)
+    body += "\n" + text(
+        px + 24, 76, "评论 · 内容块「完成 v0.2 发布」", CYAN, 16, bold=True
+    )
+
+    comments = [
+        ("[ ]", "Guan", "11-16 14:32", "迁移测试已经过了吗？", False),
+        ("[✓]", "队友", "11-16 15:10", "过了，数据库也备份了。", True),
+        ("[ ]", "Guan", "11-16 15:12", "那今晚发 v0.2.0。", False),
+    ]
+    y = 126
+    for mark, author, time, content, resolved in comments:
+        if resolved:
+            body += "\n" + rect(px + 16, y - 24, width - px - 40, 84, PANEL2, None, 8)
+        body += "\n" + text(px + 28, y, mark, GREEN if resolved else MUTED, 15)
+        body += "\n" + text(px + 72, y, author, TEXT, 15, bold=True)
+        body += "\n" + text(px + 180, y, time, MUTED, 12)
+        body += "\n" + text(px + 28, y + 32, content, TEXT, 14)
+        y += 96
+
+    body += "\n" + text(
+        px + 24, 640, "a 添加 · e 编辑 · r 解决/取消 · d 删除 · Esc 关闭", MUTED, 13
+    )
+    return svg(width, height, body, defs)
+
+
+def search_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 搜索")
+
+    x, y, w, h = 200, 120, 880, 480
+    body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
+    body += "\n" + text(x + 28, y + 44, "搜索: 迁移█", CYAN, 20, bold=True)
+    results = [
+        ("[页面]", "2026 计划", True),
+        ("[内容块]", "写迁移测试", False),
+        ("[内容块]", "数据库迁移笔记", False),
+        ("[习惯]", "阅读 30 分钟", False),
+    ]
+    ry = y + 104
+    for kind, value, selected in results:
+        if selected:
+            body += "\n" + rect(x + 18, ry - 26, w - 36, 40, PANEL2, None, 6)
+        body += "\n" + text(x + 36, ry, kind, MUTED, 14)
+        body += "\n" + text(x + 150, ry, value, TEXT, 16, bold=selected)
+        ry += 54
+
+    body += "\n" + text(
+        x + 28, y + h - 24, "j/k 选择 · Enter 跳转 · Esc 关闭", MUTED, 13
+    )
+    return svg(width, height, body, defs)
+
+
+def help_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 帮助")
+
+    x, y, w, h = 180, 70, 920, 580
+    body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
+    body += "\n" + text(x + 30, y + 44, "帮助", CYAN, 18, bold=True)
+
+    sections = [
+        ("视图", "1 今日   2 工作区   3 日历   4 习惯   5 统计"),
+        ("移动", "j/k 或 ↑/↓ 上下移动；Tab 切换页面/内容面板"),
+        ("日历", "h/l 前后一天；j/k 前后一周；[ ] 换月"),
+        ("编辑", "Enter/e 编辑；Enter 保存；Esc 取消"),
+        ("待办/习惯", "Space 勾选或打卡；u 撤销今天的打卡"),
+        ("新建", "t 待办；c 日程；n 习惯；N 页面"),
+        ("协作", "C 打开评论；/ 搜索；r 手动同步"),
+        ("其他", "? 帮助；q 或 Ctrl+C 退出"),
+    ]
+    line_y = y + 90
+    for title, detail in sections:
+        body += "\n" + text(x + 30, line_y, title, TEXT, 15, bold=True)
+        body += "\n" + text(x + 150, line_y, detail, MUTED, 14)
+        line_y += 52
+
+    body += "\n" + text(x + 30, y + h - 28, "按 Esc 关闭", MUTED, 13)
+    return svg(width, height, body, defs)
+
+
+def new_event_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 新建待办")
+
+    x, y, w, h = 330, 190, 620, 320
+    body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
+    body += "\n" + text(x + 30, y + 48, "新建待办", CYAN, 20, bold=True)
+
+    fields = [
+        ("标题", "写迁移测试", True),
+        ("日期", "2026-11-16", False),
+        ("开始", "15:00", False),
+        ("结束", "16:00", False),
+    ]
+    fy = y + 100
+    for label, value, active in fields:
+        prefix = "▶ " if active else "  "
+        line = f"{prefix}{label}: {value}" + ("█" if active else "")
+        body += "\n" + text(x + 30, fy, line, CYAN if active else TEXT, 15, bold=active)
+        fy += 40
+
+    body += "\n" + text(
+        x + 30, y + h - 28, "Tab 切换字段 · Enter 提交 · Esc 取消", MUTED, 13
+    )
+    return svg(width, height, body, defs)
+
+
 def main():
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
     screenshots = os.path.join(out_dir, "screenshots")
@@ -467,10 +681,16 @@ def main():
     files = {
         os.path.join(out_dir, "banner.svg"): banner(),
         os.path.join(out_dir, "architecture.svg"): architecture_screenshot(),
+        os.path.join(screenshots, "setup.svg"): setup_screenshot(),
         os.path.join(screenshots, "today.svg"): today_screenshot(),
-        os.path.join(screenshots, "habits.svg"): habits_screenshot(),
+        os.path.join(screenshots, "workspace.svg"): workspace_screenshot(),
         os.path.join(screenshots, "calendar.svg"): calendar_screenshot(),
+        os.path.join(screenshots, "habits.svg"): habits_screenshot(),
         os.path.join(screenshots, "stats.svg"): stats_screenshot(),
+        os.path.join(screenshots, "comments.svg"): comments_screenshot(),
+        os.path.join(screenshots, "search.svg"): search_screenshot(),
+        os.path.join(screenshots, "help.svg"): help_screenshot(),
+        os.path.join(screenshots, "new-event.svg"): new_event_screenshot(),
     }
     for path, content in files.items():
         with open(path, "w", encoding="utf-8") as handle:

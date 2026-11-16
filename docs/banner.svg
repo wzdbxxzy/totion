@@ -56,7 +56,7 @@
 <line x1="0" y1="400" x2="1280" y2="400" stroke="#21262d" stroke-width="1" opacity="0.35"/>
 <text x="80" y="150" font-weight="600" fill="#ffffff" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="84" text-anchor="start">totion</text>
 <text x="84" y="198" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="24" text-anchor="start">A shared space in your terminal.</text>
-<text x="84" y="232" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">Plan · Habits · Todos · Calendar · Journal — synced for two.</text>
+<text x="84" y="232" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">Plan · Habits · Todos · Calendar · Journal — synced for a small group.</text>
 <rect x="84" y="270" width="58" height="30" rx="15" fill="#21262d" stroke="#30363d"/>
 <text x="96" y="290" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">Rust</text>
 <rect x="152" y="270" width="85" height="30" rx="15" fill="#21262d" stroke="#30363d"/>

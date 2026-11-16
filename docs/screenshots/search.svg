@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><clipPath id="win-clip"><rect x="1" y="1" width="1278" height="718" rx="14"/></clipPath></defs>
+<g clip-path="url(#win-clip)">
+<rect x="1" y="1" width="1278" height="718" rx="0" fill="#0d1117"/>
+<rect x="1" y="1" width="1278" height="40" rx="0" fill="#161b22"/>
+</g>
+<rect x="1" y="1" width="1278" height="718" rx="14" fill="none" stroke="#30363d"/>
+<circle cx="26" cy="21" r="6" fill="#ff5f56"/>
+<circle cx="46" cy="21" r="6" fill="#ffbd2e"/>
+<circle cx="66" cy="21" r="6" fill="#27c93f"/>
+<text x="640.0" y="26" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="middle">totion — 搜索</text>
+<rect x="200" y="120" width="880" height="480" rx="12" fill="#161b22" stroke="#30363d"/>
+<text x="228" y="164" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="20" text-anchor="start">搜索: 迁移█</text>
+<rect x="218" y="198" width="844" height="40" rx="6" fill="#21262d"/>
+<text x="236" y="224" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">[页面]</text>
+<text x="350" y="224" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">2026 计划</text>
+<text x="236" y="278" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">[内容块]</text>
+<text x="350" y="278" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">写迁移测试</text>
+<text x="236" y="332" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">[内容块]</text>
+<text x="350" y="332" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">数据库迁移笔记</text>
+<text x="236" y="386" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">[习惯]</text>
+<text x="350" y="386" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">阅读 30 分钟</text>
+<text x="228" y="576" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">j/k 选择 · Enter 跳转 · Esc 关闭</text>
+</svg>
