@@ -176,7 +176,7 @@ def today_screenshot():
     body += "\n" + rect(270, 111, 220, 14, PANEL2, BORDER, 7)
     body += "\n" + rect(270, 111, 125, 14, GREEN, None, 7)
     body += "\n" + text(506, 124, "4/7   57%", MUTED, 15)
-    body += "\n" + text(650, 124, "[ ] 切换日期 · w 近一周", MUTED, 13)
+    body += "\n" + text(650, 124, "h/l 或 [ ] 切换日期 · w 近一周", MUTED, 13)
 
     # 今日待办
     body += "\n" + panel(24, 146, 700, 250, " 今日待办 [Tab] ")
@@ -220,7 +220,7 @@ def today_screenshot():
     body += "\n" + text(
         40,
         716,
-        "Tab 切换 待办/习惯/总结 · j/k 移动 · Space 勾选/打卡 · a 写总结 · t 新建待办 · q 退出",
+        "j/k 移动 · Space 勾选 · Enter 编辑 · d 删除 · a 总结 · t 新建 · h/l 切天 · w 周 · Tab 面板",
         MUTED,
         13,
     )
@@ -557,7 +557,7 @@ def workspace_screenshot():
         body += "\n" + text(46, y, label, TEXT, 15)
         y += 44
 
-    body += "\n" + panel(424, 110, 832, 560, " 2026 计划 ")
+    body += "\n" + panel(424, 110, 832, 348, " 2026 计划 ")
     rows = [
         ("# 2026 计划", TEXT, True),
         ("", TEXT, False),
@@ -566,16 +566,31 @@ def workspace_screenshot():
         ("· 明天把更新同步给队友", TEXT, False),
         ("○ 复盘会", TEXT, False),
         ("09:00  [ ] 晨跑 5km", TEXT, False),
-        ("────────", MUTED, False),
         ("· 备注：迁移前先备份数据库", TEXT, False),
     ]
-    y = 158
+    y = 154
     for value, color, bold in rows:
         body += "\n" + text(448, y, value, color, 15, bold=bold)
-        y += 44
+        y += 38
+
+    # 右下常驻「全部总结」
+    body += "\n" + panel(424, 476, 832, 194, " 全部总结 · J 展开 ")
+    journals = [
+        ("2026-11-16", "[待办]", "买菜", "菜市场的番茄便宜，顺手记一下。"),
+        ("2026-11-16", "[习惯]", "阅读 30 分钟", "读到第四章，讲增量同步的取舍。"),
+        ("2026-11-15", "[习惯]", "跑步", "慢跑 4km，膝盖状态还行。"),
+        ("2026-11-15", "[待办]", "评审新设计", "把配色和日历格子再对齐一版。"),
+    ]
+    y = 512
+    for date, tag, label, preview in journals:
+        body += "\n" + text(448, y, date, CYAN, 13)
+        body += "\n" + text(556, y, tag, YELLOW, 13)
+        body += "\n" + text(624, y, label, TEXT, 13, bold=True)
+        body += "\n" + text(796, y, preview, MUTED, 13)
+        y += 36
 
     body += "\n" + text(
-        40, 700, "n 文本 · t 待办 · Enter 编辑 · C 评论 · N 新页面 · a 每日页面", MUTED, 13
+        40, 700, "Tab 页面/内容 · j/k 移动 · Enter 编辑 · n 文本 · t 待办 · N 新页面 · a 每日页 · d 删除 · J 全部总结 · C 评论", MUTED, 13
     )
     return svg(width, height, body, defs)
 
@@ -663,12 +678,12 @@ def help_screenshot():
 
     x, y, w, h = 180, 70, 920, 580
     body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
-    body += "\n" + text(x + 30, y + 44, "帮助", CYAN, 18, bold=True)
+    body += "\n" + text(x + 30, y + 44, "帮助 · v0.7.0", CYAN, 18, bold=True)
 
     sections = [
         ("视图", "1 今日   2 工作区   3 日历   4 习惯   5 统计   6 留言"),
-        ("今日", "Tab 待办/习惯/总结；[ ] 切换日期；w 近一周；a 写总结"),
-        ("工作区", "Tab 页面/内容；J 全部总结；n 文本；t 待办；N 新页面"),
+        ("今日", "Tab 待办/习惯/总结；h/l 或 [ ] 切日期；w 近一周；a 写总结"),
+        ("工作区", "Tab 页面/内容；右下常驻全部总结；J 全屏；n 文本；t 待办"),
         ("日历", "h/l 选日；j/k 前后一周；[ ] 换月；Enter 议程；v 框选"),
         ("批量", "选中日期范围后按 t 批量新建待办（最多 62 天）"),
         ("习惯", "n 新建；d 归档；Space 打卡；u 撤销；Ctrl+F 切换频率"),

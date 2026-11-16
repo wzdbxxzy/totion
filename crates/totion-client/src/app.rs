@@ -885,16 +885,8 @@ impl MainState {
                 .today_habits()
                 .get(self.selected_today_habit_index)
                 .map(|(habit, _)| (JournalTarget::Habit, habit.id.clone())),
-            TodayFocus::Journal => self
-                .today_items()
-                .get(self.selected_today_index)
-                .and_then(|row| match row {
-                    TodayRow::Todo(block) | TodayRow::Event(block) => {
-                        Some((JournalTarget::Block, block.id.clone()))
-                    }
-                    TodayRow::Habit(_, _) => None,
-                })
-                .or_else(|| Some((JournalTarget::Daily, self.view_key()))),
+            // 总结面板只跟随「待办 / 习惯」的选中项；焦点在总结面板、或没有选中对象时不显示。
+            TodayFocus::Journal => None,
         }
     }
 
@@ -919,6 +911,31 @@ impl MainState {
             .collect();
         comments.sort_by_key(|comment| (comment.resolved, std::cmp::Reverse(comment.updated_at)));
         comments
+    }
+
+    /// 总结挂载对象的可读名称，用于工作区汇总列表。
+    pub fn journal_target_label(&self, kind: JournalTarget, id: &str) -> String {
+        match kind {
+            JournalTarget::Daily => "当日总结".to_string(),
+            JournalTarget::Block => self
+                .blocks
+                .iter()
+                .find(|block| block.id == id && !block.deleted)
+                .map(|block| {
+                    if block.text.is_empty() {
+                        block.kind.icon().to_string()
+                    } else {
+                        block.text.clone()
+                    }
+                })
+                .unwrap_or_else(|| "已删除待办".to_string()),
+            JournalTarget::Habit => self
+                .habits
+                .iter()
+                .find(|habit| habit.id == id)
+                .map(|habit| habit.title.clone())
+                .unwrap_or_else(|| "已删除习惯".to_string()),
+        }
     }
 
     pub fn comment_target_label(&self, kind: CommentTargetKind, id: &str) -> String {
@@ -1496,7 +1513,7 @@ impl MainState {
     fn handle_today_key(&mut self, key: KeyEvent) {
         if self.week_mode {
             match key.code {
-                KeyCode::Char('w') | KeyCode::Esc => self.week_mode = false,
+                KeyCode::Char('w') | KeyCode::Char('W') | KeyCode::Esc => self.week_mode = false,
                 KeyCode::Up | KeyCode::Char('k') => {
                     self.week_selected = self.week_selected.saturating_sub(1);
                 }
@@ -1517,15 +1534,15 @@ impl MainState {
         }
 
         match key.code {
-            KeyCode::Char('[') => {
+            KeyCode::Char('[') | KeyCode::Left | KeyCode::Char('h') => {
                 self.view_date -= ChronoDuration::days(1);
                 self.clamp();
             }
-            KeyCode::Char(']') => {
+            KeyCode::Char(']') | KeyCode::Right | KeyCode::Char('l') => {
                 self.view_date += ChronoDuration::days(1);
                 self.clamp();
             }
-            KeyCode::Char('w') => {
+            KeyCode::Char('w') | KeyCode::Char('W') => {
                 self.week_mode = true;
                 self.week_selected = 6;
             }

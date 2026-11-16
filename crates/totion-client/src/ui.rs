@@ -246,11 +246,19 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
         }
     } else {
         match main.view() {
-            View::Today => {
-                " Tab 切换 待办/习惯/总结 · j/k 移动 · Enter 编辑 · Space 勾选/打卡 · a 写总结 · t 新建待办 · q 退出"
-            }
+            View::Today => match main.today_focus() {
+                TodayFocus::Items => {
+                    " j/k 移动 · Space 勾选 · Enter 编辑 · d 删除 · a 总结 · t 新建 · h/l 切天 · w 周 · Tab 面板"
+                }
+                TodayFocus::Habits => {
+                    " j/k 移动 · Space 打卡 · u 撤销 · a 总结 · d 删除 · h/l 切天 · w 周 · Tab 面板"
+                }
+                TodayFocus::Journal => {
+                    " 选中待办/习惯后 a 写总结 · h/l 切天 · w 周 · Tab 面板"
+                }
+            },
             View::Workspace => {
-                " Tab 切换页面/内容 · j/k 移动 · Enter 编辑 · n 文本 · t 待办 · N 新页面 · a 每日页面 · d 删除 · C 评论 · q"
+                " Tab 页面/内容 · j/k 移动 · Enter 编辑 · n 文本 · t 待办 · N 新页面 · a 每日页 · d 删除 · J 全部总结 · C 评论"
             }
             View::Calendar => {
                 " h/l 选日 · j/k 前后周 · [ ] 换月 · Enter 议程 · v 框选 · t 新建/批量待办 · q 退出"
@@ -287,7 +295,59 @@ fn draw_workspace(frame: &mut Frame, area: Rect, main: &MainState) {
         .constraints([Constraint::Percentage(32), Constraint::Percentage(68)])
         .split(area);
     draw_pages(frame, columns[0], main);
-    draw_blocks(frame, columns[1], main);
+    let right = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(58), Constraint::Percentage(42)])
+        .split(columns[1]);
+    draw_blocks(frame, right[0], main);
+    draw_summary_preview(frame, right[1], main);
+}
+
+/// 工作区右下常驻的「全部总结」预览，无需按 J 就能看到今日写过的总结。
+fn draw_summary_preview(frame: &mut Frame, area: Rect, main: &MainState) {
+    let journals = main.all_journals();
+    let limit = area.height.saturating_sub(2) as usize;
+    let mut lines: Vec<Line> = Vec::new();
+    for journal in journals.iter().take(limit) {
+        let tag = match journal.target_kind {
+            totion_core::JournalTarget::Daily => "当日",
+            totion_core::JournalTarget::Block => "待办",
+            totion_core::JournalTarget::Habit => "习惯",
+        };
+        let label = main.journal_target_label(journal.target_kind, &journal.target_id);
+        let preview: String = journal
+            .body
+            .lines()
+            .next()
+            .unwrap_or("")
+            .chars()
+            .take(30)
+            .collect();
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!("{} ", journal.date),
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::styled(format!("[{tag}] "), Style::default().fg(Color::Yellow)),
+            Span::styled(
+                format!("{label} "),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(preview, Style::default().fg(Color::Gray)),
+        ]));
+    }
+    if lines.is_empty() {
+        lines.push(Line::from(Span::styled(
+            " 还没有总结。在今日选中待办/习惯后按 a 写总结。",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+    frame.render_widget(
+        Paragraph::new(lines)
+            .block(block_title(" 全部总结 · J 展开 "))
+            .wrap(Wrap { trim: false }),
+        area,
+    );
 }
 
 fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
@@ -600,7 +660,7 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
                 Style::default().fg(Color::Gray),
             ),
             Span::styled(
-                "   [ ] 切换日期 · w 近一周",
+                "   h/l 或 [ ] 切换日期 · w 近一周",
                 Style::default().fg(Color::DarkGray),
             ),
             Span::styled(
@@ -1299,13 +1359,17 @@ fn draw_confirm(frame: &mut Frame, confirm: &crate::app::ConfirmState) {
     frame.render_widget(Clear, area);
     let lines = vec![
         Line::from(Span::styled(
-            format!(" 确定删除 {}？", confirm.label),
+            format!(" 确定要删除 {} 吗？", confirm.label),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         )),
+        Line::from(Span::styled(
+            " 删除后所有成员都会看不到它，且无法撤销。",
+            Style::default().fg(Color::Gray),
+        )),
         Line::from(""),
-        Line::from(" 输入 delete 并回车确认："),
+        Line::from(" 请输入 delete 并回车确认："),
         Line::from(Span::styled(
             format!(" > {}█", confirm.input),
             Style::default().fg(Color::Cyan),
@@ -1700,7 +1764,7 @@ fn draw_search(frame: &mut Frame, state: &SearchState) {
 }
 
 fn draw_help(frame: &mut Frame) {
-    let area = centered_rect(70, 80, frame.area());
+    let area = centered_rect(72, 92, frame.area());
     frame.render_widget(Clear, area);
     let lines = vec![
         Line::from(Span::styled(
@@ -1715,6 +1779,7 @@ fn draw_help(frame: &mut Frame) {
         )),
         Line::from(" Tab 待办/习惯/总结   j/k 移动   Enter 编辑"),
         Line::from(" Space 勾选或打卡   a 写总结   t 新建待办"),
+        Line::from(" h/l 或 [ ] 前一天/后一天   w 近一周   d 删除"),
         Line::from(""),
         Line::from(Span::styled(
             " 工作区",
@@ -1722,6 +1787,7 @@ fn draw_help(frame: &mut Frame) {
         )),
         Line::from(" Tab 页面/内容   j/k 移动   Enter 编辑   d 删除"),
         Line::from(" n 文本   t 待办   N 新页面   a 显示每日页面"),
+        Line::from(" 右下常驻全部总结   J 全屏展开"),
         Line::from(""),
         Line::from(Span::styled(
             " 日历",
@@ -1757,7 +1823,10 @@ fn draw_help(frame: &mut Frame) {
     ];
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(" 帮助 "))
+            .block(block_title(format!(
+                " 帮助 · v{} ",
+                env!("CARGO_PKG_VERSION")
+            )))
             .wrap(Wrap { trim: false }),
         area,
     );
