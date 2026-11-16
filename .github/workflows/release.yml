@@ -117,13 +117,21 @@ jobs:
           name: totion-x86_64-unknown-linux-gnu
           path: dist
 
+      - name: Extract server binary
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          tar -xzf dist/totion-x86_64-unknown-linux-gnu.tar.gz -C bin
+          chmod +x bin/totion-server
+          ls -la bin
+
       - name: Upload server binary and unit
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "dist/totion-server,deploy/totion.service"
+          source: "bin/totion-server,deploy/totion.service"
           target: /home/${{ secrets.DEPLOY_USER }}/totion
           strip_components: 1
           overwrite: true
