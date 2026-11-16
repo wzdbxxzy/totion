@@ -286,3 +286,58 @@ pub struct Comment {
     pub updated_at: DateTime<Utc>,
     pub deleted: bool,
 }
+
+/// 总结挂在什么对象上。
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum JournalTarget {
+    /// 当天整体总结，target_id 存日期
+    Daily,
+    Block,
+    Habit,
+}
+
+impl JournalTarget {
+    pub fn label(self) -> &'static str {
+        match self {
+            JournalTarget::Daily => "当日",
+            JournalTarget::Block => "待办",
+            JournalTarget::Habit => "习惯",
+        }
+    }
+
+    pub fn as_wire(self) -> &'static str {
+        match self {
+            JournalTarget::Daily => "daily",
+            JournalTarget::Block => "block",
+            JournalTarget::Habit => "habit",
+        }
+    }
+
+    pub fn from_wire(value: &str) -> Option<Self> {
+        match value {
+            "daily" => Some(JournalTarget::Daily),
+            "block" => Some(JournalTarget::Block),
+            "habit" => Some(JournalTarget::Habit),
+            _ => None,
+        }
+    }
+}
+
+/// 一条总结：对某个待办/习惯/当天的记录，带日期与时间。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct JournalEntry {
+    pub id: Id,
+    pub target_kind: JournalTarget,
+    /// Daily 时是日期字符串；Block/Habit 时是对象 id
+    pub target_id: Id,
+    pub date: String,
+    pub time: String,
+    pub body: String,
+    pub author_id: Id,
+    pub author_name: String,
+    pub version: i64,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted: bool,
+}

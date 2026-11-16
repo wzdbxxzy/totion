@@ -15,11 +15,13 @@ use serde_json::json;
 use totion_core::{
     valid_date, valid_time, ApiError, AuthResponse, Block, BlockKind, BlockSection,
     ChallengeRequest, ChallengeResponse, Change, CheckinRequest, Comment, CommentTargetKind,
-    CreateBlockRequest, CreateCommentRequest, CreateHabitRequest, CreatePageRequest,
-    EnsureDayResponse, EntityKind, Habit, HabitCheckin, Page, PageKind, RegisterRequest, Snapshot,
-    SyncResponse, UpdateBlockRequest, UpdateCheckinRequest, UpdateCommentRequest,
-    UpdateHabitRequest, UpdatePageRequest, User, VerifyRequest, WorkspaceInfo, WriteBlockResponse,
-    WriteCheckinResponse, WriteCommentResponse, WriteHabitResponse, WritePageResponse, API_VERSION,
+    CreateBlockRequest, CreateCommentRequest, CreateHabitRequest, CreateJournalRequest,
+    CreatePageRequest, EnsureDayResponse, EntityKind, Habit, HabitCheckin, JournalEntry,
+    JournalTarget, Page, PageKind, RegisterRequest, Snapshot, SyncResponse, UpdateBlockRequest,
+    UpdateCheckinRequest, UpdateCommentRequest, UpdateHabitRequest, UpdateJournalRequest,
+    UpdatePageRequest, User, VerifyRequest, WorkspaceInfo, WriteBlockResponse,
+    WriteCheckinResponse, WriteCommentResponse, WriteHabitResponse, WriteJournalResponse,
+    WritePageResponse, API_VERSION,
 };
 
 use crate::{auth, db};
@@ -40,6 +42,8 @@ pub fn router(db: Db) -> Router {
         .route("/api/checkins/{id}", patch(update_checkin))
         .route("/api/comments", post(create_comment))
         .route("/api/comments/{id}", patch(update_comment))
+        .route("/api/journals", post(create_journal))
+        .route("/api/journals/{id}", patch(update_journal))
         .route("/api/days/{date}/ensure", post(ensure_day))
         .route_layer(axum::middleware::from_fn_with_state(
             db.clone(),
@@ -295,6 +299,7 @@ async fn snapshot(State(db): State<Db>) -> Result<Json<Snapshot>, AppError> {
     let habits = db::list_habits(&conn)?;
     let checkins = db::list_checkins(&conn)?;
     let comments = db::list_comments(&conn)?;
+    let journals = db::list_journals(&conn)?;
     let last_seq = db::max_seq(&conn)?;
     let workspace_name =
         db::get_meta(&conn, "workspace_name")?.unwrap_or_else(|| "totion 共享空间".to_string());
@@ -309,6 +314,7 @@ async fn snapshot(State(db): State<Db>) -> Result<Json<Snapshot>, AppError> {
         habits,
         checkins,
         comments,
+        journals,
         last_seq,
         api_version: API_VERSION,
     }))
@@ -845,6 +851,108 @@ async fn update_comment(
 
     let seq = db::update_comment_and_change(&conn, &comment, &user.name)?;
     Ok(Json(WriteCommentResponse { comment, seq }))
+}
+
+fn journal_target_exists(
+    conn: &Connection,
+    kind: JournalTarget,
+    id: &str,
+) -> rusqlite::Result<bool> {
+    match kind {
+        JournalTarget::Daily => Ok(true),
+        JournalTarget::Block => Ok(db::find_block(conn, id)?
+            .map(|block| !block.deleted)
+            .unwrap_or(false)),
+        JournalTarget::Habit => Ok(db::find_habit(conn, id)?
+            .map(|habit| !habit.deleted)
+            .unwrap_or(false)),
+    }
+}
+
+async fn create_journal(
+    State(db): State<Db>,
+    Extension(user): Extension<User>,
+    Json(req): Json<CreateJournalRequest>,
+) -> Result<Json<WriteJournalResponse>, AppError> {
+    if !valid_date(&req.date) {
+        return Err(AppError::bad_request("date 必须是 YYYY-MM-DD"));
+    }
+    if !valid_time(&req.time) {
+        return Err(AppError::bad_request("time 必须是 HH:MM"));
+    }
+    let body = req.body.trim();
+    if body.is_empty() {
+        return Err(AppError::bad_request("总结内容不能为空"));
+    }
+    if body.chars().count() > 8000 {
+        return Err(AppError::bad_request("总结不能超过 8000 字"));
+    }
+
+    let target_id = if req.target_kind == JournalTarget::Daily && req.target_id.is_empty() {
+        req.date.clone()
+    } else {
+        req.target_id.clone()
+    };
+    if req.target_kind == JournalTarget::Daily && !valid_date(&target_id) {
+        return Err(AppError::bad_request("当日总结的 target_id 必须是日期"));
+    }
+
+    let conn = db.lock().unwrap();
+    if !journal_target_exists(&conn, req.target_kind, &target_id)? {
+        return Err(AppError::not_found("总结目标不存在"));
+    }
+
+    let now = Utc::now();
+    let journal = JournalEntry {
+        id: uuid::Uuid::new_v4().to_string(),
+        target_kind: req.target_kind,
+        target_id,
+        date: req.date,
+        time: req.time,
+        body: body.to_string(),
+        author_id: user.id.clone(),
+        author_name: user.name.clone(),
+        version: 1,
+        created_at: now,
+        updated_at: now,
+        deleted: false,
+    };
+    let seq = db::insert_journal_and_change(&conn, &journal, &user.name)?;
+    Ok(Json(WriteJournalResponse { journal, seq }))
+}
+
+async fn update_journal(
+    State(db): State<Db>,
+    Extension(user): Extension<User>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateJournalRequest>,
+) -> Result<Json<WriteJournalResponse>, AppError> {
+    let conn = db.lock().unwrap();
+    let mut journal =
+        db::find_journal(&conn, &id)?.ok_or_else(|| AppError::not_found("总结不存在"))?;
+
+    if journal.version != req.expected_version {
+        return Err(AppError::conflict(
+            "该总结已被其他人修改，请刷新后重试",
+            serde_json::to_value(&journal)?,
+        ));
+    }
+
+    if let Some(body) = req.body {
+        let body = body.trim();
+        if body.is_empty() {
+            return Err(AppError::bad_request("总结内容不能为空"));
+        }
+        journal.body = body.to_string();
+    }
+    if let Some(deleted) = req.deleted {
+        journal.deleted = deleted;
+    }
+    journal.version += 1;
+    journal.updated_at = Utc::now();
+
+    let seq = db::update_journal_and_change(&conn, &journal, &user.name)?;
+    Ok(Json(WriteJournalResponse { journal, seq }))
 }
 
 async fn ensure_day(

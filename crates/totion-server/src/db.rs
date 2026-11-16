@@ -5,10 +5,10 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use totion_core::{
     Block, BlockKind, BlockSection, Comment, CommentTargetKind, EntityKind, Habit, HabitCheckin,
-    HabitFrequency, Page, PageKind, User,
+    HabitFrequency, JournalEntry, JournalTarget, Page, PageKind, User,
 };
 
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS meta (
@@ -119,6 +119,25 @@ CREATE INDEX IF NOT EXISTS idx_comments_target
   ON comments(target_kind, target_id, created_at);
 "#;
 
+const V3_TABLES: &str = r#"
+CREATE TABLE IF NOT EXISTS journals (
+  id TEXT PRIMARY KEY,
+  target_kind TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  time TEXT NOT NULL,
+  body TEXT NOT NULL,
+  author_id TEXT NOT NULL,
+  author_name TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_journals_date ON journals(date, created_at);
+CREATE INDEX IF NOT EXISTS idx_journals_target ON journals(target_kind, target_id);
+"#;
+
 pub fn open(path: &Path) -> AnyResult<Connection> {
     let conn = Connection::open(path)?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
@@ -145,6 +164,10 @@ fn migrate(conn: &Connection) -> AnyResult<()> {
     if current < 2 {
         apply_v2(&tx)?;
         set_meta(&tx, "schema_version", "2")?;
+    }
+    if current < 3 {
+        apply_v3(&tx)?;
+        set_meta(&tx, "schema_version", "3")?;
     }
     tx.commit()?;
     Ok(())
@@ -185,6 +208,11 @@ fn apply_v2(conn: &Connection) -> rusqlite::Result<()> {
         }
     }
     conn.execute_batch(V2_TABLES)?;
+    Ok(())
+}
+
+fn apply_v3(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(V3_TABLES)?;
     Ok(())
 }
 
@@ -392,6 +420,24 @@ pub fn row_to_comment(row: &Row) -> rusqlite::Result<Comment> {
     })
 }
 
+pub fn row_to_journal(row: &Row) -> rusqlite::Result<JournalEntry> {
+    Ok(JournalEntry {
+        id: row.get(0)?,
+        target_kind: JournalTarget::from_wire(&row.get::<_, String>(1)?)
+            .unwrap_or(JournalTarget::Daily),
+        target_id: row.get(2)?,
+        date: row.get(3)?,
+        time: row.get(4)?,
+        body: row.get(5)?,
+        author_id: row.get(6)?,
+        author_name: row.get(7)?,
+        version: row.get(8)?,
+        created_at: parse_ts(&row.get::<_, String>(9)?),
+        updated_at: parse_ts(&row.get::<_, String>(10)?),
+        deleted: row.get::<_, i64>(11)? != 0,
+    })
+}
+
 const PAGE_COLUMNS: &str =
     "id, title, icon, kind, position, version, updated_at, updated_by, deleted, date";
 const BLOCK_COLUMNS: &str = "id, page_id, kind, text, checked, due_date, streak, position, version,
@@ -401,6 +447,8 @@ const HABIT_COLUMNS: &str = "id, title, icon, note, frequency, position, archive
 const CHECKIN_COLUMNS: &str = "id, habit_id, date, note, version, created_at, updated_at,
     updated_by, deleted";
 const COMMENT_COLUMNS: &str = "id, target_kind, target_id, body, resolved, author_id,
+    author_name, version, created_at, updated_at, deleted";
+const JOURNAL_COLUMNS: &str = "id, target_kind, target_id, date, time, body, author_id,
     author_name, version, created_at, updated_at, deleted";
 
 pub fn list_pages(conn: &Connection) -> rusqlite::Result<Vec<Page>> {
@@ -450,6 +498,14 @@ pub fn list_comments(conn: &Connection) -> rusqlite::Result<Vec<Comment>> {
     rows.collect()
 }
 
+pub fn list_journals(conn: &Connection) -> rusqlite::Result<Vec<JournalEntry>> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {JOURNAL_COLUMNS} FROM journals ORDER BY date, created_at"
+    ))?;
+    let rows = stmt.query_map([], row_to_journal)?;
+    rows.collect()
+}
+
 pub fn find_page(conn: &Connection, id: &str) -> rusqlite::Result<Option<Page>> {
     conn.query_row(
         &format!("SELECT {PAGE_COLUMNS} FROM pages WHERE id = ?1"),
@@ -491,6 +547,15 @@ pub fn find_comment(conn: &Connection, id: &str) -> rusqlite::Result<Option<Comm
         &format!("SELECT {COMMENT_COLUMNS} FROM comments WHERE id = ?1"),
         params![id],
         row_to_comment,
+    )
+    .optional()
+}
+
+pub fn find_journal(conn: &Connection, id: &str) -> rusqlite::Result<Option<JournalEntry>> {
+    conn.query_row(
+        &format!("SELECT {JOURNAL_COLUMNS} FROM journals WHERE id = ?1"),
+        params![id],
+        row_to_journal,
     )
     .optional()
 }
@@ -653,6 +718,29 @@ pub fn insert_comment(conn: &Connection, comment: &Comment) -> rusqlite::Result<
     Ok(())
 }
 
+pub fn insert_journal(conn: &Connection, journal: &JournalEntry) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO journals(id, target_kind, target_id, date, time, body, author_id,
+                              author_name, version, created_at, updated_at, deleted)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![
+            journal.id,
+            journal.target_kind.as_wire(),
+            journal.target_id,
+            journal.date,
+            journal.time,
+            journal.body,
+            journal.author_id,
+            journal.author_name,
+            journal.version,
+            journal.created_at.to_rfc3339(),
+            journal.updated_at.to_rfc3339(),
+            journal.deleted as i64,
+        ],
+    )?;
+    Ok(())
+}
+
 pub fn update_page(conn: &Connection, page: &Page) -> rusqlite::Result<()> {
     conn.execute(
         "UPDATE pages SET title = ?2, icon = ?3, kind = ?4, position = ?5, version = ?6,
@@ -754,6 +842,21 @@ pub fn update_comment(conn: &Connection, comment: &Comment) -> rusqlite::Result<
             comment.version,
             comment.updated_at.to_rfc3339(),
             comment.deleted as i64,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn update_journal(conn: &Connection, journal: &JournalEntry) -> rusqlite::Result<()> {
+    conn.execute(
+        "UPDATE journals SET body = ?2, version = ?3, updated_at = ?4, deleted = ?5
+         WHERE id = ?1",
+        params![
+            journal.id,
+            journal.body,
+            journal.version,
+            journal.updated_at.to_rfc3339(),
+            journal.deleted as i64,
         ],
     )?;
     Ok(())
@@ -922,5 +1025,35 @@ pub fn update_comment_and_change(
         actor,
         comment.updated_at,
         update_comment,
+    )
+}
+
+pub fn insert_journal_and_change(
+    conn: &Connection,
+    journal: &JournalEntry,
+    actor: &str,
+) -> AnyResult<i64> {
+    write_with_change(
+        conn,
+        EntityKind::Journal,
+        journal,
+        actor,
+        journal.updated_at,
+        insert_journal,
+    )
+}
+
+pub fn update_journal_and_change(
+    conn: &Connection,
+    journal: &JournalEntry,
+    actor: &str,
+) -> AnyResult<i64> {
+    write_with_change(
+        conn,
+        EntityKind::Journal,
+        journal,
+        actor,
+        journal.updated_at,
+        update_journal,
     )
 }

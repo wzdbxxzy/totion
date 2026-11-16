@@ -1,14 +1,17 @@
+use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
 use chrono::{Datelike, Duration as ChronoDuration, Local, Months, NaiveDate};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::layout::Rect;
 use totion_core::{
     block_day_stats, checkin_on, completion_series, habit_check_in, habit_due_on, habit_stats,
-    AuthResponse, Block, BlockKind, BlockSection, Change, CheckinRequest, Comment,
-    CommentTargetKind, CreateBlockRequest, CreateCommentRequest, CreateHabitRequest,
-    CreatePageRequest, DayStat, EntityKind, Habit, HabitCheckin, HabitFrequency, HabitStats, Page,
-    PageKind, RegisterRequest, Snapshot, UpdateBlockRequest, UpdateCheckinRequest,
-    UpdateCommentRequest, UpdateHabitRequest, UpdatePageRequest, User, VerifyRequest,
+    AuthResponse, Block, BlockKind, Change, CheckinRequest, Comment, CommentTargetKind,
+    CreateBlockRequest, CreateCommentRequest, CreateHabitRequest, CreateJournalRequest,
+    CreatePageRequest, DayStat, EntityKind, Habit, HabitCheckin, HabitFrequency, HabitStats,
+    JournalEntry, JournalTarget, Page, PageKind, RegisterRequest, Snapshot, UpdateBlockRequest,
+    UpdateCheckinRequest, UpdateCommentRequest, UpdateHabitRequest, UpdateJournalRequest,
+    UpdatePageRequest, User, VerifyRequest,
 };
 
 use crate::api::{Api, ApiError};
@@ -29,6 +32,7 @@ pub enum View {
     Calendar,
     Habits,
     Stats,
+    Inbox,
 }
 
 impl View {
@@ -39,6 +43,7 @@ impl View {
             View::Calendar => "日历",
             View::Habits => "习惯",
             View::Stats => "统计",
+            View::Inbox => "留言",
         }
     }
 }
@@ -76,6 +81,16 @@ pub enum EditTarget {
         comment_id: String,
         base_version: i64,
     },
+    JournalBody {
+        journal_id: String,
+        base_version: i64,
+    },
+    NewJournal {
+        target_kind: JournalTarget,
+        target_id: String,
+        date: String,
+        time: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +110,8 @@ pub struct EventForm {
     pub end_time: String,
     pub field: usize,
     pub error: Option<String>,
+    /// 批量创建时的结束日期（含）
+    pub range_end: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -104,6 +121,10 @@ pub struct HabitForm {
     pub frequency: HabitFrequency,
     pub field: usize,
     pub error: Option<String>,
+    /// 批量创建/打卡的起始日期
+    pub date: String,
+    /// 批量创建/打卡的结束日期（含）
+    pub range_end: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -129,11 +150,18 @@ pub struct SearchState {
 }
 
 #[derive(Debug, Clone)]
+pub struct AgendaPanel {
+    pub date: NaiveDate,
+    pub selected: usize,
+}
+
+#[derive(Debug, Clone)]
 pub enum Modal {
     EventForm(EventForm),
     HabitForm(HabitForm),
     Comments(CommentPanel),
     Search(SearchState),
+    Agenda(AgendaPanel),
     Help,
 }
 
@@ -142,16 +170,7 @@ pub enum TodayRow {
     Todo(Block),
     Event(Block),
     Habit(Habit, HabitStats),
-    Diary(Block),
-}
-
-impl TodayRow {
-    pub fn block(&self) -> Option<&Block> {
-        match self {
-            TodayRow::Todo(block) | TodayRow::Event(block) | TodayRow::Diary(block) => Some(block),
-            TodayRow::Habit(_, _) => None,
-        }
-    }
+    Journal(JournalEntry),
 }
 
 pub struct SetupForm {
@@ -367,6 +386,12 @@ impl App {
             main.tick();
         }
     }
+
+    pub fn handle_mouse(&mut self, mouse: MouseEvent) {
+        if let Screen::Main(main) = &mut self.screen {
+            main.handle_mouse(mouse);
+        }
+    }
 }
 
 fn login(api: &Api, identity: &Identity) -> Result<AuthResponse, ApiError> {
@@ -390,12 +415,15 @@ pub struct MainState {
     pub habits: Vec<Habit>,
     pub checkins: Vec<HabitCheckin>,
     pub comments: Vec<Comment>,
+    pub journals: Vec<JournalEntry>,
     last_seq: i64,
     selected_page_index: usize,
     selected_block_index: usize,
     selected_today_index: usize,
     selected_habit_index: usize,
     selected_agenda_index: usize,
+    selected_journal_index: usize,
+    selected_inbox_index: usize,
     focus: Focus,
     view: View,
     editing: Option<Editing>,
@@ -409,6 +437,10 @@ pub struct MainState {
     ensured_date: Option<String>,
     daily_page_id: Option<String>,
     show_all_pages: bool,
+    workspace_journal_mode: bool,
+    range_anchor: Option<NaiveDate>,
+    range_focus: Option<NaiveDate>,
+    pub calendar_cells: RefCell<Vec<(Rect, NaiveDate)>>,
     caps: ServerCaps,
     stats_days: u32,
 }
@@ -426,12 +458,15 @@ impl MainState {
             habits: snapshot.habits,
             checkins: snapshot.checkins,
             comments: snapshot.comments,
+            journals: snapshot.journals,
             last_seq: snapshot.last_seq,
             selected_page_index: 0,
             selected_block_index: 0,
             selected_today_index: 0,
             selected_habit_index: 0,
             selected_agenda_index: 0,
+            selected_journal_index: 0,
+            selected_inbox_index: 0,
             focus: Focus::Pages,
             view: View::Today,
             editing: None,
@@ -445,6 +480,10 @@ impl MainState {
             ensured_date: None,
             daily_page_id: None,
             show_all_pages: false,
+            workspace_journal_mode: false,
+            range_anchor: None,
+            range_focus: None,
+            calendar_cells: RefCell::new(Vec::new()),
             caps: ServerCaps {
                 api_version: snapshot.api_version,
             },
@@ -499,10 +538,6 @@ impl MainState {
         self.selected_habit_index
     }
 
-    pub fn selected_agenda_index(&self) -> usize {
-        self.selected_agenda_index
-    }
-
     pub fn editing(&self) -> Option<&Editing> {
         self.editing.as_ref()
     }
@@ -529,6 +564,22 @@ impl MainState {
 
     pub fn show_all_pages(&self) -> bool {
         self.show_all_pages
+    }
+
+    pub fn range_is_active(&self) -> bool {
+        self.range_anchor.is_some()
+    }
+
+    pub fn workspace_journal_mode(&self) -> bool {
+        self.workspace_journal_mode
+    }
+
+    pub fn selected_journal_index(&self) -> usize {
+        self.selected_journal_index
+    }
+
+    pub fn selected_inbox_index(&self) -> usize {
+        self.selected_inbox_index
     }
 
     pub fn supports_v2(&self) -> bool {
@@ -614,16 +665,6 @@ impl MainState {
             .find(|page| !page.deleted && page.date.as_deref() == Some(key.as_str()))
     }
 
-    pub fn diary_block(&self, page_id: &str, section: BlockSection) -> Option<Block> {
-        self.blocks
-            .iter()
-            .filter(|block| {
-                !block.deleted && block.page_id == page_id && block.section == Some(section)
-            })
-            .max_by_key(|block| block.updated_at)
-            .cloned()
-    }
-
     pub fn today_rows(&self) -> Vec<TodayRow> {
         let key = self.today_key();
         let mut rows = Vec::new();
@@ -661,14 +702,112 @@ impl MainState {
             }
         }
 
-        if let Some(page) = self.daily_page() {
-            for section in BlockSection::ALL {
-                if let Some(block) = self.diary_block(&page.id, section) {
-                    rows.push(TodayRow::Diary(block));
-                }
-            }
+        for journal in self.today_journals() {
+            rows.push(TodayRow::Journal(journal));
         }
         rows
+    }
+
+    pub fn today_journals(&self) -> Vec<JournalEntry> {
+        let key = self.today_key();
+        self.journals_on(&key)
+    }
+
+    pub fn journals_on(&self, date: &str) -> Vec<JournalEntry> {
+        let mut journals: Vec<JournalEntry> = self
+            .journals
+            .iter()
+            .filter(|journal| !journal.deleted && journal.date == date)
+            .cloned()
+            .collect();
+        journals.sort_by_key(|journal| (journal.time.clone(), journal.created_at));
+        journals
+    }
+
+    pub fn all_journals(&self) -> Vec<JournalEntry> {
+        let mut journals: Vec<JournalEntry> = self
+            .journals
+            .iter()
+            .filter(|journal| !journal.deleted)
+            .cloned()
+            .collect();
+        journals.sort_by_key(|journal| {
+            (
+                std::cmp::Reverse(journal.date.clone()),
+                std::cmp::Reverse(journal.time.clone()),
+            )
+        });
+        journals
+    }
+
+    pub fn inbox_comments(&self) -> Vec<Comment> {
+        let mut comments: Vec<Comment> = self
+            .comments
+            .iter()
+            .filter(|comment| !comment.deleted)
+            .cloned()
+            .collect();
+        comments.sort_by_key(|comment| (comment.resolved, std::cmp::Reverse(comment.updated_at)));
+        comments
+    }
+
+    pub fn comment_target_label(&self, kind: CommentTargetKind, id: &str) -> String {
+        match kind {
+            CommentTargetKind::Page => self
+                .pages
+                .iter()
+                .find(|page| page.id == id)
+                .map(|page| format!("页面「{}」", page.title))
+                .unwrap_or_else(|| "已删除页面".to_string()),
+            CommentTargetKind::Block => self
+                .blocks
+                .iter()
+                .find(|block| block.id == id)
+                .map(|block| {
+                    format!(
+                        "内容块「{}」",
+                        if block.text.is_empty() {
+                            block.kind.icon()
+                        } else {
+                            block.text.as_str()
+                        }
+                    )
+                })
+                .unwrap_or_else(|| "已删除内容块".to_string()),
+            CommentTargetKind::Habit => self
+                .habits
+                .iter()
+                .find(|habit| habit.id == id)
+                .map(|habit| format!("习惯「{}」", habit.title))
+                .unwrap_or_else(|| "已删除习惯".to_string()),
+        }
+    }
+
+    pub fn journal_target_label(&self, journal: &JournalEntry) -> String {
+        match journal.target_kind {
+            JournalTarget::Daily => format!("{} 当日", journal.date),
+            JournalTarget::Block => self
+                .blocks
+                .iter()
+                .find(|block| block.id == journal.target_id)
+                .map(|block| {
+                    format!(
+                        "待办「{}」",
+                        if block.text.is_empty() {
+                            block.kind.icon()
+                        } else {
+                            block.text.as_str()
+                        }
+                    )
+                })
+                .unwrap_or_else(|| "已删除待办".to_string()),
+            JournalTarget::Habit => self
+                .habits
+                .iter()
+                .find(|habit| habit.id == journal.target_id)
+                .map(|habit| format!("习惯「{}」", habit.title))
+                .unwrap_or_else(|| "已删除习惯".to_string()),
+        }
     }
 
     pub fn today_completion(&self) -> DayStat {
@@ -784,6 +923,18 @@ impl MainState {
             0
         } else {
             self.selected_agenda_index.min(agenda_count - 1)
+        };
+        let journal_count = self.all_journals().len();
+        self.selected_journal_index = if journal_count == 0 {
+            0
+        } else {
+            self.selected_journal_index.min(journal_count - 1)
+        };
+        let inbox_count = self.inbox_comments().len();
+        self.selected_inbox_index = if inbox_count == 0 {
+            0
+        } else {
+            self.selected_inbox_index.min(inbox_count - 1)
         };
     }
 
@@ -954,6 +1105,15 @@ impl MainState {
                     }
                 }
             }
+            EntityKind::Journal => {
+                if let Ok(journal) = serde_json::from_value::<JournalEntry>(change.data.clone()) {
+                    let author = journal.author_name.clone();
+                    self.upsert_journal(journal);
+                    if change.actor != self.me {
+                        self.notice = Some(format!("{author} 更新了总结"));
+                    }
+                }
+            }
         }
         self.last_seq = self.last_seq.max(change.seq);
     }
@@ -995,6 +1155,14 @@ impl MainState {
             *existing = comment;
         } else {
             self.comments.push(comment);
+        }
+    }
+
+    fn upsert_journal(&mut self, journal: JournalEntry) {
+        if let Some(existing) = self.journals.iter_mut().find(|item| item.id == journal.id) {
+            *existing = journal;
+        } else {
+            self.journals.push(journal);
         }
     }
 
@@ -1075,6 +1243,7 @@ impl MainState {
             KeyCode::Char('3') => self.set_view(View::Calendar),
             KeyCode::Char('4') => self.set_view(View::Habits),
             KeyCode::Char('5') => self.set_view(View::Stats),
+            KeyCode::Char('6') => self.set_view(View::Inbox),
             KeyCode::Char('?') => self.modal = Some(Modal::Help),
             KeyCode::Char('/') => self.open_search(),
             KeyCode::Char('C') => self.open_comments(),
@@ -1090,6 +1259,7 @@ impl MainState {
                 View::Calendar => self.handle_calendar_key(key),
                 View::Habits => self.handle_habits_key(key),
                 View::Stats => self.handle_stats_key(key),
+                View::Inbox => self.handle_inbox_key(key),
             },
         }
         false
@@ -1101,6 +1271,18 @@ impl MainState {
     }
 
     fn handle_workspace_key(&mut self, key: KeyEvent) {
+        if self.workspace_journal_mode {
+            match key.code {
+                KeyCode::Char('J') | KeyCode::Esc => self.workspace_journal_mode = false,
+                KeyCode::Up | KeyCode::Char('k') => self.move_journal(-1),
+                KeyCode::Down | KeyCode::Char('j') => self.move_journal(1),
+                KeyCode::Enter | KeyCode::Char('e') => self.edit_selected_journal(),
+                KeyCode::Char('d') => self.delete_selected_journal(),
+                _ => {}
+            }
+            return;
+        }
+
         match key.code {
             KeyCode::Tab => {
                 self.focus = match self.focus {
@@ -1119,6 +1301,10 @@ impl MainState {
                 self.show_all_pages = !self.show_all_pages;
                 self.clamp();
             }
+            KeyCode::Char('J') => {
+                self.workspace_journal_mode = true;
+                self.selected_journal_index = 0;
+            }
             KeyCode::Char(' ') => self.toggle_workspace_block(),
             KeyCode::Char('d') => self.delete_workspace_current(),
             _ => {}
@@ -1132,34 +1318,43 @@ impl MainState {
             KeyCode::Char(' ') => self.toggle_today_item(),
             KeyCode::Char('u') => self.undo_today_habit(),
             KeyCode::Enter | KeyCode::Char('e') => self.edit_today_item(),
+            KeyCode::Char('a') => self.new_today_journal(),
             KeyCode::Char('d') => self.delete_today_item(),
-            KeyCode::Char('t') => self.open_event_form(BlockKind::Todo, self.today_key()),
-            KeyCode::Char('c') => self.open_event_form(BlockKind::CalendarEvent, self.today_key()),
-            KeyCode::Char('n') => self.open_habit_form(),
+            KeyCode::Char('t') => self.open_event_form(BlockKind::Todo, self.today_key(), None),
+            KeyCode::Char('c') => {
+                self.open_event_form(BlockKind::CalendarEvent, self.today_key(), None)
+            }
+            KeyCode::Char('n') => self.open_habit_form(self.today_key(), None),
             _ => {}
         }
     }
 
     fn handle_calendar_key(&mut self, key: KeyEvent) {
         match key.code {
+            KeyCode::Esc => {
+                self.range_anchor = None;
+                self.range_focus = None;
+            }
+            KeyCode::Char('v') => self.toggle_range_anchor(),
             KeyCode::Left | KeyCode::Char('h') => self.shift_day(-1),
             KeyCode::Right | KeyCode::Char('l') => self.shift_day(1),
             KeyCode::Up | KeyCode::Char('k') => self.shift_day(-7),
             KeyCode::Down | KeyCode::Char('j') => self.shift_day(7),
             KeyCode::Char('[') => self.shift_month(-1),
             KeyCode::Char(']') => self.shift_month(1),
-            KeyCode::Char(' ') => self.toggle_agenda_item(),
-            KeyCode::Enter | KeyCode::Char('e') => self.edit_agenda_item(),
-            KeyCode::Char('d') => self.delete_agenda_item(),
-            KeyCode::Char('c') => self.open_event_form(
-                BlockKind::CalendarEvent,
-                self.selected_day.format("%Y-%m-%d").to_string(),
-            ),
-            KeyCode::Char('t') => self.open_event_form(
-                BlockKind::Todo,
-                self.selected_day.format("%Y-%m-%d").to_string(),
-            ),
-            KeyCode::Char('n') => self.open_habit_form(),
+            KeyCode::Enter | KeyCode::Char(' ') => self.open_agenda(),
+            KeyCode::Char('t') => {
+                let (start, end) = self.range_or_selected();
+                self.open_event_form(BlockKind::Todo, start, end);
+            }
+            KeyCode::Char('c') => {
+                let (start, end) = self.range_or_selected();
+                self.open_event_form(BlockKind::CalendarEvent, start, end);
+            }
+            KeyCode::Char('n') => {
+                let (start, end) = self.range_or_selected();
+                self.open_habit_form(start, end);
+            }
             _ => {}
         }
     }
@@ -1172,7 +1367,7 @@ impl MainState {
             KeyCode::Char('u') => self.undo_selected_habit(),
             KeyCode::Enter | KeyCode::Char('e') => self.edit_selected_habit(),
             KeyCode::Char('d') => self.delete_selected_habit(),
-            KeyCode::Char('n') => self.open_habit_form(),
+            KeyCode::Char('n') => self.open_habit_form(self.today_key(), None),
             _ => {}
         }
     }
@@ -1195,6 +1390,22 @@ impl MainState {
                     _ => 7,
                 }
             }
+            _ => {}
+        }
+    }
+
+    fn handle_inbox_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => self.move_inbox(-1),
+            KeyCode::Down | KeyCode::Char('j') => self.move_inbox(1),
+            KeyCode::Enter => self.jump_to_selected_comment(),
+            KeyCode::Char('a') => self.reply_selected_comment(),
+            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.toggle_selected_comment_resolved()
+            }
+            KeyCode::Char('r') => self.toggle_selected_comment_resolved(),
+            KeyCode::Char('e') => self.edit_selected_comment(),
+            KeyCode::Char('d') => self.delete_selected_comment(),
             _ => {}
         }
     }
@@ -1239,6 +1450,9 @@ impl MainState {
         self.selected_day += ChronoDuration::days(delta);
         self.calendar_month = self.selected_day.with_day(1).unwrap_or(self.selected_day);
         self.selected_agenda_index = 0;
+        if self.range_anchor.is_some() {
+            self.range_focus = Some(self.selected_day);
+        }
     }
 
     fn shift_month(&mut self, delta: i32) {
@@ -1293,7 +1507,7 @@ impl MainState {
             return;
         };
         match row {
-            TodayRow::Todo(block) | TodayRow::Event(block) | TodayRow::Diary(block) => {
+            TodayRow::Todo(block) | TodayRow::Event(block) => {
                 self.editing = Some(Editing {
                     target: EditTarget::BlockText {
                         block_id: block.id.clone(),
@@ -1301,7 +1515,7 @@ impl MainState {
                     },
                     buffer: block.text.clone(),
                     cursor: block.text.len(),
-                    multiline: block.section.is_some(),
+                    multiline: false,
                 });
             }
             TodayRow::Habit(habit, _) => {
@@ -1315,21 +1529,17 @@ impl MainState {
                     multiline: false,
                 });
             }
-        }
-    }
-
-    fn edit_agenda_item(&mut self) {
-        let blocks = self.agenda_blocks();
-        if let Some(block) = blocks.get(self.selected_agenda_index) {
-            self.editing = Some(Editing {
-                target: EditTarget::BlockText {
-                    block_id: block.id.clone(),
-                    base_version: block.version,
-                },
-                buffer: block.text.clone(),
-                cursor: block.text.len(),
-                multiline: false,
-            });
+            TodayRow::Journal(journal) => {
+                self.editing = Some(Editing {
+                    target: EditTarget::JournalBody {
+                        journal_id: journal.id.clone(),
+                        base_version: journal.version,
+                    },
+                    buffer: journal.body.clone(),
+                    cursor: journal.body.len(),
+                    multiline: true,
+                });
+            }
         }
     }
 
@@ -1476,12 +1686,6 @@ impl MainState {
                 }) {
                     Ok(response) => {
                         self.upsert_comment(response.comment);
-                        self.modal = Some(Modal::Comments(CommentPanel {
-                            target_kind,
-                            target_id,
-                            label: "评论".to_string(),
-                            selected: 0,
-                        }));
                         self.status = "评论已发表".to_string();
                     }
                     Err(err) => self.status = err.to_string(),
@@ -1505,6 +1709,50 @@ impl MainState {
                         deleted: None,
                     },
                 );
+            }
+            EditTarget::JournalBody {
+                journal_id,
+                base_version,
+            } => {
+                let body = editing.buffer.trim().to_string();
+                if body.is_empty() {
+                    self.status = "总结内容不能为空".to_string();
+                    return;
+                }
+                self.update_journal(
+                    &journal_id,
+                    UpdateJournalRequest {
+                        expected_version: base_version,
+                        body: Some(body),
+                        deleted: None,
+                    },
+                );
+            }
+            EditTarget::NewJournal {
+                target_kind,
+                target_id,
+                date,
+                time,
+            } => {
+                let body = editing.buffer.trim().to_string();
+                if body.is_empty() {
+                    self.status = "总结内容不能为空".to_string();
+                    return;
+                }
+                match self.api.create_journal(&CreateJournalRequest {
+                    target_kind,
+                    target_id,
+                    date,
+                    time,
+                    body,
+                }) {
+                    Ok(response) => {
+                        self.upsert_journal(response.journal);
+                        self.status = "总结已保存".to_string();
+                        self.clamp();
+                    }
+                    Err(err) => self.status = err.to_string(),
+                }
             }
         }
     }
@@ -1683,7 +1931,7 @@ impl MainState {
                     self.check_in(habit);
                 }
             }
-            TodayRow::Diary(_) => self.status = "日记记录不需要勾选".to_string(),
+            TodayRow::Journal(_) => self.status = "总结不需要勾选，按 Enter 编辑".to_string(),
         }
     }
 
@@ -1785,7 +2033,7 @@ impl MainState {
             return;
         };
         match row {
-            TodayRow::Todo(block) | TodayRow::Event(block) | TodayRow::Diary(block) => {
+            TodayRow::Todo(block) | TodayRow::Event(block) => {
                 self.patch_block(
                     &block.id,
                     block.version,
@@ -1797,21 +2045,17 @@ impl MainState {
                 self.status = "已删除内容块".to_string();
             }
             TodayRow::Habit(habit, _) => self.delete_habit(habit),
-        }
-    }
-
-    fn delete_agenda_item(&mut self) {
-        let blocks = self.agenda_blocks();
-        if let Some(block) = blocks.get(self.selected_agenda_index) {
-            self.patch_block(
-                &block.id,
-                block.version,
-                BlockPatch {
-                    deleted: Some(true),
-                    ..Default::default()
-                },
-            );
-            self.status = "已删除日程".to_string();
+            TodayRow::Journal(journal) => {
+                self.update_journal(
+                    &journal.id,
+                    UpdateJournalRequest {
+                        expected_version: journal.version,
+                        body: None,
+                        deleted: Some(true),
+                    },
+                );
+                self.status = "已删除总结".to_string();
+            }
         }
     }
 
@@ -1839,21 +2083,7 @@ impl MainState {
         }
     }
 
-    fn toggle_agenda_item(&mut self) {
-        let blocks = self.agenda_blocks();
-        if let Some(block) = blocks.get(self.selected_agenda_index) {
-            self.patch_block(
-                &block.id,
-                block.version,
-                BlockPatch {
-                    checked: Some(!block.checked),
-                    ..Default::default()
-                },
-            );
-        }
-    }
-
-    fn open_event_form(&mut self, kind: BlockKind, date: String) {
+    fn open_event_form(&mut self, kind: BlockKind, date: String, range_end: Option<String>) {
         self.modal = Some(Modal::EventForm(EventForm {
             kind,
             title: String::new(),
@@ -1862,17 +2092,311 @@ impl MainState {
             end_time: String::new(),
             field: 0,
             error: None,
+            range_end,
         }));
     }
 
-    fn open_habit_form(&mut self) {
+    fn open_habit_form(&mut self, date: String, range_end: Option<String>) {
         self.modal = Some(Modal::HabitForm(HabitForm {
             title: String::new(),
             note: String::new(),
             frequency: HabitFrequency::Daily,
             field: 0,
             error: None,
+            date,
+            range_end,
         }));
+    }
+
+    fn toggle_range_anchor(&mut self) {
+        if self.range_anchor.is_some() {
+            self.range_anchor = None;
+            self.range_focus = None;
+            self.status = "已取消日期范围".to_string();
+        } else {
+            self.range_anchor = Some(self.selected_day);
+            self.range_focus = Some(self.selected_day);
+            self.status = "已设置范围起点，移动光标选择终点，再按 v 取消".to_string();
+        }
+    }
+
+    pub fn selected_range(&self) -> Option<(NaiveDate, NaiveDate)> {
+        let anchor = self.range_anchor?;
+        let focus = self.range_focus.unwrap_or(anchor);
+        if anchor <= focus {
+            Some((anchor, focus))
+        } else {
+            Some((focus, anchor))
+        }
+    }
+
+    fn range_or_selected(&self) -> (String, Option<String>) {
+        match self.selected_range() {
+            Some((start, end)) if start != end => (
+                start.format("%Y-%m-%d").to_string(),
+                Some(end.format("%Y-%m-%d").to_string()),
+            ),
+            _ => (self.selected_day.format("%Y-%m-%d").to_string(), None),
+        }
+    }
+
+    fn open_agenda(&mut self) {
+        self.modal = Some(Modal::Agenda(AgendaPanel {
+            date: self.selected_day,
+            selected: 0,
+        }));
+    }
+
+    fn new_today_journal(&mut self) {
+        let rows = self.today_rows();
+        let selected = rows.get(self.selected_today_index);
+        let (target_kind, target_id) = match selected {
+            Some(TodayRow::Todo(block)) | Some(TodayRow::Event(block)) => {
+                (JournalTarget::Block, block.id.clone())
+            }
+            Some(TodayRow::Habit(habit, _)) => (JournalTarget::Habit, habit.id.clone()),
+            _ => (JournalTarget::Daily, self.today_key()),
+        };
+        self.editing = Some(Editing {
+            target: EditTarget::NewJournal {
+                target_kind,
+                target_id,
+                date: self.today_key(),
+                time: Local::now().format("%H:%M").to_string(),
+            },
+            buffer: String::new(),
+            cursor: 0,
+            multiline: true,
+        });
+        self.status = "写总结，Ctrl+S 保存，Esc 取消".to_string();
+    }
+
+    fn update_journal(&mut self, id: &str, request: UpdateJournalRequest) {
+        match self.api.update_journal(id, &request) {
+            Ok(response) => {
+                self.upsert_journal(response.journal);
+                self.clamp();
+            }
+            Err(ApiError::Conflict { message, current }) => {
+                if let Ok(journal) = serde_json::from_value::<JournalEntry>(current) {
+                    self.upsert_journal(journal);
+                }
+                self.status = format!("总结冲突，已刷新：{message}");
+            }
+            Err(ApiError::Other(message)) => self.status = message,
+        }
+    }
+
+    fn move_journal(&mut self, delta: i64) {
+        let count = self.all_journals().len();
+        if count > 0 {
+            let next = self.selected_journal_index as i64 + delta;
+            self.selected_journal_index = next.clamp(0, count as i64 - 1) as usize;
+        }
+    }
+
+    fn edit_selected_journal(&mut self) {
+        let journals = self.all_journals();
+        if let Some(journal) = journals.get(self.selected_journal_index) {
+            self.editing = Some(Editing {
+                target: EditTarget::JournalBody {
+                    journal_id: journal.id.clone(),
+                    base_version: journal.version,
+                },
+                buffer: journal.body.clone(),
+                cursor: journal.body.len(),
+                multiline: true,
+            });
+        }
+    }
+
+    fn delete_selected_journal(&mut self) {
+        let journals = self.all_journals();
+        if let Some(journal) = journals.get(self.selected_journal_index) {
+            self.update_journal(
+                &journal.id,
+                UpdateJournalRequest {
+                    expected_version: journal.version,
+                    body: None,
+                    deleted: Some(true),
+                },
+            );
+            self.status = "已删除总结".to_string();
+        }
+    }
+
+    fn move_inbox(&mut self, delta: i64) {
+        let count = self.inbox_comments().len();
+        if count > 0 {
+            let next = self.selected_inbox_index as i64 + delta;
+            self.selected_inbox_index = next.clamp(0, count as i64 - 1) as usize;
+        }
+    }
+
+    fn jump_to_selected_comment(&mut self) {
+        let comments = self.inbox_comments();
+        if let Some(comment) = comments.get(self.selected_inbox_index).cloned() {
+            self.jump_to_comment_target(&comment);
+        }
+    }
+
+    fn jump_to_comment_target(&mut self, comment: &Comment) {
+        match comment.target_kind {
+            CommentTargetKind::Page => {
+                self.show_all_pages = true;
+                self.view = View::Workspace;
+                self.focus = Focus::Pages;
+                if let Some(index) = self
+                    .visible_pages()
+                    .iter()
+                    .position(|page| page.id == comment.target_id)
+                {
+                    self.selected_page_index = index;
+                }
+            }
+            CommentTargetKind::Block => {
+                self.show_all_pages = true;
+                self.view = View::Workspace;
+                self.focus = Focus::Blocks;
+                let page_id = self
+                    .blocks
+                    .iter()
+                    .find(|block| block.id == comment.target_id)
+                    .map(|block| block.page_id.clone());
+                if let Some(page_id) = page_id {
+                    if let Some(index) = self
+                        .visible_pages()
+                        .iter()
+                        .position(|page| page.id == page_id)
+                    {
+                        self.selected_page_index = index;
+                        self.selected_block_index = 0;
+                        if let Some(block_index) = self
+                            .visible_blocks()
+                            .iter()
+                            .position(|block| block.id == comment.target_id)
+                        {
+                            self.selected_block_index = block_index;
+                        }
+                    }
+                }
+            }
+            CommentTargetKind::Habit => {
+                self.view = View::Habits;
+                if let Some(index) = self
+                    .visible_habits()
+                    .iter()
+                    .position(|habit| habit.id == comment.target_id)
+                {
+                    self.selected_habit_index = index;
+                }
+            }
+        }
+        self.clamp();
+    }
+
+    fn reply_selected_comment(&mut self) {
+        let comments = self.inbox_comments();
+        if let Some(comment) = comments.get(self.selected_inbox_index) {
+            self.editing = Some(Editing {
+                target: EditTarget::NewComment {
+                    target_kind: comment.target_kind,
+                    target_id: comment.target_id.clone(),
+                },
+                buffer: String::new(),
+                cursor: 0,
+                multiline: true,
+            });
+        }
+    }
+
+    fn toggle_selected_comment_resolved(&mut self) {
+        let comments = self.inbox_comments();
+        if let Some(comment) = comments.get(self.selected_inbox_index).cloned() {
+            self.update_comment(
+                &comment.id,
+                UpdateCommentRequest {
+                    expected_version: comment.version,
+                    body: None,
+                    resolved: Some(!comment.resolved),
+                    deleted: None,
+                },
+            );
+        }
+    }
+
+    fn edit_selected_comment(&mut self) {
+        let comments = self.inbox_comments();
+        if let Some(comment) = comments.get(self.selected_inbox_index).cloned() {
+            self.editing = Some(Editing {
+                target: EditTarget::CommentBody {
+                    comment_id: comment.id.clone(),
+                    base_version: comment.version,
+                },
+                buffer: comment.body.clone(),
+                cursor: comment.body.len(),
+                multiline: true,
+            });
+        }
+    }
+
+    fn delete_selected_comment(&mut self) {
+        let comments = self.inbox_comments();
+        if let Some(comment) = comments.get(self.selected_inbox_index).cloned() {
+            self.update_comment(
+                &comment.id,
+                UpdateCommentRequest {
+                    expected_version: comment.version,
+                    body: None,
+                    resolved: None,
+                    deleted: Some(true),
+                },
+            );
+        }
+    }
+
+    pub fn handle_mouse(&mut self, mouse: MouseEvent) {
+        if self.view != View::Calendar || self.modal.is_some() || self.editing.is_some() {
+            return;
+        }
+        let Some(date) = self.calendar_date_at(mouse.column, mouse.row) else {
+            return;
+        };
+        let shift = mouse.modifiers.contains(KeyModifiers::SHIFT);
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                self.selected_day = date;
+                self.calendar_month = date.with_day(1).unwrap_or(date);
+                self.selected_agenda_index = 0;
+            }
+            MouseEventKind::Down(MouseButton::Right) if shift => {
+                self.range_anchor = Some(date);
+                self.range_focus = Some(date);
+                self.selected_day = date;
+                self.status = "已开始框选日期，拖动选择范围".to_string();
+            }
+            MouseEventKind::Drag(MouseButton::Right) if self.range_anchor.is_some() => {
+                self.range_focus = Some(date);
+            }
+            MouseEventKind::Up(MouseButton::Right) if self.range_anchor.is_some() => {
+                self.range_focus = Some(date);
+                self.selected_day = date;
+            }
+            _ => {}
+        }
+    }
+
+    fn calendar_date_at(&self, column: u16, row: u16) -> Option<NaiveDate> {
+        self.calendar_cells
+            .borrow()
+            .iter()
+            .find(|(rect, _)| {
+                column >= rect.x
+                    && column < rect.x.saturating_add(rect.width)
+                    && row >= rect.y
+                    && row < rect.y.saturating_add(rect.height)
+            })
+            .map(|(_, date)| *date)
     }
 
     fn open_comments(&mut self) {
@@ -1913,18 +2437,16 @@ impl MainState {
                     )
                 }),
             },
-            View::Today => self
-                .today_rows()
-                .get(self.selected_today_index)
-                .map(|row| match row {
-                    TodayRow::Habit(habit, _) => (
-                        CommentTargetKind::Habit,
-                        habit.id.clone(),
-                        format!("习惯「{}」", habit.title),
-                    ),
-                    _ => {
-                        let block = row.block().expect("block row");
-                        (
+            View::Today => {
+                self.today_rows()
+                    .get(self.selected_today_index)
+                    .and_then(|row| match row {
+                        TodayRow::Habit(habit, _) => Some((
+                            CommentTargetKind::Habit,
+                            habit.id.clone(),
+                            format!("习惯「{}」", habit.title),
+                        )),
+                        TodayRow::Todo(block) | TodayRow::Event(block) => Some((
                             CommentTargetKind::Block,
                             block.id.clone(),
                             format!(
@@ -1935,9 +2457,10 @@ impl MainState {
                                     block.text.as_str()
                                 }
                             ),
-                        )
-                    }
-                }),
+                        )),
+                        TodayRow::Journal(_) => None,
+                    })
+            }
             View::Calendar => self
                 .agenda_blocks()
                 .get(self.selected_agenda_index)
@@ -1959,6 +2482,7 @@ impl MainState {
                     )
                 }),
             View::Stats => None,
+            View::Inbox => None,
         }
     }
 
@@ -2087,6 +2611,79 @@ impl MainState {
                 }
                 _ => {}
             },
+            Modal::Agenda(panel) => match key.code {
+                KeyCode::Esc => return,
+                KeyCode::Up | KeyCode::Char('k') => {
+                    panel.selected = panel.selected.saturating_sub(1);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    let count = self.calendar_blocks(panel.date).len();
+                    if count > 0 {
+                        panel.selected = (panel.selected + 1).min(count - 1);
+                    }
+                }
+                KeyCode::Char(' ') => {
+                    if let Some(block) = self
+                        .calendar_blocks(panel.date)
+                        .get(panel.selected)
+                        .map(|block| (*block).clone())
+                    {
+                        self.patch_block(
+                            &block.id,
+                            block.version,
+                            BlockPatch {
+                                checked: Some(!block.checked),
+                                ..Default::default()
+                            },
+                        );
+                    }
+                }
+                KeyCode::Enter | KeyCode::Char('e') => {
+                    if let Some(block) = self
+                        .calendar_blocks(panel.date)
+                        .get(panel.selected)
+                        .map(|block| (*block).clone())
+                    {
+                        self.editing = Some(Editing {
+                            target: EditTarget::BlockText {
+                                block_id: block.id.clone(),
+                                base_version: block.version,
+                            },
+                            buffer: block.text.clone(),
+                            cursor: block.text.len(),
+                            multiline: false,
+                        });
+                        return;
+                    }
+                }
+                KeyCode::Char('d') => {
+                    if let Some(block) = self
+                        .calendar_blocks(panel.date)
+                        .get(panel.selected)
+                        .map(|block| (*block).clone())
+                    {
+                        self.patch_block(
+                            &block.id,
+                            block.version,
+                            BlockPatch {
+                                deleted: Some(true),
+                                ..Default::default()
+                            },
+                        );
+                    }
+                }
+                KeyCode::Char('t') => {
+                    let date = panel.date.format("%Y-%m-%d").to_string();
+                    self.open_event_form(BlockKind::Todo, date, None);
+                    return;
+                }
+                KeyCode::Char('c') => {
+                    let date = panel.date.format("%Y-%m-%d").to_string();
+                    self.open_event_form(BlockKind::CalendarEvent, date, None);
+                    return;
+                }
+                _ => {}
+            },
             Modal::Comments(panel) => match key.code {
                 KeyCode::Esc => return,
                 KeyCode::Up | KeyCode::Char('k') => {
@@ -2207,39 +2804,50 @@ impl MainState {
                 return Some("时间格式应为 HH:MM".to_string());
             }
         }
-        let page_id = self.ensure_day(&form.date)?;
-        let position = self
-            .blocks
-            .iter()
-            .filter(|block| !block.deleted && block.page_id == page_id)
-            .count() as i64;
-        let request = CreateBlockRequest {
-            page_id,
-            kind: form.kind,
-            text: form.title.trim().to_string(),
-            due_date: Some(form.date.clone()),
-            position,
-            start_time: if form.start_time.is_empty() {
-                None
-            } else {
-                Some(form.start_time.clone())
-            },
-            end_time: if form.end_time.is_empty() {
-                None
-            } else {
-                Some(form.end_time.clone())
-            },
-            section: None,
+        let dates = match expand_range(&form.date, form.range_end.as_deref()) {
+            Some(dates) => dates,
+            None => return Some("日期范围无效或超过 62 天".to_string()),
         };
-        match self.api.create_block(&request) {
-            Ok(response) => {
-                self.upsert_block(response.block);
-                self.clamp();
-                self.status = "已添加".to_string();
-                None
+
+        let mut created = 0;
+        for date in &dates {
+            let Some(page_id) = self.ensure_day(date) else {
+                return Some(format!("创建 {date} 的日记页失败"));
+            };
+            let position = self
+                .blocks
+                .iter()
+                .filter(|block| !block.deleted && block.page_id == page_id)
+                .count() as i64;
+            let request = CreateBlockRequest {
+                page_id,
+                kind: form.kind,
+                text: form.title.trim().to_string(),
+                due_date: Some(date.clone()),
+                position,
+                start_time: if form.start_time.is_empty() {
+                    None
+                } else {
+                    Some(form.start_time.clone())
+                },
+                end_time: if form.end_time.is_empty() {
+                    None
+                } else {
+                    Some(form.end_time.clone())
+                },
+                section: None,
+            };
+            match self.api.create_block(&request) {
+                Ok(response) => {
+                    self.upsert_block(response.block);
+                    created += 1;
+                }
+                Err(err) => return Some(err.to_string()),
             }
-            Err(err) => Some(err.to_string()),
         }
+        self.clamp();
+        self.status = format!("已添加 {created} 条");
+        None
     }
 
     fn submit_habit_form(&mut self, form: &HabitForm) -> Option<String> {
@@ -2247,6 +2855,10 @@ impl MainState {
         if title.is_empty() {
             return Some("习惯名称不能为空".to_string());
         }
+        let dates = match expand_range(&form.date, form.range_end.as_deref()) {
+            Some(dates) => dates,
+            None => return Some("日期范围无效或超过 62 天".to_string()),
+        };
         let position = self.visible_habits().len() as i64;
         let request = CreateHabitRequest {
             title: title.to_string(),
@@ -2259,6 +2871,27 @@ impl MainState {
             Ok(response) => {
                 let habit_id = response.habit.id.clone();
                 self.upsert_habit(response.habit);
+                let mut checked = 0;
+                if form.range_end.is_some() {
+                    for date in &dates {
+                        match self.api.check_in(
+                            &habit_id,
+                            &CheckinRequest {
+                                date: date.clone(),
+                                note: None,
+                            },
+                        ) {
+                            Ok(checkin) => {
+                                self.upsert_checkin(checkin.checkin);
+                                checked += 1;
+                            }
+                            Err(err) => {
+                                self.status = err.to_string();
+                                break;
+                            }
+                        }
+                    }
+                }
                 self.view = View::Habits;
                 self.clamp();
                 if let Some(index) = self
@@ -2268,12 +2901,39 @@ impl MainState {
                 {
                     self.selected_habit_index = index;
                 }
-                self.status = "习惯已创建".to_string();
+                self.status = if checked > 0 {
+                    format!("习惯已创建，并在 {checked} 天打卡")
+                } else {
+                    "习惯已创建".to_string()
+                };
                 None
             }
             Err(err) => Some(err.to_string()),
         }
     }
+}
+
+fn expand_range(start: &str, end: Option<&str>) -> Option<Vec<String>> {
+    let start_date = totion_core::parse_date(start)?;
+    let end_date = match end.filter(|value| !value.is_empty()) {
+        Some(value) => totion_core::parse_date(value)?,
+        None => start_date,
+    };
+    let (start_date, end_date) = if start_date <= end_date {
+        (start_date, end_date)
+    } else {
+        (end_date, start_date)
+    };
+    let mut dates = Vec::new();
+    let mut cursor = start_date;
+    while cursor <= end_date {
+        dates.push(cursor.format("%Y-%m-%d").to_string());
+        if dates.len() > 62 {
+            return None;
+        }
+        cursor += ChronoDuration::days(1);
+    }
+    Some(dates)
 }
 
 #[derive(Default)]

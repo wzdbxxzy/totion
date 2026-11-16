@@ -80,7 +80,7 @@ fn migrates_v1_database_in_place() {
 
     assert_eq!(
         db::get_meta(&conn, "schema_version").unwrap().as_deref(),
-        Some("2")
+        Some("3")
     );
     let pages: i64 = conn
         .query_row("SELECT COUNT(*) FROM pages", [], |row| row.get(0))
@@ -88,7 +88,10 @@ fn migrates_v1_database_in_place() {
     let blocks: i64 = conn
         .query_row("SELECT COUNT(*) FROM blocks", [], |row| row.get(0))
         .unwrap();
-    assert_eq!((pages, blocks), (1, 1));
+    let journals: i64 = conn
+        .query_row("SELECT COUNT(*) FROM journals", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!((pages, blocks, journals), (1, 1, 0));
 
     let page = db::find_page(&conn, "p1").unwrap().unwrap();
     assert_eq!(page.title, "old page");

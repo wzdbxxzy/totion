@@ -11,6 +11,7 @@ pub enum EntityKind {
     Habit,
     HabitCheckin,
     Comment,
+    Journal,
 }
 
 impl EntityKind {
@@ -21,6 +22,7 @@ impl EntityKind {
             EntityKind::Habit => "habit",
             EntityKind::HabitCheckin => "habit_checkin",
             EntityKind::Comment => "comment",
+            EntityKind::Journal => "journal",
         }
     }
 
@@ -31,6 +33,7 @@ impl EntityKind {
             "habit" => Some(EntityKind::Habit),
             "habit_checkin" => Some(EntityKind::HabitCheckin),
             "comment" => Some(EntityKind::Comment),
+            "journal" => Some(EntityKind::Journal),
             _ => None,
         }
     }
@@ -58,7 +61,7 @@ pub struct WorkspaceInfo {
     pub users: Vec<User>,
 }
 
-pub const API_VERSION: u32 = 2;
+pub const API_VERSION: u32 = 3;
 
 fn default_api_version() -> u32 {
     // 旧服务器不会返回该字段，按 v1 处理。
@@ -76,6 +79,8 @@ pub struct Snapshot {
     pub checkins: Vec<HabitCheckin>,
     #[serde(default)]
     pub comments: Vec<Comment>,
+    #[serde(default)]
+    pub journals: Vec<JournalEntry>,
     pub last_seq: i64,
     #[serde(default = "default_api_version")]
     pub api_version: u32,
@@ -254,6 +259,30 @@ pub struct UpdateCommentRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WriteCommentResponse {
     pub comment: Comment,
+    pub seq: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateJournalRequest {
+    pub target_kind: JournalTarget,
+    pub target_id: Id,
+    /// YYYY-MM-DD
+    pub date: String,
+    /// HH:MM
+    pub time: String,
+    pub body: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateJournalRequest {
+    pub expected_version: i64,
+    pub body: Option<String>,
+    pub deleted: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WriteJournalResponse {
+    pub journal: JournalEntry,
     pub seq: i64,
 }
 

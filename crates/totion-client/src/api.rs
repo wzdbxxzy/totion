@@ -6,10 +6,11 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use totion_core::{
     AuthResponse, ChallengeRequest, ChallengeResponse, CheckinRequest, CreateBlockRequest,
-    CreateCommentRequest, CreateHabitRequest, CreatePageRequest, EnsureDayResponse,
-    RegisterRequest, Snapshot, SyncResponse, UpdateBlockRequest, UpdateCheckinRequest,
-    UpdateCommentRequest, UpdateHabitRequest, UpdatePageRequest, VerifyRequest, WriteBlockResponse,
-    WriteCheckinResponse, WriteCommentResponse, WriteHabitResponse, WritePageResponse,
+    CreateCommentRequest, CreateHabitRequest, CreateJournalRequest, CreatePageRequest,
+    EnsureDayResponse, RegisterRequest, Snapshot, SyncResponse, UpdateBlockRequest,
+    UpdateCheckinRequest, UpdateCommentRequest, UpdateHabitRequest, UpdateJournalRequest,
+    UpdatePageRequest, VerifyRequest, WriteBlockResponse, WriteCheckinResponse,
+    WriteCommentResponse, WriteHabitResponse, WriteJournalResponse, WritePageResponse,
 };
 
 #[derive(Debug)]
@@ -229,6 +230,24 @@ impl Api {
     ) -> Result<WriteCommentResponse, ApiError> {
         self.send(
             self.authed(Method::PATCH, &format!("/api/comments/{id}"))
+                .json(request),
+        )
+    }
+
+    pub fn create_journal(
+        &self,
+        request: &CreateJournalRequest,
+    ) -> Result<WriteJournalResponse, ApiError> {
+        self.send(self.authed(Method::POST, "/api/journals").json(request))
+    }
+
+    pub fn update_journal(
+        &self,
+        id: &str,
+        request: &UpdateJournalRequest,
+    ) -> Result<WriteJournalResponse, ApiError> {
+        self.send(
+            self.authed(Method::PATCH, &format!("/api/journals/{id}"))
                 .json(request),
         )
     }

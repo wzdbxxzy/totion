@@ -6,11 +6,11 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Gauge, Paragraph, Sparkline, Wrap},
     Frame,
 };
-use totion_core::{BlockSection, HabitStats};
+use totion_core::HabitStats;
 
 use crate::app::{
-    App, CommentPanel, Editing, EventForm, Focus, HabitForm, MainState, Modal, Screen, SearchState,
-    SetupForm, TodayRow, View,
+    AgendaPanel, App, CommentPanel, Editing, EventForm, Focus, HabitForm, MainState, Modal, Screen,
+    SearchState, SetupForm, TodayRow, View,
 };
 use crate::charts;
 
@@ -99,6 +99,7 @@ fn draw_main(frame: &mut Frame, main: &MainState) {
         View::Calendar => draw_calendar(frame, chunks[1], main),
         View::Habits => draw_habits(frame, chunks[1], main),
         View::Stats => draw_stats(frame, chunks[1], main),
+        View::Inbox => draw_inbox(frame, chunks[1], main),
     }
 
     if let Some(editing) = main.editing() {
@@ -138,6 +139,7 @@ fn view_number(view: View) -> u8 {
         View::Calendar => 3,
         View::Habits => 4,
         View::Stats => 5,
+        View::Inbox => 6,
     }
 }
 
@@ -208,10 +210,13 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
             Modal::HabitForm(_) => " Tab 切换字段 · Ctrl+F 切换频率 · Enter 提交 · Esc 取消",
             Modal::Comments(_) => " a 添加 · e 编辑 · r 解决/取消 · d 删除 · j/k 选择 · Esc 关闭",
             Modal::Search(_) => " 输入搜索 · j/k 选择 · Enter 跳转 · Esc 关闭",
+            Modal::Agenda(_) => {
+                " j/k 选择 · Space 勾选 · Enter 编辑 · d 删除 · t/c 新建 · Esc 关闭"
+            }
             Modal::Help => " 按 Esc 关闭帮助",
         }
     } else {
-        " 1-5 视图 · j/k 移动 · Enter 编辑 · Space 勾选/打卡 · C 评论 · / 搜索 · ? 帮助 · r 同步 · q 退出"
+        " 1-6 视图 · j/k 移动 · Enter 编辑 · Space 勾选/打卡 · a 写总结 · C 评论 · / 搜索 · ? 帮助 · q 退出"
     };
 
     let lines = vec![
@@ -222,12 +227,66 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
 }
 
 fn draw_workspace(frame: &mut Frame, area: Rect, main: &MainState) {
+    if main.workspace_journal_mode() {
+        let columns = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(32), Constraint::Percentage(68)])
+            .split(area);
+        draw_pages(frame, columns[0], main);
+        draw_journal_list(frame, columns[1], main);
+        return;
+    }
     let columns = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(32), Constraint::Percentage(68)])
         .split(area);
     draw_pages(frame, columns[0], main);
     draw_blocks(frame, columns[1], main);
+}
+
+fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
+    let journals = main.all_journals();
+    let mut lines: Vec<Line> = Vec::new();
+    for (index, journal) in journals.iter().enumerate() {
+        let selected = index == main.selected_journal_index();
+        let style = if selected {
+            Style::default().bg(Color::DarkGray)
+        } else {
+            Style::default()
+        };
+        let target = main.journal_target_label(journal);
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!(" {} {} ", journal.date, journal.time),
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::styled(
+                format!("{target} · {}", journal.author_name),
+                Style::default().fg(Color::Yellow),
+            ),
+        ]));
+        let body = journal
+            .body
+            .lines()
+            .take(3)
+            .map(|line| format!("    {line}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        lines.push(Line::from(Span::styled(body, style)));
+        lines.push(Line::from(""));
+    }
+    if lines.is_empty() {
+        lines.push(Line::from(Span::styled(
+            " 还没有总结。回到今日视图，选中待办/习惯后按 a 写总结。",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+    frame.render_widget(
+        Paragraph::new(lines)
+            .block(block_title(" 总结列表（J 返回） "))
+            .wrap(Wrap { trim: false }),
+        area,
+    );
 }
 
 fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
@@ -287,7 +346,12 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
     }
     if main.show_all_pages() {
         lines.push(Line::from(Span::styled(
-            "（a 隐藏日记页）",
+            "（a 隐藏日记页 · J 查看总结列表）",
+            Style::default().fg(Color::DarkGray),
+        )));
+    } else {
+        lines.push(Line::from(Span::styled(
+            "（J 查看总结列表）",
             Style::default().fg(Color::DarkGray),
         )));
     }
@@ -318,7 +382,7 @@ fn draw_blocks(frame: &mut Frame, area: Rect, main: &MainState) {
         match block_item.kind {
             totion_core::BlockKind::Todo => {
                 spans.push(Span::styled(
-                    if block_item.checked { "[x] " } else { "[ ] " },
+                    if block_item.checked { "✓ " } else { "□ " },
                     Style::default().fg(if block_item.checked {
                         Color::Green
                     } else {
@@ -440,7 +504,7 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
         .constraints([
             Constraint::Length(1),
             Constraint::Min(6),
-            Constraint::Min(4),
+            Constraint::Min(5),
         ])
         .split(area);
 
@@ -474,32 +538,35 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
 
     let mut item_lines: Vec<Line> = Vec::new();
     for (index, row) in rows.iter().enumerate() {
-        match row {
-            TodayRow::Todo(block) | TodayRow::Event(block) => {
-                let time = block.start_time.as_deref().unwrap_or("--:--");
-                let mark = if block.checked { "[x]" } else { "[ ]" };
-                let icon = if matches!(row, TodayRow::Event(_)) {
-                    "📅 "
-                } else {
-                    ""
-                };
-                let style = if index == selected {
-                    Style::default().bg(Color::DarkGray)
-                } else {
-                    Style::default()
-                };
-                let comments =
-                    main.unresolved_comment_count(totion_core::CommentTargetKind::Block, &block.id);
-                item_lines.push(Line::from(vec![Span::styled(
-                    format!(
-                        " {time} {mark} {icon}{}{}",
-                        block.text,
-                        comment_suffix(comments)
-                    ),
+        if let TodayRow::Todo(block) | TodayRow::Event(block) = row {
+            let time = block.start_time.as_deref().unwrap_or("--:--");
+            let icon = if matches!(row, TodayRow::Event(_)) {
+                "📅 "
+            } else {
+                ""
+            };
+            let style = if index == selected {
+                Style::default().bg(Color::DarkGray)
+            } else {
+                Style::default()
+            };
+            let comments =
+                main.unresolved_comment_count(totion_core::CommentTargetKind::Block, &block.id);
+            item_lines.push(Line::from(vec![
+                Span::styled(format!(" {time} "), Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    if block.checked { "✓ " } else { "○ " },
+                    Style::default().fg(if block.checked {
+                        Color::Green
+                    } else {
+                        Color::Gray
+                    }),
+                ),
+                Span::styled(
+                    format!("{icon}{}{}", block.text, comment_suffix(comments)),
                     style,
-                )]));
-            }
-            _ => {}
+                ),
+            ]));
         }
     }
     if item_lines.is_empty() {
@@ -518,22 +585,35 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
     let mut habit_lines: Vec<Line> = Vec::new();
     for (index, row) in rows.iter().enumerate() {
         if let TodayRow::Habit(habit, stats) = row {
-            let mark = if stats.checked_today { "[x]" } else { "[ ]" };
             let style = if index == selected {
                 Style::default().bg(Color::DarkGray)
             } else {
                 Style::default()
             };
-            habit_lines.push(Line::from(Span::styled(
-                format!(
-                    " {mark} {} {}  🔥{} · {}",
-                    habit.icon,
-                    habit.title,
-                    stats.current_streak,
-                    weekly_label(*stats)
+            habit_lines.push(Line::from(vec![
+                Span::styled(
+                    if stats.checked_today {
+                        " ✓ "
+                    } else {
+                        " ○ "
+                    },
+                    Style::default().fg(if stats.checked_today {
+                        Color::Green
+                    } else {
+                        Color::Gray
+                    }),
                 ),
-                style,
-            )));
+                Span::styled(
+                    format!(
+                        "{} {}  🔥{} · {}",
+                        habit.icon,
+                        habit.title,
+                        stats.current_streak,
+                        weekly_label(*stats)
+                    ),
+                    style,
+                ),
+            ]));
         }
     }
     if habit_lines.is_empty() {
@@ -549,46 +629,44 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
         columns[1],
     );
 
-    let mut diary_lines: Vec<Line> = Vec::new();
-    if let Some(page) = main.daily_page() {
-        for section in BlockSection::ALL {
-            if let Some(block) = main.diary_block(&page.id, section) {
-                let selected_here = rows
-                    .get(selected)
-                    .map(|row| matches!(row, TodayRow::Diary(item) if item.id == block.id))
-                    .unwrap_or(false);
-                let preview = if block.text.trim().is_empty() {
-                    "（Enter 编辑）".to_string()
-                } else {
-                    block.text.lines().take(2).collect::<Vec<_>>().join(" / ")
-                };
-                diary_lines.push(Line::from(vec![
-                    Span::styled(
-                        format!(" {}: ", section.label()),
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        preview,
-                        if selected_here {
-                            Style::default().bg(Color::DarkGray)
-                        } else {
-                            Style::default()
-                        },
-                    ),
-                ]));
-            }
+    let mut journal_lines: Vec<Line> = Vec::new();
+    for (index, row) in rows.iter().enumerate() {
+        if let TodayRow::Journal(journal) = row {
+            let style = if index == selected {
+                Style::default().bg(Color::DarkGray)
+            } else {
+                Style::default()
+            };
+            let target = main.journal_target_label(journal);
+            journal_lines.push(Line::from(vec![
+                Span::styled(
+                    format!(" {} ", journal.time),
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(
+                    format!("{target} · {}", journal.author_name),
+                    Style::default().fg(Color::Yellow),
+                ),
+            ]));
+            let body = journal
+                .body
+                .lines()
+                .take(2)
+                .map(|line| format!("    {line}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            journal_lines.push(Line::from(Span::styled(body, style)));
         }
-    } else {
-        diary_lines.push(Line::from(Span::styled(
-            " 正在创建今日页…（服务器需为 v0.2）",
+    }
+    if journal_lines.is_empty() {
+        journal_lines.push(Line::from(Span::styled(
+            " 今天还没有总结。选中一条待办/习惯后按 a 写总结，或直接按 a 写当日总结。",
             Style::default().fg(Color::DarkGray),
         )));
     }
     frame.render_widget(
-        Paragraph::new(diary_lines)
-            .block(block_title(" 日记：总结 / 感悟 / 经验 "))
+        Paragraph::new(journal_lines)
+            .block(block_title(" 总结 "))
             .wrap(Wrap { trim: false }),
         outer[2],
     );
@@ -614,103 +692,171 @@ fn weekday_label(date: NaiveDate) -> &'static str {
 }
 
 fn draw_calendar(frame: &mut Frame, area: Rect, main: &MainState) {
-    let columns = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
-        .split(area);
-
     let month = main.calendar_month();
+    let range = main.selected_range();
+    let range_label = match range {
+        Some((start, end)) if start != end => format!(
+            " · 已选 {} ~ {}",
+            start.format("%m-%d"),
+            end.format("%m-%d")
+        ),
+        Some((start, _)) if main.range_is_active() => {
+            format!(" · 起点 {}", start.format("%m-%d"))
+        }
+        _ => String::new(),
+    };
     let title = format!(
-        " 日历 · {} 年 {} 月（←/→ 选日 · [ ] 换月） ",
+        " 日历 · {} 年 {} 月 · ←/→ 选日 · [ ] 换月 · v 或 Shift+右键框选{} ",
         month.year(),
-        month.month()
+        month.month(),
+        range_label
     );
     let block = block_title(title);
-    let mut lines: Vec<Line> = Vec::new();
-    lines.push(Line::from(Span::styled(
-        " 一   二   三   四   五   六   日",
-        Style::default().fg(Color::DarkGray),
-    )));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    if inner.width < 14 || inner.height < 8 {
+        return;
+    }
+
+    let weekday_labels = ["一", "二", "三", "四", "五", "六", "日"];
+    let cell_w = inner.width / 7;
+    for (index, label) in weekday_labels.iter().enumerate() {
+        frame.render_widget(
+            Paragraph::new(*label),
+            Rect {
+                x: inner.x + cell_w * index as u16 + 1,
+                y: inner.y,
+                width: 2,
+                height: 1,
+            },
+        );
+    }
+
+    let grid_y = inner.y + 1;
+    let grid_h = inner.height.saturating_sub(2);
+    let cell_h = grid_h / 6;
+    if cell_w == 0 || cell_h == 0 {
+        return;
+    }
 
     let offset = month.weekday().num_days_from_monday() as usize;
     let days = days_in_month(month);
     let today = Local::now().date_naive();
-    for week in 0..6 {
-        let mut spans: Vec<Span> = Vec::new();
-        for weekday in 0..7 {
-            let index = week * 7 + weekday;
+    let selected = main.selected_day();
+
+    let mut cells = main.calendar_cells.borrow_mut();
+    cells.clear();
+
+    for week in 0..6u16 {
+        for weekday in 0..7u16 {
+            let index = week as usize * 7 + weekday as usize;
             if index < offset || index >= offset + days as usize {
-                spans.push(Span::raw("    "));
                 continue;
             }
             let day = (index - offset + 1) as u32;
-            let date = NaiveDate::from_ymd_opt(month.year(), month.month(), day).unwrap_or(month);
-            let has_event = !main.calendar_blocks(date).is_empty();
-            let label = if has_event {
-                format!("{day:>2}• ")
-            } else {
-                format!("{day:>2}  ")
+            let Some(date) = NaiveDate::from_ymd_opt(month.year(), month.month(), day) else {
+                continue;
             };
-            let mut style = Style::default();
-            if has_event {
-                style = style.fg(Color::Green);
-            }
-            if date == main.selected_day() {
-                style = style
-                    .bg(Color::Cyan)
-                    .fg(Color::Black)
-                    .add_modifier(Modifier::BOLD);
+            let rect = Rect {
+                x: inner.x + weekday * cell_w,
+                y: grid_y + week * cell_h,
+                width: cell_w,
+                height: cell_h,
+            };
+            cells.push((rect, date));
+
+            let in_range = range
+                .map(|(start, end)| date >= start && date <= end)
+                .unwrap_or(false);
+            let background = if date == selected {
+                Some(Color::Rgb(0, 70, 80))
+            } else if in_range {
+                Some(Color::Rgb(34, 45, 52))
             } else if date == today {
-                style = style
-                    .bg(Color::DarkGray)
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD);
+                Some(Color::Rgb(40, 40, 46))
+            } else {
+                None
+            };
+            if let Some(color) = background {
+                frame.render_widget(Block::default().style(Style::default().bg(color)), rect);
             }
-            spans.push(Span::styled(label, style));
+
+            let mut lines: Vec<Line> = Vec::new();
+            lines.push(Line::from(Span::styled(
+                format!(" {day}"),
+                Style::default()
+                    .fg(if date == selected {
+                        Color::White
+                    } else {
+                        Color::Gray
+                    })
+                    .add_modifier(Modifier::BOLD),
+            )));
+
+            if cell_h > 1 {
+                let max_items = (cell_h as usize).saturating_sub(1);
+                let blocks = main.calendar_blocks(date);
+                let mut used = 0;
+                for block in blocks.iter().take(max_items) {
+                    let text = truncate_chars(&block.text, cell_w.saturating_sub(4) as usize);
+                    lines.push(Line::from(vec![
+                        Span::styled(
+                            if block.checked { " ✓" } else { " ○" },
+                            Style::default().fg(if block.checked {
+                                Color::Green
+                            } else {
+                                Color::Gray
+                            }),
+                        ),
+                        Span::raw(format!(" {text}")),
+                    ]));
+                    used += 1;
+                }
+                if used < max_items {
+                    let key = date.format("%Y-%m-%d").to_string();
+                    for journal in main.journals_on(&key).iter().take(max_items - used) {
+                        let text = truncate_chars(
+                            &journal.body.replace('\n', " "),
+                            cell_w.saturating_sub(4) as usize,
+                        );
+                        lines.push(Line::from(vec![
+                            Span::styled(" 总", Style::default().fg(Color::Yellow)),
+                            Span::raw(format!(" {text}")),
+                        ]));
+                    }
+                }
+            }
+
+            frame.render_widget(Paragraph::new(lines), rect);
         }
-        lines.push(Line::from(spans));
     }
 
-    frame.render_widget(
-        Paragraph::new(lines)
-            .block(block)
-            .wrap(Wrap { trim: false }),
-        columns[0],
+    let hint = format!(
+        " {} · Enter 查看议程 · t/c 新建 · n 新习惯 · v/Esc 取消框选",
+        selected.format("%Y-%m-%d")
     );
+    frame.render_widget(
+        Paragraph::new(hint),
+        Rect {
+            x: inner.x,
+            y: inner.y + inner.height - 1,
+            width: inner.width,
+            height: 1,
+        },
+    );
+}
 
-    let selected = main.selected_day();
-    let agenda = main.agenda_blocks();
-    let mut agenda_lines: Vec<Line> = Vec::new();
-    for (index, block) in agenda.iter().enumerate() {
-        let time = block.start_time.as_deref().unwrap_or("--:--");
-        let mark = if block.checked { "[x]" } else { "[ ]" };
-        let style = if index == main.selected_agenda_index() {
-            Style::default().bg(Color::DarkGray)
-        } else {
-            Style::default()
-        };
-        let comments =
-            main.unresolved_comment_count(totion_core::CommentTargetKind::Block, &block.id);
-        agenda_lines.push(Line::from(Span::styled(
-            format!(" {time} {mark} {}{}", block.text, comment_suffix(comments)),
-            style,
-        )));
+fn truncate_chars(value: &str, max: usize) -> String {
+    if max == 0 {
+        return String::new();
     }
-    if agenda_lines.is_empty() {
-        agenda_lines.push(Line::from(Span::styled(
-            " 这天没有安排，按 t 新建待办、c 新建日程",
-            Style::default().fg(Color::DarkGray),
-        )));
+    let mut output: String = value.chars().take(max).collect();
+    if value.chars().count() > max {
+        output.pop();
+        output.push('…');
     }
-    frame.render_widget(
-        Paragraph::new(agenda_lines)
-            .block(block_title(format!(
-                " {} 议程 ",
-                selected.format("%Y-%m-%d")
-            )))
-            .wrap(Wrap { trim: false }),
-        columns[1],
-    );
+    output
 }
 
 fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
@@ -788,7 +934,8 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
             " 最近 12 周",
             Style::default().fg(Color::DarkGray),
         )));
-        let grid = main.heatmap_grid(habit, 12);
+        let weeks = ((columns[1].width.saturating_sub(10)) / 2).clamp(8, 52) as u32;
+        let grid = main.heatmap_grid(habit, weeks);
         detail_lines.extend(charts::heatmap_lines(&grid));
         if !habit.note.trim().is_empty() {
             detail_lines.push(Line::from(""));
@@ -866,7 +1013,8 @@ fn draw_stats(frame: &mut Frame, area: Rect, main: &MainState) {
         sections[2],
     );
 
-    let grid = main.aggregate_heatmap(16);
+    let weeks = ((sections[3].width.saturating_sub(10)) / 2).clamp(8, 52) as u32;
+    let grid = main.aggregate_heatmap(weeks);
     frame.render_widget(
         Paragraph::new(charts::heatmap_lines(&grid))
             .block(block_title(" 最近 16 周打卡热力图 "))
@@ -906,8 +1054,129 @@ fn draw_modal(frame: &mut Frame, main: &MainState, modal: &Modal) {
         Modal::HabitForm(form) => draw_habit_form(frame, form),
         Modal::Comments(panel) => draw_comments(frame, main, panel),
         Modal::Search(state) => draw_search(frame, state),
+        Modal::Agenda(panel) => draw_agenda(frame, main, panel),
         Modal::Help => draw_help(frame),
     }
+}
+
+fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {
+    let area = centered_rect(66, 62, frame.area());
+    frame.render_widget(Clear, area);
+    let blocks = main.calendar_blocks(panel.date);
+    let mut lines: Vec<Line> = Vec::new();
+    for (index, block) in blocks.iter().enumerate() {
+        let style = if index == panel.selected {
+            Style::default().bg(Color::DarkGray)
+        } else {
+            Style::default()
+        };
+        let time = block.start_time.as_deref().unwrap_or("--:--");
+        let comments =
+            main.unresolved_comment_count(totion_core::CommentTargetKind::Block, &block.id);
+        lines.push(Line::from(vec![
+            Span::styled(format!(" {time} "), Style::default().fg(Color::Cyan)),
+            Span::styled(
+                if block.checked { "✓ " } else { "○ " },
+                Style::default().fg(if block.checked {
+                    Color::Green
+                } else {
+                    Color::Gray
+                }),
+            ),
+            Span::styled(format!("{}{}", block.text, comment_suffix(comments)), style),
+        ]));
+    }
+    if lines.is_empty() {
+        lines.push(Line::from(Span::styled(
+            " 这天没有安排，按 t 新建待办、c 新建日程",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        " j/k 选择 · Space 勾选 · Enter 编辑 · d 删除 · t/c 新建 · Esc 关闭",
+        Style::default().fg(Color::DarkGray),
+    )));
+    frame.render_widget(
+        Paragraph::new(lines)
+            .block(block_title(format!(
+                " {} 议程 ",
+                panel.date.format("%Y-%m-%d")
+            )))
+            .wrap(Wrap { trim: false }),
+        area,
+    );
+}
+
+fn draw_inbox(frame: &mut Frame, area: Rect, main: &MainState) {
+    let comments = main.inbox_comments();
+    let unresolved = comments.iter().filter(|comment| !comment.resolved).count();
+    let mut lines: Vec<Line> = Vec::new();
+    for (index, comment) in comments.iter().enumerate() {
+        let selected = index == main.selected_inbox_index();
+        let style = if selected {
+            Style::default().bg(Color::DarkGray)
+        } else {
+            Style::default()
+        };
+        let target = main.comment_target_label(comment.target_kind, &comment.target_id);
+        lines.push(Line::from(vec![
+            Span::styled(
+                if selected { "▶ " } else { "  " },
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::styled(
+                if comment.resolved {
+                    "[已解决] "
+                } else {
+                    "[未解决] "
+                },
+                Style::default().fg(if comment.resolved {
+                    Color::Green
+                } else {
+                    Color::Yellow
+                }),
+            ),
+            Span::styled(
+                format!("{} ", comment.author_name),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!(
+                    "{} ",
+                    comment
+                        .updated_at
+                        .with_timezone(&Local)
+                        .format("%m-%d %H:%M")
+                ),
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled(target, Style::default().fg(Color::Cyan)),
+        ]));
+        for line in comment.body.lines() {
+            lines.push(Line::from(Span::styled(
+                format!("    {line}"),
+                style.fg(Color::Gray),
+            )));
+        }
+        lines.push(Line::from(""));
+    }
+    if lines.is_empty() {
+        lines.push(Line::from(Span::styled(
+            " 还没有留言。选中一个页面/内容块/习惯后按 C 发表评论。",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+    lines.push(Line::from(Span::styled(
+        " j/k 选择 · Enter 跳转 · a 回复 · r 解决/取消 · e 编辑 · d 删除",
+        Style::default().fg(Color::DarkGray),
+    )));
+    frame.render_widget(
+        Paragraph::new(lines)
+            .block(block_title(format!(" 留言 · {unresolved} 条未解决 ")))
+            .wrap(Wrap { trim: false }),
+        area,
+    );
 }
 
 fn draw_event_form(frame: &mut Frame, form: &EventForm) {
@@ -931,6 +1200,12 @@ fn draw_event_form(frame: &mut Frame, form: &EventForm) {
             } else {
                 Style::default()
             },
+        )));
+    }
+    if let Some(end) = &form.range_end {
+        lines.push(Line::from(Span::styled(
+            format!("  批量范围: {} ~ {end}", form.date),
+            Style::default().fg(Color::Yellow),
         )));
     }
     lines.push(Line::from(""));
@@ -981,6 +1256,12 @@ fn draw_habit_form(frame: &mut Frame, form: &HabitForm) {
         "  频率: {}（Ctrl+F 切换）",
         form.frequency.label()
     )));
+    if let Some(end) = &form.range_end {
+        lines.push(Line::from(Span::styled(
+            format!("  批量范围: {} ~ {end}（创建后逐日打卡）", form.date),
+            Style::default().fg(Color::Yellow),
+        )));
+    }
     lines.push(Line::from(""));
     if let Some(error) = &form.error {
         lines.push(Line::from(Span::styled(
