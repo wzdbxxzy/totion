@@ -488,6 +488,8 @@ pub struct MainState {
     selected_inbox_index: usize,
     focus: Focus,
     today_focus: TodayFocus,
+    /// 从哪个面板进入「总结」面板，决定总结跟随待办还是习惯。
+    journal_source: TodayFocus,
     view: View,
     editing: Option<Editing>,
     modal: Option<Modal>,
@@ -536,6 +538,7 @@ impl MainState {
             selected_inbox_index: 0,
             focus: Focus::Pages,
             today_focus: TodayFocus::Items,
+            journal_source: TodayFocus::Items,
             view: View::Today,
             editing: None,
             modal: None,
@@ -885,8 +888,23 @@ impl MainState {
                 .today_habits()
                 .get(self.selected_today_habit_index)
                 .map(|(habit, _)| (JournalTarget::Habit, habit.id.clone())),
-            // 总结面板只跟随「待办 / 习惯」的选中项；焦点在总结面板、或没有选中对象时不显示。
-            TodayFocus::Journal => None,
+            // 总结面板跟随「待办 / 习惯」列表里当前高亮的对象；没有选中对象时返回 None，
+            // 面板隐藏。不再回退到「当日总结」，避免显示不是当前对象的内容。
+            TodayFocus::Journal => match self.journal_source {
+                TodayFocus::Habits => self
+                    .today_habits()
+                    .get(self.selected_today_habit_index)
+                    .map(|(habit, _)| (JournalTarget::Habit, habit.id.clone())),
+                _ => self
+                    .today_items()
+                    .get(self.selected_today_index)
+                    .and_then(|row| match row {
+                        TodayRow::Todo(block) | TodayRow::Event(block) => {
+                            Some((JournalTarget::Block, block.id.clone()))
+                        }
+                        TodayRow::Habit(_, _) => None,
+                    }),
+            },
         }
     }
 
@@ -1546,13 +1564,19 @@ impl MainState {
                 self.week_mode = true;
                 self.week_selected = 6;
             }
-            KeyCode::Tab => {
-                self.today_focus = match self.today_focus {
-                    TodayFocus::Items => TodayFocus::Habits,
-                    TodayFocus::Habits => TodayFocus::Journal,
-                    TodayFocus::Journal => TodayFocus::Items,
-                };
-            }
+            KeyCode::Tab => match self.today_focus {
+                TodayFocus::Items => {
+                    self.journal_source = TodayFocus::Items;
+                    self.today_focus = TodayFocus::Habits;
+                }
+                TodayFocus::Habits => {
+                    self.journal_source = TodayFocus::Habits;
+                    self.today_focus = TodayFocus::Journal;
+                }
+                TodayFocus::Journal => {
+                    self.today_focus = TodayFocus::Items;
+                }
+            },
             KeyCode::Up | KeyCode::Char('k') => self.move_today(-1),
             KeyCode::Down | KeyCode::Char('j') => self.move_today(1),
             KeyCode::Char(' ') => self.toggle_today_item(),

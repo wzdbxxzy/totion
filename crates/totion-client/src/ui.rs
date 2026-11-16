@@ -254,7 +254,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
                     " j/k 移动 · Space 打卡 · u 撤销 · a 总结 · d 删除 · h/l 切天 · w 周 · Tab 面板"
                 }
                 TodayFocus::Journal => {
-                    " 选中待办/习惯后 a 写总结 · h/l 切天 · w 周 · Tab 面板"
+                    " Enter/a 编辑总结 · d 删除 · h/l 切天 · w 周 · Tab 面板"
                 }
             },
             View::Workspace => {
