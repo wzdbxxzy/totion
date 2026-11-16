@@ -172,10 +172,11 @@ def today_screenshot():
     )
 
     # 日期与完成率
-    body += "\n" + text(40, 124, "2026-11-16 周一", TEXT, 18, bold=True)
-    body += "\n" + rect(210, 111, 260, 14, PANEL2, BORDER, 7)
-    body += "\n" + rect(210, 111, 148, 14, GREEN, None, 7)
-    body += "\n" + text(486, 124, "4/7   57%", MUTED, 15)
+    body += "\n" + text(40, 124, "2026-11-16 今天", TEXT, 18, bold=True)
+    body += "\n" + rect(270, 111, 220, 14, PANEL2, BORDER, 7)
+    body += "\n" + rect(270, 111, 125, 14, GREEN, None, 7)
+    body += "\n" + text(506, 124, "4/7   57%", MUTED, 15)
+    body += "\n" + text(650, 124, "[ ] 切换日期 · w 近一周", MUTED, 13)
 
     # 今日待办
     body += "\n" + panel(24, 146, 700, 250, " 今日待办 [Tab] ")
@@ -206,10 +207,14 @@ def today_screenshot():
         body += "\n" + text(1010, y, extra, color, 13)
         y += 40
 
-    # 总结（单条文本框）
-    body += "\n" + panel(24, 414, 1232, 240, " 总结 [Tab] ")
+    # 总结（单条文本框）+ 评论预览
+    body += "\n" + panel(24, 414, 820, 240, " 总结 [Tab] ")
     body += "\n" + text(48, 466, "21:30 · Guan", CYAN, 14)
     body += "\n" + text(48, 500, "周报写完了，明天给同事过一遍。迁移测试也过了。", TEXT, 15)
+
+    body += "\n" + panel(868, 414, 388, 240, " 评论 ")
+    body += "\n" + text(892, 466, "队友：迁移测试过了吗？", TEXT, 14)
+    body += "\n" + text(892, 500, "Guan：过了，数据库也备份了。", MUTED, 14)
 
     body += "\n" + text(40, 686, "已连接 · 2 秒前同步", MUTED, 13)
     body += "\n" + text(
@@ -313,6 +318,7 @@ def calendar_screenshot():
     offset = 6
     days = 30
     selected = 16
+    today = 17
     range_start = 16
     range_end = 20
     events = {
@@ -321,6 +327,7 @@ def calendar_screenshot():
         8: [("○", "复盘会", MUTED)],
         12: [("○", "评审", MUTED)],
         16: [("✓", "晨会", GREEN), ("○", "写周报", MUTED), ("○", "评审", MUTED)],
+        17: [("○", "买菜", MUTED)],
         18: [("○", "买菜", MUTED)],
         21: [("○", "周复盘", MUTED)],
         24: [("○", "设计评审", MUTED)],
@@ -335,14 +342,22 @@ def calendar_screenshot():
         x = 24 + column * 174
         y = 184 + row * 88
         in_range = range_start <= day <= range_end
-        fill = "#0e4b52" if day == selected else ("#222b33" if in_range else PANEL2)
-        border = CYAN if day == selected else ("#4b6a7a" if in_range else BORDER)
+        if day == selected:
+            fill, border = "#0e4b52", CYAN
+        elif day == today:
+            fill, border = "#103c24", GREEN
+        elif in_range:
+            fill, border = "#222b33", "#4b6a7a"
+        elif day < today:
+            fill, border = "#12161b", "#2a3038"
+        else:
+            fill, border = PANEL2, BORDER
         body += "\n" + rect(x, y, 166, 82, fill, border, 6)
         body += "\n" + text(
             x + 10,
             y + 24,
             str(day),
-            "#ffffff" if day == selected else TEXT,
+            "#ffffff" if day == selected else (GREEN if day == today else (MUTED if day < today else TEXT)),
             16,
             bold=True,
         )
@@ -652,13 +667,13 @@ def help_screenshot():
 
     sections = [
         ("视图", "1 今日   2 工作区   3 日历   4 习惯   5 统计   6 留言"),
-        ("今日", "Tab 切换 待办/习惯/总结；a 写总结；t 待办；Space 勾选/打卡"),
-        ("工作区", "Tab 页面/内容；n 文本；t 待办；N 新页面；a 每日页面"),
+        ("今日", "Tab 待办/习惯/总结；[ ] 切换日期；w 近一周；a 写总结"),
+        ("工作区", "Tab 页面/内容；J 全部总结；n 文本；t 待办；N 新页面"),
         ("日历", "h/l 选日；j/k 前后一周；[ ] 换月；Enter 议程；v 框选"),
         ("批量", "选中日期范围后按 t 批量新建待办（最多 62 天）"),
-        ("习惯", "n 新建；d 删除；Space 打卡；u 撤销；Ctrl+F 切换频率"),
+        ("习惯", "n 新建；d 归档；Space 打卡；u 撤销；Ctrl+F 切换频率"),
+        ("删除", "按 d 后输入 delete 并回车确认；Esc 取消"),
         ("协作", "C 评论；6 留言；i 邀请码；/ 搜索；r 同步"),
-        ("编辑", "Enter 保存；总结/评论等多行内容用 Ctrl+S；Esc 取消"),
         ("其他", "? 帮助；q 或 Ctrl+C 退出"),
     ]
     line_y = y + 90
@@ -741,6 +756,47 @@ def inbox_screenshot():
         40,
         730,
         "j/k 选择 · Enter 跳转 · a 回复 · r 解决/取消 · e 编辑 · d 删除",
+        MUTED,
+        13,
+    )
+    return svg(width, height, body, defs)
+
+
+def invites_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 邀请码")
+
+    x, y, w, h = 250, 110, 780, 480
+    body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
+    body += "\n" + text(x + 30, y + 46, "邀请码", CYAN, 20, bold=True)
+    body += "\n" + text(x + 30, y + 72, "同一个空间的有效邀请码都能用来注册", MUTED, 13)
+
+    invites = [
+        ("▶ AB12CD34", "有效", "已用 0/1 · 不过期", "给小明 · Guan", True),
+        ("  EF56GH78", "已撤销", "已用 2 次 · 2027-01-01 00:00", "临时码 · 队友", False),
+        ("  JK90LM12", "有效", "已用 3 次 · 不过期", "家人 · Guan", False),
+    ]
+    line_y = y + 118
+    for code, status, detail, note, selected in invites:
+        if selected:
+            body += "\n" + rect(x + 18, line_y - 26, w - 36, 82, PANEL2, None, 8)
+        body += "\n" + text(x + 30, line_y, code, "#ffffff", 18, bold=True)
+        body += "\n" + text(
+            x + 210,
+            line_y,
+            status,
+            GREEN if status == "有效" else MUTED,
+            14,
+            bold=True,
+        )
+        body += "\n" + text(x + 300, line_y, detail, MUTED, 13)
+        body += "\n" + text(x + 38, line_y + 30, note, TEXT, 14)
+        line_y += 96
+
+    body += "\n" + text(
+        x + 30,
+        y + h - 26,
+        "g 生成新码 · x 撤销/恢复 · j/k 选择 · Esc 关闭",
         MUTED,
         13,
     )

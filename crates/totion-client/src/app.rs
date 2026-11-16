@@ -164,6 +164,52 @@ pub struct InvitePanel {
 }
 
 #[derive(Debug, Clone)]
+pub enum PendingDelete {
+    Block {
+        id: String,
+        version: i64,
+        label: String,
+    },
+    Habit {
+        id: String,
+        version: i64,
+        label: String,
+    },
+    Page {
+        id: String,
+        version: i64,
+        label: String,
+    },
+    Comment {
+        id: String,
+        version: i64,
+    },
+    Summary {
+        id: String,
+        version: i64,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct ConfirmState {
+    pub action: PendingDelete,
+    pub input: String,
+    pub label: String,
+}
+
+impl PendingDelete {
+    pub fn label(&self) -> String {
+        match self {
+            PendingDelete::Block { label, .. }
+            | PendingDelete::Habit { label, .. }
+            | PendingDelete::Page { label, .. } => label.clone(),
+            PendingDelete::Comment { .. } => "这条评论".to_string(),
+            PendingDelete::Summary { .. } => "这条总结".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Modal {
     EventForm(EventForm),
     HabitForm(HabitForm),
@@ -171,6 +217,7 @@ pub enum Modal {
     Search(SearchState),
     Agenda(AgendaPanel),
     Invites(InvitePanel),
+    Confirm(ConfirmState),
     Help,
 }
 
@@ -450,9 +497,14 @@ pub struct MainState {
     calendar_month: NaiveDate,
     selected_day: NaiveDate,
     today: NaiveDate,
+    view_date: NaiveDate,
+    week_mode: bool,
+    week_selected: usize,
     ensured_date: Option<String>,
     daily_page_id: Option<String>,
     show_all_pages: bool,
+    workspace_journal_mode: bool,
+    selected_journal_index: usize,
     range_anchor: Option<NaiveDate>,
     range_focus: Option<NaiveDate>,
     pub calendar_cells: RefCell<Vec<(Rect, NaiveDate)>>,
@@ -493,9 +545,14 @@ impl MainState {
             calendar_month: today.with_day(1).unwrap_or(today),
             selected_day: today,
             today,
+            view_date: today,
+            week_mode: false,
+            week_selected: 6,
             ensured_date: None,
             daily_page_id: None,
             show_all_pages: false,
+            workspace_journal_mode: false,
+            selected_journal_index: 0,
             range_anchor: None,
             range_focus: None,
             calendar_cells: RefCell::new(Vec::new()),
@@ -598,7 +655,7 @@ impl MainState {
     }
 
     pub fn supports_v2(&self) -> bool {
-        self.caps.supports_v2()
+        self.caps.api_version >= 3
     }
 
     pub fn visible_pages(&self) -> Vec<&Page> {
@@ -673,6 +730,50 @@ impl MainState {
         self.today.format("%Y-%m-%d").to_string()
     }
 
+    pub fn view_key(&self) -> String {
+        self.view_date.format("%Y-%m-%d").to_string()
+    }
+
+    pub fn view_date(&self) -> NaiveDate {
+        self.view_date
+    }
+
+    pub fn week_mode(&self) -> bool {
+        self.week_mode
+    }
+
+    pub fn week_selected(&self) -> usize {
+        self.week_selected
+    }
+
+    pub fn week_overview(&self) -> Vec<(NaiveDate, DayStat, usize)> {
+        (0..7)
+            .map(|index| {
+                let date = self.view_date - ChronoDuration::days(6 - index);
+                let key = date.format("%Y-%m-%d").to_string();
+                let stat = block_day_stats(&self.blocks, &key);
+                let summaries = self
+                    .journals
+                    .iter()
+                    .filter(|journal| !journal.deleted && journal.date == key)
+                    .count();
+                (date, stat, summaries)
+            })
+            .collect()
+    }
+
+    pub fn workspace_journal_mode(&self) -> bool {
+        self.workspace_journal_mode
+    }
+
+    pub fn selected_journal_index(&self) -> usize {
+        self.selected_journal_index
+    }
+
+    pub fn habit_stats_on(&self, habit: &Habit, date: NaiveDate) -> HabitStats {
+        habit_stats(habit.frequency, &habit.id, &self.checkins, date)
+    }
+
     pub fn daily_page(&self) -> Option<&Page> {
         let key = self.today_key();
         self.pages
@@ -681,7 +782,7 @@ impl MainState {
     }
 
     pub fn today_rows(&self) -> Vec<TodayRow> {
-        let key = self.today_key();
+        let key = self.view_key();
         let mut rows = Vec::new();
         let mut blocks: Vec<Block> = self
             .blocks
@@ -711,8 +812,10 @@ impl MainState {
         }
 
         for habit in self.visible_habits() {
-            let stats = self.habit_stats(&habit);
-            if stats.checked_today || habit_due_on(habit.frequency, self.today, stats.weekly_done) {
+            let stats = self.habit_stats_on(&habit, self.view_date);
+            if stats.checked_today
+                || habit_due_on(habit.frequency, self.view_date, stats.weekly_done)
+            {
                 rows.push(TodayRow::Habit(habit, stats));
             }
         }
@@ -736,18 +839,75 @@ impl MainState {
             .collect()
     }
 
-    /// 当天唯一的一条总结。
-    pub fn today_summary(&self) -> Option<JournalEntry> {
-        let key = self.today_key();
-        self.journals
+    pub fn all_journals(&self) -> Vec<JournalEntry> {
+        let mut journals: Vec<JournalEntry> = self
+            .journals
+            .iter()
+            .filter(|journal| !journal.deleted)
+            .cloned()
+            .collect();
+        journals.sort_by_key(|journal| {
+            (
+                std::cmp::Reverse(journal.date.clone()),
+                std::cmp::Reverse(journal.created_at),
+            )
+        });
+        journals
+    }
+
+    pub fn journals_for_target(&self, kind: JournalTarget, target_id: &str) -> Vec<JournalEntry> {
+        let mut journals: Vec<JournalEntry> = self
+            .journals
             .iter()
             .filter(|journal| {
-                !journal.deleted
-                    && journal.date == key
-                    && journal.target_kind == JournalTarget::Daily
+                !journal.deleted && journal.target_kind == kind && journal.target_id == target_id
             })
-            .max_by_key(|journal| journal.created_at)
             .cloned()
+            .collect();
+        journals.sort_by_key(|journal| std::cmp::Reverse(journal.created_at));
+        journals
+    }
+
+    /// 当前选中的待办/习惯；总结面板跟随它。
+    pub fn current_summary_target(&self) -> Option<(JournalTarget, String)> {
+        match self.today_focus {
+            TodayFocus::Items => {
+                self.today_items()
+                    .get(self.selected_today_index)
+                    .and_then(|row| match row {
+                        TodayRow::Todo(block) | TodayRow::Event(block) => {
+                            Some((JournalTarget::Block, block.id.clone()))
+                        }
+                        TodayRow::Habit(_, _) => None,
+                    })
+            }
+            TodayFocus::Habits => self
+                .today_habits()
+                .get(self.selected_today_habit_index)
+                .map(|(habit, _)| (JournalTarget::Habit, habit.id.clone())),
+            TodayFocus::Journal => self
+                .today_items()
+                .get(self.selected_today_index)
+                .and_then(|row| match row {
+                    TodayRow::Todo(block) | TodayRow::Event(block) => {
+                        Some((JournalTarget::Block, block.id.clone()))
+                    }
+                    TodayRow::Habit(_, _) => None,
+                })
+                .or_else(|| Some((JournalTarget::Daily, self.view_key()))),
+        }
+    }
+
+    pub fn today_summary_entries(&self) -> Vec<JournalEntry> {
+        let key = self.view_key();
+        self.current_summary_target()
+            .map(|(kind, id)| {
+                self.journals_for_target(kind, &id)
+                    .into_iter()
+                    .filter(|journal| journal.date == key)
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     pub fn inbox_comments(&self) -> Vec<Comment> {
@@ -794,10 +954,10 @@ impl MainState {
     }
 
     pub fn today_completion(&self) -> DayStat {
-        let mut stat = block_day_stats(&self.blocks, &self.today_key());
+        let mut stat = block_day_stats(&self.blocks, &self.view_key());
         for habit in self.visible_habits() {
-            let stats = self.habit_stats(&habit);
-            if habit_due_on(habit.frequency, self.today, stats.weekly_done) {
+            let stats = self.habit_stats_on(&habit, self.view_date);
+            if habit_due_on(habit.frequency, self.view_date, stats.weekly_done) {
                 stat.total += 1;
                 if stats.checked_today {
                     stat.done += 1;
@@ -918,6 +1078,12 @@ impl MainState {
             0
         } else {
             self.selected_inbox_index.min(inbox_count - 1)
+        };
+        let journal_count = self.all_journals().len();
+        self.selected_journal_index = if journal_count == 0 {
+            0
+        } else {
+            self.selected_journal_index.min(journal_count - 1)
         };
     }
 
@@ -1255,6 +1421,18 @@ impl MainState {
     }
 
     fn handle_workspace_key(&mut self, key: KeyEvent) {
+        if self.workspace_journal_mode {
+            match key.code {
+                KeyCode::Char('J') | KeyCode::Esc => self.workspace_journal_mode = false,
+                KeyCode::Up | KeyCode::Char('k') => self.move_journal(-1),
+                KeyCode::Down | KeyCode::Char('j') => self.move_journal(1),
+                KeyCode::Enter | KeyCode::Char('e') => self.edit_selected_journal(),
+                KeyCode::Char('d') => self.delete_selected_journal(),
+                _ => {}
+            }
+            return;
+        }
+
         match key.code {
             KeyCode::Tab => {
                 self.focus = match self.focus {
@@ -1272,14 +1450,85 @@ impl MainState {
                 self.show_all_pages = !self.show_all_pages;
                 self.clamp();
             }
+            KeyCode::Char('J') => {
+                self.workspace_journal_mode = true;
+                self.selected_journal_index = 0;
+            }
             KeyCode::Char(' ') => self.toggle_workspace_block(),
             KeyCode::Char('d') => self.delete_workspace_current(),
             _ => {}
         }
     }
 
+    fn move_journal(&mut self, delta: i64) {
+        let count = self.all_journals().len();
+        if count > 0 {
+            let next = self.selected_journal_index as i64 + delta;
+            self.selected_journal_index = next.clamp(0, count as i64 - 1) as usize;
+        }
+    }
+
+    fn edit_selected_journal(&mut self) {
+        let journals = self.all_journals();
+        if let Some(journal) = journals.get(self.selected_journal_index) {
+            self.editing = Some(Editing {
+                target: EditTarget::JournalBody {
+                    journal_id: journal.id.clone(),
+                    base_version: journal.version,
+                },
+                buffer: journal.body.clone(),
+                cursor: journal.body.len(),
+                multiline: true,
+            });
+        }
+    }
+
+    fn delete_selected_journal(&mut self) {
+        let journals = self.all_journals();
+        if let Some(journal) = journals.get(self.selected_journal_index) {
+            self.request_delete(PendingDelete::Summary {
+                id: journal.id.clone(),
+                version: journal.version,
+            });
+        }
+    }
+
     fn handle_today_key(&mut self, key: KeyEvent) {
+        if self.week_mode {
+            match key.code {
+                KeyCode::Char('w') | KeyCode::Esc => self.week_mode = false,
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.week_selected = self.week_selected.saturating_sub(1);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.week_selected = (self.week_selected + 1).min(6);
+                }
+                KeyCode::Enter => {
+                    let overview = self.week_overview();
+                    if let Some((date, _, _)) = overview.get(self.week_selected) {
+                        self.view_date = *date;
+                        self.week_mode = false;
+                        self.clamp();
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
+
         match key.code {
+            KeyCode::Char('[') => {
+                self.view_date -= ChronoDuration::days(1);
+                self.clamp();
+            }
+            KeyCode::Char(']') => {
+                self.view_date += ChronoDuration::days(1);
+                self.clamp();
+            }
+            KeyCode::Char('w') => {
+                self.week_mode = true;
+                self.week_selected = 6;
+            }
             KeyCode::Tab => {
                 self.today_focus = match self.today_focus {
                     TodayFocus::Items => TodayFocus::Habits,
@@ -1294,7 +1543,7 @@ impl MainState {
             KeyCode::Enter | KeyCode::Char('e') => self.edit_today_item(),
             KeyCode::Char('a') => self.edit_today_summary(),
             KeyCode::Char('d') => self.delete_today_item(),
-            KeyCode::Char('t') => self.open_event_form(BlockKind::Todo, self.today_key(), None),
+            KeyCode::Char('t') => self.open_event_form(BlockKind::Todo, self.view_key(), None),
             _ => {}
         }
     }
@@ -1899,6 +2148,10 @@ impl MainState {
     }
 
     fn check_in(&mut self, habit: &Habit) {
+        if self.view_date != self.today {
+            self.status = "只能给今天打卡，历史日期只读".to_string();
+            return;
+        }
         match self.api.check_in(
             &habit.id,
             &CheckinRequest {
@@ -1932,6 +2185,10 @@ impl MainState {
     }
 
     fn undo_checkin(&mut self, habit: &Habit) {
+        if self.view_date != self.today {
+            self.status = "只能撤销今天的打卡".to_string();
+            return;
+        }
         if let Some(checkin) = self.today_checkin(habit) {
             match self.api.update_checkin(
                 &checkin.id,
@@ -1970,25 +2227,87 @@ impl MainState {
         }
     }
 
+    fn request_delete(&mut self, action: PendingDelete) {
+        let label = action.label();
+        self.modal = Some(Modal::Confirm(ConfirmState {
+            action,
+            input: String::new(),
+            label,
+        }));
+    }
+
+    fn confirm_delete(&mut self, action: PendingDelete) {
+        match action {
+            PendingDelete::Block { id, version, .. } => self.patch_block(
+                &id,
+                version,
+                BlockPatch {
+                    deleted: Some(true),
+                    ..Default::default()
+                },
+            ),
+            PendingDelete::Page { id, version, .. } => {
+                self.patch_page(&id, version, None, Some(true))
+            }
+            PendingDelete::Habit { id, version, .. } => self.update_habit(
+                &id,
+                UpdateHabitRequest {
+                    expected_version: version,
+                    title: None,
+                    icon: None,
+                    note: None,
+                    frequency: None,
+                    position: None,
+                    archived: Some(true),
+                    deleted: None,
+                },
+            ),
+            PendingDelete::Comment { id, version } => self.update_comment(
+                &id,
+                UpdateCommentRequest {
+                    expected_version: version,
+                    body: None,
+                    resolved: None,
+                    deleted: Some(true),
+                },
+            ),
+            PendingDelete::Summary { id, version } => self.update_journal(
+                &id,
+                UpdateJournalRequest {
+                    expected_version: version,
+                    body: None,
+                    deleted: Some(true),
+                },
+            ),
+        }
+        self.status = "已删除".to_string();
+    }
+
     fn delete_workspace_current(&mut self) {
         match self.focus {
             Focus::Pages => {
                 if let Some(page) = self.current_page() {
-                    self.patch_page(&page.id, page.version, None, Some(true));
-                    self.status = format!("已删除页面「{}」", page.title);
+                    self.request_delete(PendingDelete::Page {
+                        id: page.id,
+                        version: page.version,
+                        label: format!("页面「{}」", page.title),
+                    });
                 }
             }
             Focus::Blocks => {
                 if let Some(block) = self.current_block() {
-                    self.patch_block(
-                        &block.id,
-                        block.version,
-                        BlockPatch {
-                            deleted: Some(true),
-                            ..Default::default()
-                        },
-                    );
-                    self.status = "已删除内容块".to_string();
+                    self.request_delete(PendingDelete::Block {
+                        id: block.id,
+                        version: block.version,
+                        label: format!(
+                            "待办「{}」",
+                            if block.text.is_empty() {
+                                block.kind.icon()
+                            } else {
+                                block.text.as_str()
+                            }
+                        ),
+                    });
                 }
             }
         }
@@ -2001,57 +2320,52 @@ impl MainState {
                 if let Some(TodayRow::Todo(block) | TodayRow::Event(block)) =
                     rows.get(self.selected_today_index)
                 {
-                    self.patch_block(
-                        &block.id,
-                        block.version,
-                        BlockPatch {
-                            deleted: Some(true),
-                            ..Default::default()
-                        },
-                    );
-                    self.status = "已删除待办".to_string();
+                    self.request_delete(PendingDelete::Block {
+                        id: block.id.clone(),
+                        version: block.version,
+                        label: format!(
+                            "待办「{}」",
+                            if block.text.is_empty() {
+                                block.kind.icon()
+                            } else {
+                                block.text.as_str()
+                            }
+                        ),
+                    });
                 }
             }
             TodayFocus::Habits => {
-                self.status = "习惯只能在习惯界面删除".to_string();
+                let habits = self.today_habits();
+                if let Some((habit, _)) = habits.get(self.selected_today_habit_index) {
+                    self.request_delete(PendingDelete::Habit {
+                        id: habit.id.clone(),
+                        version: habit.version,
+                        label: format!("习惯「{}」", habit.title),
+                    });
+                }
             }
             TodayFocus::Journal => {
-                if let Some(summary) = self.today_summary() {
-                    self.update_journal(
-                        &summary.id,
-                        UpdateJournalRequest {
-                            expected_version: summary.version,
-                            body: None,
-                            deleted: Some(true),
-                        },
-                    );
-                    self.status = "已删除今天的总结".to_string();
+                let entries = self.today_summary_entries();
+                if let Some(summary) = entries.first() {
+                    self.request_delete(PendingDelete::Summary {
+                        id: summary.id.clone(),
+                        version: summary.version,
+                    });
+                } else {
+                    self.status = "当前对象没有总结".to_string();
                 }
             }
         }
     }
 
-    fn delete_habit(&mut self, habit: &Habit) {
-        self.update_habit(
-            &habit.id,
-            UpdateHabitRequest {
-                expected_version: habit.version,
-                title: None,
-                icon: None,
-                note: None,
-                frequency: None,
-                position: None,
-                archived: None,
-                deleted: Some(true),
-            },
-        );
-        self.status = format!("已删除习惯「{}」", habit.title);
-    }
-
     fn delete_selected_habit(&mut self) {
         let habits = self.visible_habits();
         if let Some(habit) = habits.get(self.selected_habit_index) {
-            self.delete_habit(habit);
+            self.request_delete(PendingDelete::Habit {
+                id: habit.id.clone(),
+                version: habit.version,
+                label: format!("习惯「{}」", habit.title),
+            });
         }
     }
 
@@ -2120,25 +2434,31 @@ impl MainState {
     }
 
     fn edit_today_summary(&mut self) {
-        if let Some(summary) = self.today_summary() {
+        let Some((kind, target_id)) = self.current_summary_target() else {
+            self.status = "先选中一条待办或习惯".to_string();
+            return;
+        };
+        let date = self.view_key();
+        let existing = self
+            .journals_for_target(kind, &target_id)
+            .into_iter()
+            .find(|journal| journal.date == date);
+        if let Some(summary) = existing {
             self.editing = Some(Editing {
                 target: EditTarget::JournalBody {
                     journal_id: summary.id,
                     base_version: summary.version,
                 },
-                buffer: summary.body,
-                cursor: 0,
+                buffer: summary.body.clone(),
+                cursor: summary.body.len(),
                 multiline: true,
             });
-            if let Some(editing) = self.editing.as_mut() {
-                editing.cursor = editing.buffer.len();
-            }
         } else {
             self.editing = Some(Editing {
                 target: EditTarget::NewJournal {
-                    target_kind: JournalTarget::Daily,
-                    target_id: self.today_key(),
-                    date: self.today_key(),
+                    target_kind: kind,
+                    target_id,
+                    date: date.clone(),
                     time: Local::now().format("%H:%M").to_string(),
                 },
                 buffer: String::new(),
@@ -2146,7 +2466,7 @@ impl MainState {
                 multiline: true,
             });
         }
-        self.status = "写今天的一两句总结，Ctrl+S 保存，Esc 取消".to_string();
+        self.status = "写总结，Ctrl+S 保存，Esc 取消".to_string();
     }
 
     fn update_journal(&mut self, id: &str, request: UpdateJournalRequest) {
@@ -2283,15 +2603,10 @@ impl MainState {
     fn delete_selected_comment(&mut self) {
         let comments = self.inbox_comments();
         if let Some(comment) = comments.get(self.selected_inbox_index).cloned() {
-            self.update_comment(
-                &comment.id,
-                UpdateCommentRequest {
-                    expected_version: comment.version,
-                    body: None,
-                    resolved: None,
-                    deleted: Some(true),
-                },
-            );
+            self.request_delete(PendingDelete::Comment {
+                id: comment.id,
+                version: comment.version,
+            });
         }
     }
 
@@ -2623,14 +2938,19 @@ impl MainState {
                         .get(panel.selected)
                         .map(|block| (*block).clone())
                     {
-                        self.patch_block(
-                            &block.id,
-                            block.version,
-                            BlockPatch {
-                                deleted: Some(true),
-                                ..Default::default()
-                            },
-                        );
+                        self.request_delete(PendingDelete::Block {
+                            id: block.id.clone(),
+                            version: block.version,
+                            label: format!(
+                                "待办「{}」",
+                                if block.text.is_empty() {
+                                    block.kind.icon()
+                                } else {
+                                    block.text.as_str()
+                                }
+                            ),
+                        });
+                        return;
                     }
                 }
                 KeyCode::Char('t') => {
@@ -2691,15 +3011,11 @@ impl MainState {
                         .get(panel.selected)
                         .cloned()
                     {
-                        self.update_comment(
-                            &comment.id,
-                            UpdateCommentRequest {
-                                expected_version: comment.version,
-                                body: None,
-                                resolved: None,
-                                deleted: Some(true),
-                            },
-                        );
+                        self.request_delete(PendingDelete::Comment {
+                            id: comment.id,
+                            version: comment.version,
+                        });
+                        return;
                     }
                 }
                 KeyCode::Char('e') => {
@@ -2789,6 +3105,22 @@ impl MainState {
                         self.jump_to_search_hit(hit);
                     }
                     return;
+                }
+                _ => {}
+            },
+            Modal::Confirm(confirm) => match key.code {
+                KeyCode::Esc => return,
+                KeyCode::Backspace => {
+                    confirm.input.pop();
+                }
+                KeyCode::Char(c) => confirm.input.push(c),
+                KeyCode::Enter => {
+                    if confirm.input.trim() == "delete" {
+                        let action = confirm.action.clone();
+                        self.confirm_delete(action);
+                        return;
+                    }
+                    confirm.input.clear();
                 }
                 _ => {}
             },
