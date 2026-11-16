@@ -1,0 +1,173 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            server: true
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            server: false
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            archive: tar.gz
+            server: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+            server: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build client
+        run: cargo build --release --locked --target ${{ matrix.target }} -p totion-client
+
+      - name: Build server (linux only)
+        if: matrix.server
+        run: cargo build --release --locked --target ${{ matrix.target }} -p totion-server
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cd "target/${{ matrix.target }}/release"
+          if [ "${{ matrix.server }}" = "true" ]; then
+            tar -czf "$GITHUB_WORKSPACE/dist/totion-${{ matrix.target }}.tar.gz" totion totion-server
+          else
+            tar -czf "$GITHUB_WORKSPACE/dist/totion-${{ matrix.target }}.tar.gz" totion
+          fi
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "target/${{ matrix.target }}/release/totion.exe" -DestinationPath "dist/totion-${{ matrix.target }}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: totion-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: totion-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  deploy:
+    name: Deploy server to GaryServer
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: totion-x86_64-unknown-linux-gnu
+          path: dist
+
+      - name: Upload server binary and unit
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "dist/totion-server,deploy/totion.service"
+          target: /home/${{ secrets.DEPLOY_USER }}/totion
+          strip_components: 1
+          overwrite: true
+
+      - name: Restart service
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          TOTION_INVITE_CODE: ${{ secrets.TOTION_INVITE_CODE }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: TOTION_INVITE_CODE
+          script: |
+            set -euo pipefail
+            cd "$HOME/totion"
+            chmod +x totion-server
+            mkdir -p data
+
+            if [ ! -f totion.env ]; then
+              {
+                echo "TOTION_BIND=0.0.0.0:8080"
+                echo "TOTION_DATA_DIR=$HOME/totion/data"
+                if [ -n "${TOTION_INVITE_CODE:-}" ]; then
+                  echo "TOTION_INVITE_CODE=$TOTION_INVITE_CODE"
+                fi
+              } > totion.env
+              chmod 600 totion.env
+            fi
+
+            sed -e "s|__DEPLOY_USER__|$USER|g" -e "s|__DEPLOY_HOME__|$HOME|g" \
+              totion.service > /tmp/totion.service
+            sudo install -m 644 /tmp/totion.service /etc/systemd/system/totion.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable totion
+            sudo systemctl restart totion
+
+            for _ in $(seq 1 10); do
+              if curl -fsS http://127.0.0.1:8080/api/health >/dev/null; then
+                echo "health check ok"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "health check failed" >&2
+            sudo journalctl -u totion --no-pager -n 50 >&2
+            exit 1

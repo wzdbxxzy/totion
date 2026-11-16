@@ -1,0 +1,8 @@
+/target
+.old-node/
+test-data/
+dev-data/
+.env
+.env.*
+*.log
+.DS_Store

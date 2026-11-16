@@ -1,0 +1,25 @@
+[Unit]
+Description=Totion shared-space sync server
+Documentation=https://github.com/wzdbxxzy/totion
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__DEPLOY_USER__
+Group=__DEPLOY_USER__
+WorkingDirectory=__DEPLOY_HOME__/totion
+EnvironmentFile=-__DEPLOY_HOME__/totion/totion.env
+ExecStart=__DEPLOY_HOME__/totion/totion-server
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=__DEPLOY_HOME__/totion/data
+CapabilityBoundingSet=
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
