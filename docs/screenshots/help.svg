@@ -13,16 +13,16 @@
 <text x="210" y="114" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">帮助</text>
 <text x="210" y="160" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">视图</text>
 <text x="330" y="160" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">1 今日   2 工作区   3 日历   4 习惯   5 统计   6 留言</text>
-<text x="210" y="212" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">移动</text>
-<text x="330" y="212" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">j/k 或 ↑/↓ 上下移动；Tab 切换页面/内容面板</text>
-<text x="210" y="264" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">今日</text>
-<text x="330" y="264" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">a 写总结；t 待办；c 日程；Space 勾选/打卡；u 撤销</text>
-<text x="210" y="316" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">工作区</text>
-<text x="330" y="316" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">J 查看总结列表；N 新页面；n/t/c 新建内容块</text>
-<text x="210" y="368" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">日历</text>
-<text x="330" y="368" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">h/l 选日；j/k 前后一周；[ ] 换月；v 或 Shift+右键框选</text>
+<text x="210" y="212" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">今日</text>
+<text x="330" y="212" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Tab 切换 待办/习惯/总结；a 写总结；t 待办；Space 勾选/打卡</text>
+<text x="210" y="264" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">工作区</text>
+<text x="330" y="264" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Tab 页面/内容；n 文本；t 待办；N 新页面；a 每日页面</text>
+<text x="210" y="316" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">日历</text>
+<text x="330" y="316" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">h/l 选日；j/k 前后一周；[ ] 换月；Enter 议程；v 框选</text>
+<text x="210" y="368" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">批量</text>
+<text x="330" y="368" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">选中日期范围后按 t 批量新建待办（最多 62 天）</text>
 <text x="210" y="420" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">习惯</text>
-<text x="330" y="420" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">n 新建；Space 打卡；u 撤销；Ctrl+F 切换频率</text>
+<text x="330" y="420" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">n 新建；d 删除；Space 打卡；u 撤销；Ctrl+F 切换频率</text>
 <text x="210" y="472" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">协作</text>
 <text x="330" y="472" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">C 评论；6 留言；i 邀请码；/ 搜索；r 同步</text>
 <text x="210" y="524" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">编辑</text>

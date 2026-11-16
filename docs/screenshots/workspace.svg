@@ -28,9 +28,9 @@
 <text x="448" y="246" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">[ ] 完成 v0.2 发布   [2]</text>
 <text x="448" y="290" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">[x] 写迁移测试</text>
 <text x="448" y="334" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">· 明天把更新同步给队友</text>
-<text x="448" y="378" fill="#d29922" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">📅 2026-11-20  复盘会</text>
+<text x="448" y="378" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○ 复盘会</text>
 <text x="448" y="422" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">09:00  [ ] 晨跑 5km</text>
 <text x="448" y="466" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">────────</text>
 <text x="448" y="510" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">· 备注：迁移前先备份数据库</text>
-<text x="40" y="700" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">n 文本 · t 待办 · c 日程 · Enter 编辑 · C 评论 · N 新页面</text>
+<text x="40" y="700" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">n 文本 · t 待办 · Enter 编辑 · C 评论 · N 新页面 · a 每日页面</text>
 </svg>
