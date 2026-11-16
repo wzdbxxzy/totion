@@ -66,7 +66,10 @@ impl Api {
     }
 
     fn authed(&self, method: Method, path: &str) -> RequestBuilder {
-        let mut request = self.client.request(method, self.url(path));
+        let mut request = self
+            .client
+            .request(method, self.url(path))
+            .header("x-totion-protocol", totion_core::API_VERSION.to_string());
         if let Some(token) = &self.token {
             request = request.bearer_auth(token);
         }
@@ -130,7 +133,7 @@ impl Api {
     }
 
     pub fn sync(&self, since: i64) -> Result<SyncResponse, ApiError> {
-        self.send(self.authed(Method::GET, &format!("/api/sync?since={since}")))
+        self.send(self.authed(Method::GET, &format!("/api/sync?since={since}&limit=500")))
     }
 
     pub fn create_page(&self, request: &CreatePageRequest) -> Result<WritePageResponse, ApiError> {

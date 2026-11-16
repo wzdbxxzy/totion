@@ -457,23 +457,34 @@ impl MainState {
 
     fn sync_now(&mut self, manual: bool) {
         self.last_sync = Some(Instant::now());
-        match self.api.sync(self.last_seq) {
-            Ok(response) => {
-                let count = response.changes.len();
-                for change in response.changes {
-                    self.apply_change(change);
+        let mut total = 0;
+        let mut rounds = 0;
+        loop {
+            match self.api.sync(self.last_seq) {
+                Ok(response) => {
+                    total += response.changes.len();
+                    let has_more = response.has_more;
+                    for change in response.changes {
+                        self.apply_change(change);
+                    }
+                    let advanced = response.last_seq > self.last_seq;
+                    self.last_seq = self.last_seq.max(response.last_seq);
+                    rounds += 1;
+                    if !has_more || !advanced || rounds >= 20 {
+                        break;
+                    }
                 }
-                self.last_seq = self.last_seq.max(response.last_seq);
-                self.clamp();
-                if manual {
-                    self.status = format!("已同步（{count} 条变更）");
+                Err(err) => {
+                    if manual {
+                        self.status = format!("同步失败: {err}");
+                    }
+                    break;
                 }
             }
-            Err(err) => {
-                if manual {
-                    self.status = format!("同步失败: {err}");
-                }
-            }
+        }
+        self.clamp();
+        if manual {
+            self.status = format!("已同步（{total} 条变更）");
         }
     }
 
@@ -513,6 +524,9 @@ impl MainState {
                     }
                 }
             }
+            EntityKind::Habit | EntityKind::HabitCheckin | EntityKind::Comment => {
+                // 新实体的本地状态在后续阶段接入，v0.2 阶段先跳过。
+            }
         }
         self.last_seq = self.last_seq.max(change.seq);
     }
@@ -547,6 +561,7 @@ impl MainState {
             kind: None,
             position: None,
             deleted,
+            date: None,
         };
         match self.api.update_page(page_id, &request) {
             Ok(response) => {
@@ -573,6 +588,8 @@ impl MainState {
             streak: patch.streak,
             position: None,
             deleted: patch.deleted,
+            start_time: None,
+            end_time: None,
         };
         match self.api.update_block(block_id, &request) {
             Ok(response) => {
@@ -744,6 +761,9 @@ impl MainState {
             text: String::new(),
             due_date: None,
             position,
+            start_time: None,
+            end_time: None,
+            section: None,
         };
         match self.api.create_block(&request) {
             Ok(response) => {
@@ -779,6 +799,7 @@ impl MainState {
             icon: PageKind::Doc.icon().to_string(),
             kind: PageKind::Doc,
             position,
+            date: None,
         };
         match self.api.create_page(&request) {
             Ok(response) => {

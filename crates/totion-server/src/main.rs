@@ -2,6 +2,9 @@ mod api;
 mod auth;
 mod db;
 
+#[cfg(test)]
+mod tests;
+
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
