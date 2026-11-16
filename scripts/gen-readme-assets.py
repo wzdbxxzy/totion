@@ -165,7 +165,7 @@ def today_screenshot():
     body += "\n" + text(
         40,
         79,
-        "totion · 我的共享空间 · Guan · 2 位成员 · 今日 [1/5]",
+        "totion · 我的共享空间 · Guan · 3 位成员 · 今日 [1/6]",
         "#0d1117",
         15,
         bold=True,
@@ -180,10 +180,10 @@ def today_screenshot():
     # 今日事项
     body += "\n" + panel(24, 146, 700, 250, " 今日事项 ")
     items = [
-        ("09:00", "[x]", "晨跑 5km", GREEN, TEXT),
-        ("10:00", "[ ]", "写周报", MUTED, TEXT),
-        ("14:30", "[ ]", "评审新设计", MUTED, TEXT),
-        ("18:00", "[ ]", "买菜", MUTED, TEXT),
+        ("09:00", "✓", "晨跑 5km", GREEN, TEXT),
+        ("10:00", "○", "写周报", MUTED, TEXT),
+        ("14:30", "○", "评审新设计", MUTED, TEXT),
+        ("18:00", "○", "买菜", MUTED, TEXT),
     ]
     y = 194
     for time, mark, title, mark_color, title_color in items:
@@ -195,35 +195,35 @@ def today_screenshot():
     # 今日习惯
     body += "\n" + panel(744, 146, 512, 250, " 今日习惯 ")
     habits = [
-        ("[x]", "📖 阅读 30 分钟", "🔥 12", GREEN),
-        ("[ ]", "🏃 跑步", "本周 2/3", YELLOW),
-        ("[ ]", "🧘 冥想", "本周 1/4", MUTED),
+        ("✓", "📖 阅读 30 分钟", "🔥 12 · 本周 5 次", GREEN),
+        ("○", "🏃 跑步", "本周 2/3", YELLOW),
+        ("○", "🧘 冥想", "本周 1/4", MUTED),
     ]
     y = 194
     for mark, title, extra, color in habits:
-        body += "\n" + text(768, y, mark, GREEN if mark == "[x]" else MUTED, 15)
+        body += "\n" + text(768, y, mark, GREEN if mark == "✓" else MUTED, 15)
         body += "\n" + text(812, y, title, TEXT, 15)
-        body += "\n" + text(1060, y, extra, color, 14)
+        body += "\n" + text(1010, y, extra, color, 13)
         y += 40
 
-    # 日记
-    body += "\n" + panel(24, 414, 1232, 240, " 日记：总结 / 感悟 / 经验 ")
-    diary = [
-        ("总结", "完成了同步协议重构，迁移测试全部通过。"),
-        ("感悟", "小步提交 + 自动部署，比一次性大改轻松很多。"),
-        ("经验", "涉及 schema 变更时，先在备份库上跑迁移。"),
+    # 总结
+    body += "\n" + panel(24, 414, 1232, 240, " 总结 ")
+    journals = [
+        ("21:30", "待办「写周报」 · Guan", "周报写完了，明天给同事过一遍。"),
+        ("22:10", "当日 · 队友", "迁移测试通过，数据库也备份了。"),
     ]
     y = 462
-    for label, value in diary:
-        body += "\n" + text(48, y, f"{label}:", CYAN, 15, bold=True)
-        body += "\n" + text(116, y, value, TEXT, 15)
-        y += 46
+    for time, target, content in journals:
+        body += "\n" + text(48, y, time, CYAN, 14)
+        body += "\n" + text(112, y, target, YELLOW, 14)
+        body += "\n" + text(72, y + 28, content, TEXT, 15)
+        y += 72
 
     body += "\n" + text(40, 686, "已连接 · 2 秒前同步", MUTED, 13)
     body += "\n" + text(
         40,
         716,
-        "1-5 视图 · j/k 移动 · Space 打卡 · Enter 编辑 · C 评论 · / 搜索 · ? 帮助",
+        "1-6 视图 · j/k 移动 · Space 打卡 · a 写总结 · J 总结列表 · C 评论 · ? 帮助",
         MUTED,
         13,
     )
@@ -282,57 +282,79 @@ def habits_screenshot():
 
 
 def calendar_screenshot():
-    width, height = 1280, 720
+    width, height = 1280, 760
     defs, body = window(width, height, "totion — 日历")
 
     body += "\n" + rect(24, 58, width - 48, 32, CYAN, None, 6)
-    body += "\n" + text(40, 79, "totion · 我的共享空间 · Guan · 2 位成员 · 日历 [3/5]", "#0d1117", 15, bold=True)
+    body += "\n" + text(
+        40,
+        79,
+        "totion · 我的共享空间 · Guan · 3 位成员 · 日历 [3/6]",
+        "#0d1117",
+        15,
+        bold=True,
+    )
 
-    body += "\n" + panel(24, 110, 700, 560, " 2026 年 11 月（←/→ 选日 · [ ] 换月） ")
+    body += "\n" + text(
+        40,
+        122,
+        "2026 年 11 月   ←/→ 选日 · [ ] 换月 · v 或 Shift+右键框选   已选 11-16 ~ 11-20",
+        TEXT,
+        16,
+        bold=True,
+    )
 
     weekdays = ["一", "二", "三", "四", "五", "六", "日"]
     for index, label in enumerate(weekdays):
-        body += "\n" + text(58 + index * 94, 160, label, MUTED, 14, bold=True)
+        body += "\n" + text(40 + index * 174, 152, label, MUTED, 14, bold=True)
 
     # 2026-11-01 是周日，周一开头偏移 6 天
     offset = 6
     days = 30
-    events = {3, 5, 8, 12, 16, 18, 21, 24, 27}
+    selected = 16
+    range_start = 16
+    range_end = 20
+    events = {
+        3: [("✓", "晨跑", GREEN)],
+        5: [("○", "写周报", MUTED)],
+        8: [("总", "本周复盘", YELLOW)],
+        12: [("○", "评审", MUTED)],
+        16: [("✓", "晨会", GREEN), ("○", "写周报", MUTED), ("总", "周报完成", YELLOW)],
+        18: [("○", "买菜", MUTED)],
+        21: [("总", "周复盘", YELLOW)],
+        24: [("○", "设计评审", MUTED)],
+        27: [("✓", "跑步", GREEN)],
+    }
     for index in range(42):
         row = index // 7
         column = index % 7
         day = index - offset + 1
-        x = 46 + column * 94
-        y = 180 + row * 76
         if day < 1 or day > days:
             continue
-        body += "\n" + rect(x, y, 84, 62, PANEL2, BORDER, 6)
-        if day == 16:
-            body += "\n" + rect(x, y, 84, 62, CYAN, None, 6)
-            body += "\n" + text(x + 10, y + 26, str(day), "#0d1117", 16, bold=True)
-        else:
-            body += "\n" + text(x + 10, y + 26, str(day), TEXT, 16)
-        if day in events:
-            body += "\n" + text(x + 54, y + 26, "•", GREEN, 18, bold=True)
-        if day == 16:
-            body += "\n" + text(x + 10, y + 48, "4 项", "#0d1117", 12)
+        x = 24 + column * 174
+        y = 162 + row * 90
+        in_range = range_start <= day <= range_end
+        fill = "#0e4b52" if day == selected else ("#222b33" if in_range else PANEL2)
+        body += "\n" + rect(x, y, 166, 84, fill, BORDER, 6)
+        body += "\n" + text(
+            x + 10,
+            y + 24,
+            str(day),
+            "#ffffff" if day == selected else TEXT,
+            16,
+            bold=True,
+        )
+        for line_index, (mark, title, color) in enumerate(events.get(day, [])[:3]):
+            body += "\n" + text(x + 10, y + 46 + line_index * 18, mark, color, 12, bold=True)
+            body += "\n" + text(x + 28, y + 46 + line_index * 18, title, TEXT, 12)
 
-    body += "\n" + panel(744, 110, 512, 560, " 11 月 16 日 议程 ")
-    agenda = [
-        ("09:00", "[x]", "晨会", GREEN),
-        ("10:30", "[ ]", "写周报", MUTED),
-        ("14:30", "[ ]", "设计评审", MUTED),
-        ("18:00", "[ ]", "买菜", MUTED),
-    ]
-    y = 170
-    for time, mark, title, color in agenda:
-        body += "\n" + text(768, y, time, CYAN, 15)
-        body += "\n" + text(830, y, mark, color, 15)
-        body += "\n" + text(874, y, title, TEXT, 15)
-        y += 52
-
-    body += "\n" + text(768, 420, "t 新建待办   c 新建日程", MUTED, 13)
-    body += "\n" + text(768, 452, "Space 勾选   Enter 编辑   C 评论", MUTED, 13)
+    body += "\n" + text(
+        40,
+        730,
+        "11-16 · Enter 查看议程 · t/c 新建 · n 新习惯 · v/Esc 取消框选",
+        MUTED,
+        13,
+    )
     return svg(width, height, body, defs)
 
 
@@ -627,13 +649,14 @@ def help_screenshot():
     body += "\n" + text(x + 30, y + 44, "帮助", CYAN, 18, bold=True)
 
     sections = [
-        ("视图", "1 今日   2 工作区   3 日历   4 习惯   5 统计"),
+        ("视图", "1 今日   2 工作区   3 日历   4 习惯   5 统计   6 留言"),
         ("移动", "j/k 或 ↑/↓ 上下移动；Tab 切换页面/内容面板"),
-        ("日历", "h/l 前后一天；j/k 前后一周；[ ] 换月"),
-        ("编辑", "Enter/e 编辑；Enter 保存；Esc 取消"),
-        ("待办/习惯", "Space 勾选或打卡；u 撤销今天的打卡"),
-        ("新建", "t 待办；c 日程；n 习惯；N 页面"),
-        ("协作", "C 打开评论；/ 搜索；r 手动同步"),
+        ("今日", "a 写总结；t 待办；c 日程；Space 勾选/打卡；u 撤销"),
+        ("工作区", "J 查看总结列表；N 新页面；n/t/c 新建内容块"),
+        ("日历", "h/l 选日；j/k 前后一周；[ ] 换月；v 或 Shift+右键框选"),
+        ("习惯", "n 新建；Space 打卡；u 撤销；Ctrl+F 切换频率"),
+        ("协作", "C 评论；6 留言；/ 搜索；r 同步"),
+        ("编辑", "Enter 保存；总结/评论等多行内容用 Ctrl+S；Esc 取消"),
         ("其他", "? 帮助；q 或 Ctrl+C 退出"),
     ]
     line_y = y + 90
@@ -673,6 +696,95 @@ def new_event_screenshot():
     return svg(width, height, body, defs)
 
 
+def inbox_screenshot():
+    width, height = 1280, 760
+    defs, body = window(width, height, "totion — 留言")
+
+    body += "\n" + rect(24, 58, width - 48, 32, CYAN, None, 6)
+    body += "\n" + text(
+        40,
+        79,
+        "totion · 我的共享空间 · Guan · 3 位成员 · 留言 [6/6]",
+        "#0d1117",
+        15,
+        bold=True,
+    )
+
+    body += "\n" + text(40, 116, "留言 · 2 条未解决", CYAN, 18, bold=True)
+
+    comments = [
+        ("[未解决]", "队友", "11-16 15:10", "内容块「写迁移测试」", "迁移测试已经过了吗？", True),
+        ("[已解决]", "Guan", "11-16 14:32", "页面「2026 计划」", "今晚发版可以吗？", False),
+        ("[未解决]", "队友", "11-16 16:02", "习惯「阅读 30 分钟」", "今天记得打卡。", False),
+    ]
+    y = 150
+    for mark, author, time, target, content, selected in comments:
+        if selected:
+            body += "\n" + rect(30, y - 22, 1220, 100, "#222b33", None, 8)
+        body += "\n" + text(
+            44,
+            y,
+            mark,
+            YELLOW if mark == "[未解决]" else GREEN,
+            14,
+            bold=True,
+        )
+        body += "\n" + text(170, y, author, TEXT, 15, bold=True)
+        body += "\n" + text(300, y, time, MUTED, 12)
+        body += "\n" + text(460, y, target, CYAN, 14)
+        body += "\n" + text(60, y + 30, content, TEXT, 15)
+        y += 112
+
+    body += "\n" + text(
+        40,
+        730,
+        "j/k 选择 · Enter 跳转 · a 回复 · r 解决/取消 · e 编辑 · d 删除",
+        MUTED,
+        13,
+    )
+    return svg(width, height, body, defs)
+
+
+def journals_screenshot():
+    width, height = 1280, 720
+    defs, body = window(width, height, "totion — 总结列表")
+
+    body += "\n" + rect(24, 58, width - 48, 32, CYAN, None, 6)
+    body += "\n" + text(
+        40,
+        79,
+        "totion · 我的共享空间 · Guan · 3 位成员 · 工作区 [2/6] · J 总结列表",
+        "#0d1117",
+        15,
+        bold=True,
+    )
+
+    body += "\n" + panel(24, 110, 380, 560, " 页面 ")
+    pages = ["🎯 计划", "▶ 🎯 2026 计划", "  📄 周会记录", "📅 日历", "  📅 十一月", "✅ 待办"]
+    y = 156
+    for label in pages:
+        body += "\n" + text(46, y, label, TEXT, 15)
+        y += 44
+    body += "\n" + text(46, 620, "J 查看总结列表", MUTED, 13)
+
+    body += "\n" + panel(424, 110, 832, 560, " 总结列表（J 返回） ")
+    entries = [
+        ("11-16 21:30", "待办「写周报」 · Guan", "周报写完了，明天给同事过一遍。"),
+        ("11-16 22:10", "当日 · 队友", "迁移测试通过，数据库也备份了。"),
+        ("11-15 20:00", "习惯「阅读 30 分钟」 · Guan", "今天读完一章，笔记明天整理。"),
+        ("11-14 18:40", "待办「评审新设计」 · 队友", "评审意见已记录，下周排期。"),
+    ]
+    y = 158
+    for time, target, content in entries:
+        body += "\n" + text(448, y, time, CYAN, 14)
+        body += "\n" + text(600, y, target, YELLOW, 14)
+        body += "\n" + text(472, y + 28, content, TEXT, 15)
+        y += 84
+
+    body += "\n" + text(40, 700, "J 返回 · e 编辑 · d 删除 · j/k 选择", MUTED, 13)
+    return svg(width, height, body, defs)
+
+
 def main():
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
     screenshots = os.path.join(out_dir, "screenshots")
@@ -684,11 +796,13 @@ def main():
         os.path.join(screenshots, "setup.svg"): setup_screenshot(),
         os.path.join(screenshots, "today.svg"): today_screenshot(),
         os.path.join(screenshots, "workspace.svg"): workspace_screenshot(),
+        os.path.join(screenshots, "journals.svg"): journals_screenshot(),
         os.path.join(screenshots, "calendar.svg"): calendar_screenshot(),
         os.path.join(screenshots, "habits.svg"): habits_screenshot(),
         os.path.join(screenshots, "stats.svg"): stats_screenshot(),
         os.path.join(screenshots, "comments.svg"): comments_screenshot(),
         os.path.join(screenshots, "search.svg"): search_screenshot(),
+        os.path.join(screenshots, "inbox.svg"): inbox_screenshot(),
         os.path.join(screenshots, "help.svg"): help_screenshot(),
         os.path.join(screenshots, "new-event.svg"): new_event_screenshot(),
     }

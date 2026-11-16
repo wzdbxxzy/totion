@@ -1,110 +1,105 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
-<defs><clipPath id="win-clip"><rect x="1" y="1" width="1278" height="718" rx="14"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+<defs><clipPath id="win-clip"><rect x="1" y="1" width="1278" height="758" rx="14"/></clipPath></defs>
 <g clip-path="url(#win-clip)">
-<rect x="1" y="1" width="1278" height="718" rx="0" fill="#0d1117"/>
+<rect x="1" y="1" width="1278" height="758" rx="0" fill="#0d1117"/>
 <rect x="1" y="1" width="1278" height="40" rx="0" fill="#161b22"/>
 </g>
-<rect x="1" y="1" width="1278" height="718" rx="14" fill="none" stroke="#30363d"/>
+<rect x="1" y="1" width="1278" height="758" rx="14" fill="none" stroke="#30363d"/>
 <circle cx="26" cy="21" r="6" fill="#ff5f56"/>
 <circle cx="46" cy="21" r="6" fill="#ffbd2e"/>
 <circle cx="66" cy="21" r="6" fill="#27c93f"/>
 <text x="640.0" y="26" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="middle">totion — 日历</text>
 <rect x="24" y="58" width="1232" height="32" rx="6" fill="#39d0d8"/>
-<text x="40" y="79" font-weight="600" fill="#0d1117" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">totion · 我的共享空间 · Guan · 2 位成员 · 日历 [3/5]</text>
-<rect x="24" y="110" width="700" height="560" rx="8" fill="#161b22" stroke="#30363d"/>
-<text x="38" y="134" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 2026 年 11 月（←/→ 选日 · [ ] 换月） </text>
-<text x="58" y="160" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">一</text>
-<text x="152" y="160" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">二</text>
-<text x="246" y="160" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">三</text>
-<text x="340" y="160" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">四</text>
-<text x="434" y="160" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">五</text>
-<text x="528" y="160" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">六</text>
-<text x="622" y="160" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">日</text>
-<rect x="610" y="180" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="620" y="206" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">1</text>
-<rect x="46" y="256" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="56" y="282" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">2</text>
-<rect x="140" y="256" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="150" y="282" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">3</text>
-<text x="194" y="282" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<rect x="234" y="256" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="244" y="282" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">4</text>
-<rect x="328" y="256" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="338" y="282" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">5</text>
-<text x="382" y="282" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<rect x="422" y="256" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="432" y="282" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">6</text>
-<rect x="516" y="256" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="526" y="282" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">7</text>
-<rect x="610" y="256" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="620" y="282" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">8</text>
-<text x="664" y="282" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<rect x="46" y="332" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="56" y="358" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">9</text>
-<rect x="140" y="332" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="150" y="358" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">10</text>
-<rect x="234" y="332" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="244" y="358" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">11</text>
-<rect x="328" y="332" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="338" y="358" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">12</text>
-<text x="382" y="358" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<rect x="422" y="332" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="432" y="358" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">13</text>
-<rect x="516" y="332" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="526" y="358" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">14</text>
-<rect x="610" y="332" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="620" y="358" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">15</text>
-<rect x="46" y="408" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<rect x="46" y="408" width="84" height="62" rx="6" fill="#39d0d8"/>
-<text x="56" y="434" font-weight="600" fill="#0d1117" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">16</text>
-<text x="100" y="434" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<text x="56" y="456" fill="#0d1117" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">4 项</text>
-<rect x="140" y="408" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="150" y="434" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">17</text>
-<rect x="234" y="408" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="244" y="434" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">18</text>
-<text x="288" y="434" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<rect x="328" y="408" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="338" y="434" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">19</text>
-<rect x="422" y="408" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="432" y="434" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">20</text>
-<rect x="516" y="408" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="526" y="434" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">21</text>
-<text x="570" y="434" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<rect x="610" y="408" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="620" y="434" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">22</text>
-<rect x="46" y="484" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="56" y="510" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">23</text>
-<rect x="140" y="484" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="150" y="510" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">24</text>
-<text x="194" y="510" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<rect x="234" y="484" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="244" y="510" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">25</text>
-<rect x="328" y="484" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="338" y="510" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">26</text>
-<rect x="422" y="484" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="432" y="510" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">27</text>
-<text x="476" y="510" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">•</text>
-<rect x="516" y="484" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="526" y="510" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">28</text>
-<rect x="610" y="484" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="620" y="510" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">29</text>
-<rect x="46" y="560" width="84" height="62" rx="6" fill="#21262d" stroke="#30363d"/>
-<text x="56" y="586" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">30</text>
-<rect x="744" y="110" width="512" height="560" rx="8" fill="#161b22" stroke="#30363d"/>
-<text x="758" y="134" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 11 月 16 日 议程 </text>
-<text x="768" y="170" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">09:00</text>
-<text x="830" y="170" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">[x]</text>
-<text x="874" y="170" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">晨会</text>
-<text x="768" y="222" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">10:30</text>
-<text x="830" y="222" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">[ ]</text>
-<text x="874" y="222" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">写周报</text>
-<text x="768" y="274" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">14:30</text>
-<text x="830" y="274" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">[ ]</text>
-<text x="874" y="274" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">设计评审</text>
-<text x="768" y="326" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">18:00</text>
-<text x="830" y="326" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">[ ]</text>
-<text x="874" y="326" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">买菜</text>
-<text x="768" y="420" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">t 新建待办   c 新建日程</text>
-<text x="768" y="452" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">Space 勾选   Enter 编辑   C 评论</text>
+<text x="40" y="79" font-weight="600" fill="#0d1117" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">totion · 我的共享空间 · Guan · 3 位成员 · 日历 [3/6]</text>
+<text x="40" y="122" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">2026 年 11 月   ←/→ 选日 · [ ] 换月 · v 或 Shift+右键框选   已选 11-16 ~ 11-20</text>
+<text x="40" y="152" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">一</text>
+<text x="214" y="152" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">二</text>
+<text x="388" y="152" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">三</text>
+<text x="562" y="152" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">四</text>
+<text x="736" y="152" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">五</text>
+<text x="910" y="152" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">六</text>
+<text x="1084" y="152" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">日</text>
+<rect x="1068" y="162" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="1078" y="186" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">1</text>
+<rect x="24" y="252" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="34" y="276" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">2</text>
+<rect x="198" y="252" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="208" y="276" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">3</text>
+<text x="208" y="298" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">✓</text>
+<text x="226" y="298" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">晨跑</text>
+<rect x="372" y="252" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="382" y="276" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">4</text>
+<rect x="546" y="252" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="556" y="276" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">5</text>
+<text x="556" y="298" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">○</text>
+<text x="574" y="298" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">写周报</text>
+<rect x="720" y="252" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="730" y="276" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">6</text>
+<rect x="894" y="252" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="904" y="276" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">7</text>
+<rect x="1068" y="252" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="1078" y="276" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">8</text>
+<text x="1078" y="298" font-weight="600" fill="#d29922" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">总</text>
+<text x="1096" y="298" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">本周复盘</text>
+<rect x="24" y="342" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="34" y="366" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">9</text>
+<rect x="198" y="342" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="208" y="366" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">10</text>
+<rect x="372" y="342" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="382" y="366" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">11</text>
+<rect x="546" y="342" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="556" y="366" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">12</text>
+<text x="556" y="388" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">○</text>
+<text x="574" y="388" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">评审</text>
+<rect x="720" y="342" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="730" y="366" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">13</text>
+<rect x="894" y="342" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="904" y="366" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">14</text>
+<rect x="1068" y="342" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="1078" y="366" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">15</text>
+<rect x="24" y="432" width="166" height="84" rx="6" fill="#0e4b52" stroke="#30363d"/>
+<text x="34" y="456" font-weight="600" fill="#ffffff" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">16</text>
+<text x="34" y="478" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">✓</text>
+<text x="52" y="478" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">晨会</text>
+<text x="34" y="496" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">○</text>
+<text x="52" y="496" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">写周报</text>
+<text x="34" y="514" font-weight="600" fill="#d29922" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">总</text>
+<text x="52" y="514" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">周报完成</text>
+<rect x="198" y="432" width="166" height="84" rx="6" fill="#222b33" stroke="#30363d"/>
+<text x="208" y="456" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">17</text>
+<rect x="372" y="432" width="166" height="84" rx="6" fill="#222b33" stroke="#30363d"/>
+<text x="382" y="456" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">18</text>
+<text x="382" y="478" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">○</text>
+<text x="400" y="478" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">买菜</text>
+<rect x="546" y="432" width="166" height="84" rx="6" fill="#222b33" stroke="#30363d"/>
+<text x="556" y="456" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">19</text>
+<rect x="720" y="432" width="166" height="84" rx="6" fill="#222b33" stroke="#30363d"/>
+<text x="730" y="456" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">20</text>
+<rect x="894" y="432" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="904" y="456" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">21</text>
+<text x="904" y="478" font-weight="600" fill="#d29922" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">总</text>
+<text x="922" y="478" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">周复盘</text>
+<rect x="1068" y="432" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="1078" y="456" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">22</text>
+<rect x="24" y="522" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="34" y="546" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">23</text>
+<rect x="198" y="522" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="208" y="546" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">24</text>
+<text x="208" y="568" font-weight="600" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">○</text>
+<text x="226" y="568" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">设计评审</text>
+<rect x="372" y="522" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="382" y="546" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">25</text>
+<rect x="546" y="522" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="556" y="546" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">26</text>
+<rect x="720" y="522" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="730" y="546" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">27</text>
+<text x="730" y="568" font-weight="600" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">✓</text>
+<text x="748" y="568" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="12" text-anchor="start">跑步</text>
+<rect x="894" y="522" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="904" y="546" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">28</text>
+<rect x="1068" y="522" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="1078" y="546" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">29</text>
+<rect x="24" y="612" width="166" height="84" rx="6" fill="#21262d" stroke="#30363d"/>
+<text x="34" y="636" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="16" text-anchor="start">30</text>
+<text x="40" y="730" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">11-16 · Enter 查看议程 · t/c 新建 · n 新习惯 · v/Esc 取消框选</text>
 </svg>
