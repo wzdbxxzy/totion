@@ -24,6 +24,8 @@ pub struct Palette {
     pub text_muted: [u8; 3],
     /// 卡片底色（默认近白），透明度由 `card_alpha` 控制。
     pub card_rgb: [u8; 3],
+    /// 玻璃底色，透明度由 `glass_alpha` 控制。
+    pub glass_rgb: [u8; 3],
     /// 导航放顶部还是左侧。
     pub nav_top: bool,
 }
@@ -39,6 +41,7 @@ impl Default for Palette {
             text_dim: [56, 74, 92],
             text_muted: [92, 110, 128],
             card_rgb: [255, 255, 255],
+            glass_rgb: [226, 240, 252],
             nav_top: false,
         }
     }
@@ -85,6 +88,7 @@ fn load_palette() -> Option<Palette> {
         ("text_dim", &mut p.text_dim),
         ("text_muted", &mut p.text_muted),
         ("card_rgb", &mut p.card_rgb),
+        ("glass_rgb", &mut p.glass_rgb),
     ] {
         if let Some(array) = value.get(key).and_then(|v| v.as_array()) {
             if array.len() == 3 {
@@ -116,6 +120,7 @@ fn save_palette(p: Palette) {
         "text_dim": p.text_dim,
         "text_muted": p.text_muted,
         "card_rgb": p.card_rgb,
+        "glass_rgb": p.glass_rgb,
         "nav_top": p.nav_top,
     })
     .to_string();
@@ -128,6 +133,10 @@ fn rgb(c: [u8; 3]) -> Color32 {
 
 pub fn glass_alpha() -> u8 {
     palette().glass_alpha
+}
+
+pub fn glass_rgb() -> Color32 {
+    rgb(palette().glass_rgb)
 }
 pub fn text() -> Color32 {
     rgb(palette().text)

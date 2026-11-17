@@ -1,6 +1,6 @@
 //! 设置：一整个页面，不再是弹窗。配色、账号、邀请码都在这里。
 
-use eframe::egui::{self, Align, Layout};
+use eframe::egui::{self, Align, Color32, CornerRadius, Layout, Sense, Stroke, StrokeKind, Vec2};
 use totion_core::User;
 
 use crate::app::{App, Dialog, View};
@@ -28,6 +28,7 @@ pub fn draw(app: &mut App, ui: &mut egui::Ui) {
         changed |= ui
             .add(egui::Slider::new(&mut palette.line_alpha, 0..=255).text("描边不透明度"))
             .changed();
+        changed |= color_row(ui, "玻璃底色", &mut palette.glass_rgb);
         changed |= color_row(ui, "卡片底色", &mut palette.card_rgb);
     });
 
@@ -120,14 +121,36 @@ fn accent_text(value: &str) -> egui::RichText {
 }
 
 fn color_row(ui: &mut egui::Ui, label: &str, slot: &mut [u8; 3]) -> bool {
+    let id = ui.make_persistent_id(("palette-row", label));
+    let mut open = ui.data(|data| data.get_temp::<bool>(id).unwrap_or(false));
     let mut changed = false;
     ui.horizontal(|ui| {
-        let mut color = egui::Color32::from_rgb(slot[0], slot[1], slot[2]);
-        if ui.color_edit_button_srgba(&mut color).changed() {
-            *slot = [color.r(), color.g(), color.b()];
-            changed = true;
-        }
+        let (rect, response) = ui.allocate_exact_size(Vec2::new(26.0, 15.0), Sense::click());
+        let color = Color32::from_rgb(slot[0], slot[1], slot[2]);
+        ui.painter().rect_filled(rect, CornerRadius::same(4), color);
+        ui.painter().rect_stroke(
+            rect,
+            CornerRadius::same(4),
+            Stroke::new(1.0_f32, line()),
+            StrokeKind::Inside,
+        );
         ui.label(muted(label));
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            ui.label(muted(format!("#{:02X}{:02X}{:02X}", slot[0], slot[1], slot[2])));
+        });
+        if response.clicked() {
+            open = !open;
+        }
     });
+    if open {
+        let mut rgb = *slot;
+        ui.horizontal(|ui| {
+            changed |= ui.add(egui::Slider::new(&mut rgb[0], 0..=255).text("R")).changed();
+            changed |= ui.add(egui::Slider::new(&mut rgb[1], 0..=255).text("G")).changed();
+            changed |= ui.add(egui::Slider::new(&mut rgb[2], 0..=255).text("B")).changed();
+        });
+        *slot = rgb;
+    }
+    ui.data_mut(|data| data.insert_temp(id, open));
     changed
 }

@@ -157,6 +157,7 @@ impl App {
                 Ok("habits") => View::Habits,
                 Ok("stats") => View::Stats,
                 Ok("inbox") => View::Inbox,
+                Ok("settings") => View::Settings,
                 _ => View::Today,
             },
             date: Local::now().date_naive(),
@@ -585,7 +586,10 @@ impl App {
         painter.rect_filled(
             panel,
             egui::CornerRadius::same(26),
-            egui::Color32::from_rgba_unmultiplied(226, 240, 252, alpha),
+            {
+                let c = crate::theme::glass_rgb();
+                egui::Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), alpha)
+            },
         );
     }
 }
@@ -685,7 +689,9 @@ impl eframe::App for App {
                     }),
             )
             .show(ctx, |ui| {
-                self.content(ui);
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| self.content(ui));
             });
 
         crate::views::overlays::draw(self, ctx);
