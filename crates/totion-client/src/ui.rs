@@ -530,7 +530,8 @@ fn draw_summary_preview(frame: &mut Frame, area: Rect, main: &MainState) {
 
 fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
     let journals = main.all_journals();
-    let mut lines: Vec<Line> = Vec::new();
+    let budget = area.height.saturating_sub(4) as usize;
+    let mut blocks: Vec<Vec<Line>> = Vec::new();
     for (index, journal) in journals.iter().enumerate() {
         let selected = index == main.selected_journal_index();
         let mut style = Style::default();
@@ -542,8 +543,8 @@ fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
             totion_core::JournalTarget::Block => "待办".to_string(),
             totion_core::JournalTarget::Habit => "习惯".to_string(),
         };
-        let row_index = lines.len();
-        lines.push(
+        let mut block: Vec<Line> = Vec::new();
+        block.push(
             Line::from(vec![
                 Span::styled(
                     if selected { "▶ " } else { "  " },
@@ -560,20 +561,30 @@ fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
             ])
             .style(style),
         );
-        if let Some(rect) = list_row_rect(area, row_index) {
+        for line in journal.body.lines().take(3) {
+            block.push(Line::from(Span::styled(format!("    {line}"), style)));
+        }
+        block.push(Line::from(""));
+        blocks.push(block);
+    }
+
+    let heights: Vec<usize> = blocks.iter().map(|block| block.len()).collect();
+    let start = scroll_start(&heights, main.selected_journal_index(), budget);
+    let mut lines: Vec<Line> = Vec::new();
+    let mut rendered_end = start;
+    for (index, block) in blocks.iter().enumerate().skip(start) {
+        if lines.len() >= budget && index != main.selected_journal_index() {
+            break;
+        }
+        let first_row = lines.len();
+        lines.extend(block.iter().cloned());
+        if let Some(rect) = list_row_rect(area, first_row) {
             main.push_mouse_hit(rect, MouseAction::OpenJournal(index));
         }
-        let body = journal
-            .body
-            .lines()
-            .take(3)
-            .map(|line| format!("    {line}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        lines.push(Line::from(Span::styled(body, style)));
-        lines.push(Line::from(""));
+        rendered_end = index + 1;
     }
-    if lines.is_empty() {
+
+    if journals.is_empty() {
         lines.push(Line::from(Span::styled(
             " 还没有总结。回到今日，选中待办/习惯后按 a 写总结。",
             Style::default().fg(Color::DarkGray),
@@ -584,25 +595,36 @@ fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
         " J 返回 · j/k 选择 · e 编辑 · d 删除",
         Style::default().fg(Color::DarkGray),
     )));
+    let title = if start > 0 || rendered_end < journals.len() {
+        format!(
+            " 全部总结 {}-{}/{} ",
+            start + 1,
+            rendered_end.max(start + 1),
+            journals.len()
+        )
+    } else {
+        " 全部总结 ".to_string()
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(" 全部总结 "))
+            .block(block_title(title))
             .wrap(Wrap { trim: false }),
         area,
     );
 }
 
 fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
-    let block = block_title(" 页面 ");
     let pages = main.visible_pages();
-    let mut lines: Vec<Line> = Vec::new();
+    let budget = area.height.saturating_sub(3) as usize;
+    let mut blocks: Vec<Vec<Line>> = Vec::new();
     let mut last_kind = None;
     for (index, page) in pages.iter().enumerate() {
+        let mut block: Vec<Line> = Vec::new();
         if last_kind != Some(page.kind) {
-            if !lines.is_empty() {
-                lines.push(Line::from(""));
+            if !blocks.is_empty() {
+                block.push(Line::from(""));
             }
-            lines.push(Line::from(Span::styled(
+            block.push(Line::from(Span::styled(
                 format!("{} {}", page.kind.icon(), page.kind.label()),
                 Style::default()
                     .fg(Color::DarkGray)
@@ -621,8 +643,7 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
         }
         let comments =
             main.unresolved_comment_count(totion_core::CommentTargetKind::Page, &page.id);
-        let row_index = lines.len();
-        lines.push(Line::from(vec![
+        block.push(Line::from(vec![
             Span::styled(
                 format!(
                     "{marker} {} {}{}",
@@ -637,12 +658,27 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
-        if let Some(rect) = list_row_rect(area, row_index) {
-            main.push_mouse_hit(rect, MouseAction::SelectPage(index));
-        }
+        blocks.push(block);
     }
 
-    if lines.is_empty() {
+    let heights: Vec<usize> = blocks.iter().map(|block| block.len()).collect();
+    let start = scroll_start(&heights, main.selected_page_index(), budget);
+    let mut lines: Vec<Line> = Vec::new();
+    let mut rendered_end = start;
+    for (index, block) in blocks.iter().enumerate().skip(start) {
+        if lines.len() >= budget && index != main.selected_page_index() {
+            break;
+        }
+        let first_row = lines.len();
+        lines.extend(block.iter().cloned());
+        let page_row = first_row + block.len().saturating_sub(1);
+        if let Some(rect) = list_row_rect(area, page_row) {
+            main.push_mouse_hit(rect, MouseAction::SelectPage(index));
+        }
+        rendered_end = index + 1;
+    }
+
+    if pages.is_empty() {
         lines.push(Line::from(Span::styled(
             "还没有页面，按 N 新建",
             Style::default().fg(Color::DarkGray),
@@ -660,9 +696,19 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
         )));
     }
 
+    let title = if start > 0 || rendered_end < pages.len() {
+        format!(
+            " 页面 {}-{}/{} ",
+            start + 1,
+            rendered_end.max(start + 1),
+            pages.len()
+        )
+    } else {
+        " 页面 ".to_string()
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block)
+            .block(block_title(title))
             .wrap(Wrap { trim: false }),
         area,
     );

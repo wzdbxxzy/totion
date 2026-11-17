@@ -699,6 +699,79 @@ fn comments_modal_scrolls_to_selected_comment() {
 }
 
 #[test]
+fn long_page_list_scrolls_to_selected_page() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        for index in 0..30 {
+            state.pages.push(Page {
+                id: format!("p{index}"),
+                title: format!("页面 {index}"),
+                icon: "📄".to_string(),
+                kind: PageKind::Doc,
+                position: index,
+                version: 1,
+                updated_at: chrono::Utc::now(),
+                updated_by: "Guan".to_string(),
+                deleted: false,
+                date: None,
+            });
+        }
+        state.selected_page_index = 30;
+        state.set_view(View::Workspace);
+        state.clamp();
+    }
+    harness.render(120, 24);
+    let actions: Vec<MouseAction> = harness
+        .state()
+        .mouse_hits
+        .borrow()
+        .iter()
+        .map(|(_, action)| *action)
+        .collect();
+    assert!(actions.contains(&MouseAction::SelectPage(30)));
+    assert!(!actions.contains(&MouseAction::SelectPage(0)));
+}
+
+#[test]
+fn long_journal_list_scrolls_to_selected_entry() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        for index in 0..10 {
+            state.journals.push(totion_core::JournalEntry {
+                id: format!("j{index}"),
+                target_kind: totion_core::JournalTarget::Block,
+                target_id: "b1".to_string(),
+                date: format!("2026-11-{:02}", index + 1),
+                time: "21:00".to_string(),
+                body: "第一行\n第二行\n第三行".to_string(),
+                author_id: "u1".to_string(),
+                author_name: "Guan".to_string(),
+                version: 1,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                deleted: false,
+            });
+        }
+        state.set_view(View::Workspace);
+        state.workspace_journal_mode = true;
+        state.selected_journal_index = 9;
+        state.clamp();
+    }
+    harness.render(120, 24);
+    let actions: Vec<MouseAction> = harness
+        .state()
+        .mouse_hits
+        .borrow()
+        .iter()
+        .map(|(_, action)| *action)
+        .collect();
+    assert!(actions.contains(&MouseAction::OpenJournal(9)));
+    assert!(!actions.contains(&MouseAction::OpenJournal(0)));
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
