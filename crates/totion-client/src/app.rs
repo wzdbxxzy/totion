@@ -4078,7 +4078,7 @@ impl MainState {
         self.modal = Some(modal);
     }
 
-    fn submit_event_form(&mut self, form: &EventForm) -> Option<String> {
+    fn submit_event_form(&mut self, form: &mut EventForm) -> Option<String> {
         if form.title.trim().is_empty() {
             return Some("标题不能为空".to_string());
         }
@@ -4098,7 +4098,11 @@ impl MainState {
         let mut created = 0;
         for date in &dates {
             let Some(page_id) = self.ensure_day(date) else {
-                return Some(format!("创建 {date} 的页面失败"));
+                // 从失败这天继续，避免重试时重复创建前面已经成功的日期。
+                form.date = date.clone();
+                return Some(format!(
+                    "已创建 {created} 条，{date} 失败（重新提交会从这天继续）"
+                ));
             };
             let position = self
                 .blocks
@@ -4132,7 +4136,12 @@ impl MainState {
                     self.upsert_block(response.block);
                     created += 1;
                 }
-                Err(err) => return Some(err.to_string()),
+                Err(err) => {
+                    form.date = date.clone();
+                    return Some(format!(
+                        "已创建 {created} 条，{date} 失败：{err}（重新提交会从这天继续）"
+                    ));
+                }
             }
         }
         self.clamp();
@@ -4162,6 +4171,7 @@ impl MainState {
                 let habit_id = response.habit.id.clone();
                 self.upsert_habit(response.habit);
                 let mut checked = 0;
+                let mut failed: Option<(String, String)> = None;
                 if form.range_end.is_some() {
                     for date in &dates {
                         match self.api.check_in(
@@ -4176,7 +4186,7 @@ impl MainState {
                                 checked += 1;
                             }
                             Err(err) => {
-                                self.status = err.to_string();
+                                failed = Some((date.clone(), err.to_string()));
                                 break;
                             }
                         }
@@ -4191,7 +4201,9 @@ impl MainState {
                 {
                     self.selected_habit_index = index;
                 }
-                self.status = if checked > 0 {
+                self.status = if let Some((date, err)) = failed {
+                    format!("习惯已创建，{date} 打卡失败：{err}（可稍后补打卡）")
+                } else if checked > 0 {
                     format!("习惯已创建，并在 {checked} 天打卡")
                 } else {
                     "习惯已创建".to_string()

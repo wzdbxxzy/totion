@@ -1164,6 +1164,50 @@ fn failed_day_ensure_allows_retry() {
 }
 
 #[test]
+fn batch_forms_report_failure_without_fake_success() {
+    let mut harness = Harness::new();
+    let today = harness.state().today_key();
+    let mut form = EventForm {
+        kind: BlockKind::Todo,
+        title: "任务".to_string(),
+        date: today.clone(),
+        start_time: String::new(),
+        end_time: String::new(),
+        field: 0,
+        error: None,
+        range_end: Some(today.clone()),
+    };
+    let message = harness
+        .state_mut()
+        .submit_event_form(&mut form)
+        .expect("离线创建应返回错误");
+    assert!(
+        message.contains("已创建"),
+        "错误信息应包含已创建数量: {message}"
+    );
+    assert_eq!(form.date, today, "失败后应从失败日期继续");
+
+    let habit = HabitForm {
+        title: "习惯".to_string(),
+        note: String::new(),
+        frequency: HabitFrequency::Daily,
+        field: 0,
+        error: None,
+        date: today,
+        range_end: None,
+    };
+    let err = harness
+        .state_mut()
+        .submit_habit_form(&habit)
+        .expect("离线创建习惯应返回错误");
+    assert!(!err.is_empty());
+    assert!(
+        !harness.state().status.contains("习惯已创建"),
+        "失败时不应显示习惯创建成功"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
