@@ -1532,6 +1532,65 @@ fn panel_mode_hides_header_bar() {
 }
 
 #[test]
+fn panel_nav_uses_quiet_marker_instead_of_chip() {
+    let mut harness = Harness::new();
+    harness.render_panel(100, 30);
+    let buffer = harness.buffer.as_ref().expect("buffer");
+    let row = buffer_line(buffer, 0);
+    assert!(row.contains('│'), "面板导航应有竖线标记: {row}");
+
+    let rect = harness.action_rect(MouseAction::SwitchView(View::Today));
+    let marker = buffer.cell((rect.x, rect.y)).expect("当前界面标记");
+    assert_eq!(
+        marker.bg,
+        ratatui::style::Color::Reset,
+        "面板导航不应有实心底色"
+    );
+
+    let label = buffer.cell((rect.x + 4, rect.y)).expect("当前界面文字");
+    assert!(
+        label.modifier.contains(ratatui::style::Modifier::BOLD),
+        "当前界面文字应加粗"
+    );
+}
+
+#[test]
+fn narrow_nav_drops_actions_instead_of_clipping() {
+    let mut harness = Harness::new();
+    harness.render(70, 20);
+    let narrow = buffer_line(harness.buffer.as_ref().expect("buffer"), 1);
+    let compact: String = narrow.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(compact.contains("1今日"), "窄屏仍显示界面标签: {compact}");
+    assert!(
+        !compact.contains("同步"),
+        "放不下时整组操作应隐藏，而不是截断: {compact}"
+    );
+
+    harness.render(120, 24);
+    let wide = buffer_line(harness.buffer.as_ref().expect("buffer"), 1);
+    let compact: String = wide.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(compact.contains("r同步"), "宽屏应显示全部操作: {compact}");
+}
+
+#[test]
+fn panel_nav_keeps_every_action_clickable() {
+    let mut harness = Harness::new();
+    harness.render_panel(100, 30);
+    for action in [
+        MouseAction::OpenMembers,
+        MouseAction::OpenInvites,
+        MouseAction::OpenSearch,
+        MouseAction::OpenHelp,
+    ] {
+        let rect = harness.action_rect(action);
+        assert!(
+            rect.x + rect.width <= 100,
+            "操作 {action:?} 超出面板宽度被截断"
+        );
+    }
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

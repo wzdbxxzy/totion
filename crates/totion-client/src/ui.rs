@@ -119,7 +119,7 @@ fn draw_main(frame: &mut Frame, main: &MainState, panel: bool) {
     if !panel {
         draw_header(frame, chunks[0], main);
     }
-    draw_nav(frame, chunks[1], main);
+    draw_nav(frame, chunks[1], main, panel);
 
     match main.view() {
         View::Today => draw_today(frame, chunks[2], main),
@@ -142,7 +142,7 @@ fn draw_main(frame: &mut Frame, main: &MainState, panel: bool) {
 }
 
 /// 顶端导航栏：6 个界面 + 常用操作，都可以鼠标点击。
-fn draw_nav(frame: &mut Frame, area: Rect, main: &MainState) {
+fn draw_nav(frame: &mut Frame, area: Rect, main: &MainState, panel: bool) {
     let mut line = HitLine::new(main, area.x, area.y);
     let tabs = [
         (View::Today, "1 今日"),
@@ -153,30 +153,79 @@ fn draw_nav(frame: &mut Frame, area: Rect, main: &MainState) {
         (View::Inbox, "6 留言"),
     ];
     for (view, label) in tabs {
-        let style = if main.view() == view {
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
-                .add_modifier(Modifier::BOLD)
+        let selected = main.view() == view;
+        let action = Some(MouseAction::SwitchView(view));
+        if panel {
+            // 面板版：细竖线标记当前界面，文字靠字重和明度区分，不用整块底色。
+            let (bar, bar_style) = if selected {
+                ("│ ", Style::default().fg(Color::Cyan))
+            } else {
+                ("  ", Style::default())
+            };
+            let text_style = if selected {
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::Gray)
+            };
+            line.push(bar, bar_style, action);
+            line.push(format!("{label} "), text_style, action);
         } else {
-            Style::default().fg(Color::Gray)
-        };
-        line.push(
-            format!(" {label} "),
-            style,
-            Some(MouseAction::SwitchView(view)),
-        );
+            let style = if selected {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::Gray)
+            };
+            line.push(format!(" {label} "), style, action);
+        }
     }
-    line.push("  ", Style::default(), None);
-    let actions = [
-        (" m 成员 ", MouseAction::OpenMembers),
-        (" i 邀请 ", MouseAction::OpenInvites),
-        (" / 搜索 ", MouseAction::OpenSearch),
-        (" ? 帮助 ", MouseAction::OpenHelp),
-        (" r 同步 ", MouseAction::SyncNow),
-    ];
-    for (label, action) in actions {
-        line.push(label, Style::default().fg(Color::Yellow), Some(action));
+
+    let actions: [(&str, MouseAction); 5] = if panel {
+        // 面板窄，去掉多余留白，用紧凑写法塞下全部操作。
+        [
+            ("m 成员", MouseAction::OpenMembers),
+            ("i 邀请", MouseAction::OpenInvites),
+            ("/ 搜索", MouseAction::OpenSearch),
+            ("? 帮助", MouseAction::OpenHelp),
+            ("r 同步", MouseAction::SyncNow),
+        ]
+    } else {
+        [
+            (" m 成员 ", MouseAction::OpenMembers),
+            (" i 邀请 ", MouseAction::OpenInvites),
+            (" / 搜索 ", MouseAction::OpenSearch),
+            (" ? 帮助 ", MouseAction::OpenHelp),
+            (" r 同步 ", MouseAction::SyncNow),
+        ]
+    };
+    let gap = if panel { 1 } else { 2 };
+    let actions_width: u16 = actions
+        .iter()
+        .map(|(label, _)| unicode_width::UnicodeWidthStr::width(*label) as u16)
+        .sum::<u16>()
+        + gap * (actions.len() as u16 - 1);
+    let used = line.x.saturating_sub(area.x);
+    // 放不下就整组不画，避免尾部被截成半截文字。
+    if used + gap + actions_width > area.width {
+        frame.render_widget(Paragraph::new(line.into_line()), area);
+        return;
+    }
+
+    line.push(" ".repeat(gap as usize), Style::default(), None);
+    let action_style = if panel {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        Style::default().fg(Color::Yellow)
+    };
+    for (index, (label, action)) in actions.into_iter().enumerate() {
+        if index > 0 {
+            line.push(" ", Style::default(), None);
+        }
+        line.push(label, action_style, Some(action));
     }
     frame.render_widget(Paragraph::new(line.into_line()), area);
 }
