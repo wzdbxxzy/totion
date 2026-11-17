@@ -18,17 +18,7 @@ pub fn draw(app: &mut App, ctx: &egui::Context) {
 }
 
 fn window_frame() -> egui::Frame {
-    egui::Frame::new()
-        .fill(Color32::from_rgba_unmultiplied(236, 244, 252, 236))
-        .stroke(egui::Stroke::new(1.0, line()))
-        .corner_radius(egui::CornerRadius::same(16))
-        .inner_margin(egui::Margin::same(20))
-        .shadow(egui::epaint::Shadow {
-            offset: [0, 10],
-            blur: 40,
-            spread: 0,
-            color: Color32::from_black_alpha(160),
-        })
+    glass_window_frame()
 }
 
 fn editor_window(app: &mut App, ctx: &egui::Context) {

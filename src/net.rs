@@ -194,8 +194,10 @@ fn worker(start_rx: Receiver<Start>, cmd_rx: Receiver<Command>, tx: Sender<Event
                 }
             }
             Ok(command) => {
-                if let Some(new_seq) = run_command(&api, command, &tx) {
-                    last_seq = last_seq.max(new_seq);
+                run_command(&api, command, &tx);
+                // 写完立刻同步一次，把服务端版本拉回来，避免下一次点击用到过期版本。
+                if let Some(seq) = sync(&api, last_seq, &tx) {
+                    last_seq = seq;
                 }
             }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
@@ -209,8 +211,9 @@ fn worker(start_rx: Receiver<Start>, cmd_rx: Receiver<Command>, tx: Sender<Event
         loop {
             match cmd_rx.try_recv() {
                 Ok(command) => {
-                    if let Some(new_seq) = run_command(&api, command, &tx) {
-                        last_seq = last_seq.max(new_seq);
+                    run_command(&api, command, &tx);
+                    if let Some(seq) = sync(&api, last_seq, &tx) {
+                        last_seq = seq;
                     }
                 }
                 Err(TryRecvError::Empty) | Err(TryRecvError::Disconnected) => break,

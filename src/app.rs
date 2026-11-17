@@ -122,8 +122,6 @@ impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         install_fonts(&cc.egui_ctx);
         apply(&cc.egui_ctx);
-        // 这块面板是贴在桌面上的，按 1.2 倍整体放大，远处也能看清。
-        cc.egui_ctx.set_zoom_factor(1.3);
         let saved = crate::identity::load_identity().ok().flatten();
         let (server_url, name) = match &saved {
             Some(identity) => (identity.server_url.clone(), identity.name.clone()),
@@ -252,6 +250,7 @@ impl App {
                     self.last_ok = Instant::now();
                 }
                 Event::Error(message) => {
+                    crate::desktop::log_line(&format!("error: {message}"));
                     if self.me_id.is_empty() {
                         // 还没登录成功：回到登录页，把错误留在表单里。
                         self.net = None;
@@ -336,7 +335,7 @@ impl App {
             let active = self.view == view;
             let width = ui.available_width();
             let (rect, response) =
-                ui.allocate_exact_size(egui::Vec2::new(width, 38.0), egui::Sense::click());
+                ui.allocate_exact_size(egui::Vec2::new(width, 34.0), egui::Sense::click());
             let fill = if response.hovered() && !active {
                 Color32::from_rgba_unmultiplied(255, 255, 255, 14)
             } else {
@@ -354,7 +353,7 @@ impl App {
                 egui::pos2(rect.left() + 20.0, rect.center().y),
                 egui::Align2::LEFT_CENTER,
                 view.label(),
-                egui::FontId::proportional(14.5),
+                egui::FontId::proportional(13.5),
                 if active { accent() } else { text_dim() },
             );
             if response.clicked() {
@@ -540,6 +539,24 @@ impl App {
             egui::CornerRadius::same(26),
             egui::Color32::from_rgba_unmultiplied(226, 240, 252, crate::theme::glass_alpha()),
         );
+        // 顶部一层极淡的白色渐变 + 一抹强调色光晕，让面板有点"发光"。
+        let top = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 26);
+        let bottom = egui::Color32::TRANSPARENT;
+        let mut mesh = egui::Mesh::default();
+        let idx = mesh.vertices.len() as u32;
+        mesh.colored_vertex(panel.left_top(), top);
+        mesh.colored_vertex(panel.right_top(), top);
+        mesh.colored_vertex(panel.right_bottom(), bottom);
+        mesh.colored_vertex(panel.left_bottom(), bottom);
+        mesh.add_triangle(idx, idx + 1, idx + 2);
+        mesh.add_triangle(idx, idx + 2, idx + 3);
+        painter.add(egui::Shape::mesh(mesh));
+        let glow = crate::theme::accent();
+        painter.circle_filled(
+            panel.left_top() + egui::vec2(40.0, -60.0),
+            220.0,
+            egui::Color32::from_rgba_unmultiplied(glow.r(), glow.g(), glow.b(), 10),
+        );
         painter.rect_stroke(
             panel,
             egui::CornerRadius::same(26),
@@ -601,7 +618,7 @@ impl eframe::App for App {
 
         let side = egui::SidePanel::left("side")
             .resizable(false)
-            .exact_width(232.0)
+            .exact_width(196.0)
             .frame(
                 egui::Frame::new()
                     .fill(Color32::TRANSPARENT)

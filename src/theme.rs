@@ -220,15 +220,15 @@ pub fn title(text_value: impl Into<String>, size: f32) -> RichText {
 }
 
 pub fn body(text_value: impl Into<String>) -> RichText {
-    RichText::new(text_value).size(14.0).color(text())
+    RichText::new(text_value).size(13.0).color(text())
 }
 
 pub fn dim(text_value: impl Into<String>) -> RichText {
-    RichText::new(text_value).size(13.0).color(text_dim())
+    RichText::new(text_value).size(12.0).color(text_dim())
 }
 
 pub fn muted(text_value: impl Into<String>) -> RichText {
-    RichText::new(text_value).size(12.0).color(text_muted())
+    RichText::new(text_value).size(11.0).color(text_muted())
 }
 
 /// 数字读数：等宽感、偏大、亮色。
@@ -268,9 +268,9 @@ pub fn apply(ctx: &egui::Context) {
     ] {
         widget.fg_stroke = Stroke::new(1.0_f32, text());
     }
-    style.spacing.item_spacing = Vec2::new(10.0, 10.0);
+    style.spacing.item_spacing = Vec2::new(8.0, 8.0);
     style.spacing.button_padding = Vec2::new(12.0, 7.0);
-    style.spacing.interact_size.y = 30.0;
+    style.spacing.interact_size.y = 26.0;
     for widget in [
         &mut style.visuals.widgets.inactive,
         &mut style.visuals.widgets.hovered,
@@ -280,9 +280,9 @@ pub fn apply(ctx: &egui::Context) {
     }
     style.text_styles = [
         (TextStyle::Heading, FontId::new(22.0, bold_family())),
-        (TextStyle::Body, FontId::new(14.0, FontFamily::Proportional)),
-        (TextStyle::Button, FontId::new(14.0, FontFamily::Proportional)),
-        (TextStyle::Small, FontId::new(12.0, FontFamily::Proportional)),
+        (TextStyle::Body, FontId::new(13.0, FontFamily::Proportional)),
+        (TextStyle::Button, FontId::new(13.0, FontFamily::Proportional)),
+        (TextStyle::Small, FontId::new(11.0, FontFamily::Proportional)),
         (TextStyle::Monospace, FontId::new(13.0, FontFamily::Proportional)),
     ]
     .into();
@@ -306,6 +306,24 @@ pub fn card_frame() -> egui::Frame {
             blur: 18,
             spread: 0,
             color: Color32::from_black_alpha(40),
+        })
+}
+
+/// 弹层：和主面板同材质的半透明玻璃，而不是一块实心白板。
+pub fn glass_window_frame() -> egui::Frame {
+    let fill = 250u16.saturating_sub(0);
+    let _ = fill;
+    let alpha = palette().card_alpha.saturating_add(40).min(250);
+    egui::Frame::new()
+        .fill(Color32::from_rgba_unmultiplied(250, 253, 255, alpha))
+        .stroke(Stroke::new(1.0_f32, line()))
+        .corner_radius(CornerRadius::same(18))
+        .inner_margin(Margin::same(18))
+        .shadow(Shadow {
+            offset: [0, 10],
+            blur: 40,
+            spread: 0,
+            color: Color32::from_black_alpha(90),
         })
 }
 
