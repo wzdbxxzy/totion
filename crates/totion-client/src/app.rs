@@ -1701,7 +1701,11 @@ impl MainState {
                 self.ensure_today_page();
                 self.sync_now(true);
             }
-            KeyCode::Esc => self.notice = None,
+            KeyCode::Esc => {
+                if !self.handle_escape() {
+                    self.notice = None;
+                }
+            }
             _ => match self.view {
                 View::Today => self.handle_today_key(key),
                 View::Workspace => self.handle_workspace_key(key),
@@ -1712,6 +1716,27 @@ impl MainState {
             },
         }
         false
+    }
+
+    /// Esc 优先取消视图内的临时状态（周视图、总结列表、日期框选），再退回清提示。
+    pub(crate) fn handle_escape(&mut self) -> bool {
+        match self.view {
+            View::Today if self.week_mode => {
+                self.week_mode = false;
+                true
+            }
+            View::Workspace if self.workspace_journal_mode => {
+                self.workspace_journal_mode = false;
+                true
+            }
+            View::Calendar if self.range_anchor.is_some() || self.range_focus.is_some() => {
+                self.range_anchor = None;
+                self.range_focus = None;
+                self.status = "已取消日期范围".to_string();
+                true
+            }
+            _ => false,
+        }
     }
 
     fn set_view(&mut self, view: View) {

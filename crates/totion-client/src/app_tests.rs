@@ -801,6 +801,35 @@ fn inbox_r_resolves_instead_of_triggering_sync() {
 }
 
 #[test]
+fn esc_cancels_transient_view_modes() {
+    let mut harness = Harness::new();
+    harness.state_mut().open_week_view();
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!harness.state().week_mode(), "Esc 应退出周视图");
+
+    harness.state_mut().set_view(View::Workspace);
+    harness.state_mut().workspace_journal_mode = true;
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(
+        !harness.state().workspace_journal_mode,
+        "Esc 应退出总结列表"
+    );
+
+    harness.state_mut().set_view(View::Calendar);
+    let today = harness.state().today();
+    harness.state_mut().range_anchor = Some(today);
+    harness.state_mut().range_focus = Some(today);
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(harness.state().range_anchor.is_none(), "Esc 应取消日期框选");
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
