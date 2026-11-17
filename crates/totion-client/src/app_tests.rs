@@ -242,6 +242,20 @@ fn week_view_keeps_far_past_date_in_window() {
 }
 
 #[test]
+fn search_results_show_readable_labels() {
+    let harness = Harness::new();
+    let hits = harness.state().compute_search("待办");
+    assert!(!hits.is_empty());
+    let labels: Vec<String> = hits
+        .iter()
+        .map(|hit| harness.state().search_hit_label(hit))
+        .collect();
+    assert!(labels.iter().any(|label| label.contains("我的待办")));
+    assert!(labels.iter().any(|label| label.contains("收件箱")));
+    assert!(labels.iter().all(|label| label != "b1" && label != "b2"));
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

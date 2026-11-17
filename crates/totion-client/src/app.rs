@@ -3221,6 +3221,42 @@ impl MainState {
         self.clamp();
     }
 
+    /// 搜索结果的可读标签（页面标题 / 内容块文字 / 习惯名）。
+    pub fn search_hit_label(&self, hit: &SearchHit) -> String {
+        match hit {
+            SearchHit::Page(id) => self
+                .pages
+                .iter()
+                .find(|page| &page.id == id && !page.deleted)
+                .map(|page| page.title.clone())
+                .unwrap_or_else(|| "已删除页面".to_string()),
+            SearchHit::Block { page_id, block_id } => {
+                let text = self
+                    .blocks
+                    .iter()
+                    .find(|block| &block.id == block_id && !block.deleted)
+                    .map(|block| {
+                        if block.text.is_empty() {
+                            block.kind.icon().to_string()
+                        } else {
+                            block.text.clone()
+                        }
+                    })
+                    .unwrap_or_else(|| "已删除内容块".to_string());
+                match self.pages.iter().find(|page| &page.id == page_id) {
+                    Some(page) => format!("{text}  ·  {}", page.title),
+                    None => text,
+                }
+            }
+            SearchHit::Habit(id) => self
+                .habits
+                .iter()
+                .find(|habit| &habit.id == id && !habit.deleted)
+                .map(|habit| habit.title.clone())
+                .unwrap_or_else(|| "已删除习惯".to_string()),
+        }
+    }
+
     fn compute_search(&self, query: &str) -> Vec<SearchHit> {
         let query = query.to_lowercase();
         if query.is_empty() {

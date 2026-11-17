@@ -1575,7 +1575,7 @@ fn draw_modal(frame: &mut Frame, main: &MainState, modal: &Modal) {
         Modal::EventForm(form) => draw_event_form(frame, form),
         Modal::HabitForm(form) => draw_habit_form(frame, form),
         Modal::Comments(panel) => draw_comments(frame, main, panel),
-        Modal::Search(state) => draw_search(frame, state),
+        Modal::Search(state) => draw_search(frame, main, state),
         Modal::Agenda(panel) => draw_agenda(frame, main, panel),
         Modal::Invites(panel) => draw_invites(frame, panel),
         Modal::Members(panel) => draw_members(frame, main, panel),
@@ -2008,7 +2008,40 @@ fn draw_comments(frame: &mut Frame, main: &MainState, panel: &CommentPanel) {
     );
 }
 
-fn draw_search(frame: &mut Frame, state: &SearchState) {
+/// 把命中词标成黄色加粗；大小写不敏感只在不会改变字节长度时启用。
+fn highlight_spans(text: &str, query: &str, style: Style) -> Vec<Span<'static>> {
+    if query.is_empty() {
+        return vec![Span::styled(text.to_string(), style)];
+    }
+    let lower = text.to_lowercase();
+    let needle = query.to_lowercase();
+    if needle.is_empty() || lower.len() != text.len() {
+        return vec![Span::styled(text.to_string(), style)];
+    }
+    let mut spans = Vec::new();
+    let mut cursor = 0usize;
+    while let Some(offset) = lower[cursor..].find(&needle) {
+        let start = cursor + offset;
+        let end = start + needle.len();
+        if start > cursor {
+            spans.push(Span::styled(text[cursor..start].to_string(), style));
+        }
+        spans.push(Span::styled(
+            text[start..end].to_string(),
+            style.fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        ));
+        cursor = end;
+    }
+    if cursor < text.len() {
+        spans.push(Span::styled(text[cursor..].to_string(), style));
+    }
+    if spans.is_empty() {
+        spans.push(Span::styled(text.to_string(), style));
+    }
+    spans
+}
+
+fn draw_search(frame: &mut Frame, main: &MainState, state: &SearchState) {
     let area = centered_rect(72, 60, frame.area());
     frame.render_widget(Clear, area);
     let mut lines = vec![Line::from(Span::styled(
@@ -2024,12 +2057,18 @@ fn draw_search(frame: &mut Frame, state: &SearchState) {
         } else {
             Style::default()
         };
-        let text = match hit {
-            crate::app::SearchHit::Page(id) => format!(" [页面] {id}"),
-            crate::app::SearchHit::Block { block_id, .. } => format!(" [内容块] {block_id}"),
-            crate::app::SearchHit::Habit(id) => format!(" [习惯] {id}"),
+        let tag = match hit {
+            crate::app::SearchHit::Page(_) => " [页面] ",
+            crate::app::SearchHit::Block { .. } => " [内容块] ",
+            crate::app::SearchHit::Habit(_) => " [习惯] ",
         };
-        lines.push(Line::from(Span::styled(text, style)));
+        let mut spans = vec![Span::styled(tag, style.fg(Color::Cyan))];
+        spans.extend(highlight_spans(
+            &main.search_hit_label(hit),
+            &state.query,
+            style,
+        ));
+        lines.push(Line::from(spans));
     }
     if state.results.is_empty() && !state.query.is_empty() {
         lines.push(Line::from(Span::styled(
@@ -2039,7 +2078,10 @@ fn draw_search(frame: &mut Frame, state: &SearchState) {
     }
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(" 搜索（Enter 跳转 · Esc 关闭） "))
+            .block(block_title(format!(
+                " 搜索（{} 条 · Enter 跳转 · Esc 关闭） ",
+                state.results.len()
+            )))
             .wrap(Wrap { trim: false }),
         area,
     );
