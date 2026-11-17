@@ -994,6 +994,47 @@ fn search_jump_clears_workspace_transient_modes() {
 }
 
 #[test]
+fn editing_header_reflects_multiline_mode() {
+    let mut harness = Harness::new();
+    harness.state_mut().editing = Some(Editing {
+        target: EditTarget::NewComment {
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+        },
+        buffer: "第一行\n第二行".to_string(),
+        cursor: 19,
+        multiline: true,
+    });
+    harness.render(120, 30);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(compact.contains("Ctrl+S保存"), "多行编辑应提示 Ctrl+S 保存");
+    assert!(compact.contains("Enter换行"), "多行编辑应提示 Enter 换行");
+    assert!(compact.contains("L2:C4"), "应显示光标行列: {compact}");
+
+    harness.state_mut().editing = Some(Editing {
+        target: EditTarget::PageTitle {
+            page_id: "p1".to_string(),
+            base_version: 1,
+        },
+        buffer: "标题".to_string(),
+        cursor: 6,
+        multiline: false,
+    });
+    harness.render(120, 30);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("Enter保存·Esc取消"),
+        "单行编辑应提示 Enter 保存"
+    );
+    assert!(
+        !compact.contains("Enter换行"),
+        "单行编辑不应提示 Enter 换行"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

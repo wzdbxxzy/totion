@@ -91,7 +91,11 @@ fn draw_setup(frame: &mut Frame, form: &SetupForm) {
 fn draw_main(frame: &mut Frame, main: &MainState) {
     let area = frame.area();
     main.clear_mouse_hits();
-    let editing_height = if main.editing().is_some() { 4 } else { 0 };
+    let editing_height = match main.editing() {
+        Some(editing) if editing.multiline => 6,
+        Some(_) => 4,
+        None => 0,
+    };
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -357,13 +361,20 @@ fn comment_suffix(count: usize) -> String {
 
 fn draw_editing(frame: &mut Frame, area: Rect, editing: &Editing) {
     let lines = editing_preview(editing);
+    let cursor = editing.cursor.min(editing.buffer.len());
+    let before = &editing.buffer[..cursor];
+    let line = before.matches('\n').count() + 1;
+    let line_offset = before.rfind('\n').map(|position| position + 1).unwrap_or(0);
+    let column = editing.buffer[line_offset..cursor].chars().count() + 1;
+    let title = if editing.multiline {
+        format!(" 编辑 L{line}:C{column}（Ctrl+S 保存 · Enter 换行 · Esc 取消） ")
+    } else {
+        format!(" 编辑 L{line}:C{column}（Enter 保存 · Esc 取消） ")
+    };
     let block = Block::default()
         .borders(Borders::TOP)
         .border_style(Style::default().fg(Color::Cyan))
-        .title(Span::styled(
-            " 编辑（Enter 保存 · Esc 取消） ",
-            Style::default().fg(Color::Cyan),
-        ));
+        .title(Span::styled(title, Style::default().fg(Color::Cyan)));
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
