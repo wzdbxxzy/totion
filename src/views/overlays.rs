@@ -13,7 +13,6 @@ pub fn draw(app: &mut App, ctx: &egui::Context) {
     comments_window(app, ctx);
     members_window(app, ctx);
     invites_window(app, ctx);
-    search_window(app, ctx);
 }
 
 fn window_frame() -> egui::Frame {
@@ -491,77 +490,6 @@ fn invites_window(app: &mut App, ctx: &egui::Context) {
         if let Dialog::Invites { loading, .. } = &mut app.dialog {
             *loading = true;
         }
-    }
-    if close {
-        app.dialog = Dialog::None;
-    }
-}
-
-fn search_window(app: &mut App, ctx: &egui::Context) {
-    let Dialog::Search { query } = &mut app.dialog else {
-        return;
-    };
-    let mut close = false;
-    let mut goto_page: Option<String> = None;
-    let mut goto_habit: Option<String> = None;
-    egui::Window::new("搜索")
-        .default_width(460.0)
-        .resizable(false)
-        .collapsible(false)
-        .anchor(egui::Align2::CENTER_TOP, egui::Vec2::new(0.0, 80.0))
-        .frame(window_frame())
-        .show(ctx, |ui| {
-            let response = ui.add(
-                egui::TextEdit::singleline(query)
-                    .hint_text("页面、待办、习惯…")
-                    .desired_width(f32::INFINITY),
-            );
-            response.request_focus();
-            let needle = query.to_lowercase();
-            ui.add_space(8.0);
-            if needle.is_empty() {
-                ui.label(muted("输入关键词开始搜索"));
-            } else {
-                for page in app.store.visible_pages() {
-                    if page.title.to_lowercase().contains(&needle)
-                        && ui.selectable_label(false, format!("页面 · {}", page.title)).clicked()
-                    {
-                        goto_page = Some(page.id.clone());
-                    }
-                }
-                for block in app.store.blocks.iter().filter(|b| !b.deleted) {
-                    if block.text.to_lowercase().contains(&needle)
-                        && ui
-                            .selectable_label(false, format!("内容 · {}", block.text))
-                            .clicked()
-                    {
-                        goto_page = Some(block.page_id.clone());
-                    }
-                }
-                for habit in app.store.active_habits() {
-                    if habit.title.to_lowercase().contains(&needle)
-                        && ui
-                            .selectable_label(false, format!("习惯 · {}", habit.title))
-                            .clicked()
-                    {
-                        goto_habit = Some(habit.id.clone());
-                    }
-                }
-            }
-            ui.add_space(8.0);
-            if ui.button("关闭").clicked() {
-                close = true;
-            }
-        });
-    if let Some(page) = goto_page {
-        app.selected_page = Some(page);
-        app.view = crate::app::View::Workspace;
-        app.dialog = Dialog::None;
-    }
-    if let Some(habit) = goto_habit {
-        app.selected_habit = Some(habit);
-        app.view = crate::app::View::Habits;
-        app.dialog = Dialog::None;
     }
     if close {
         app.dialog = Dialog::None;

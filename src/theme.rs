@@ -268,7 +268,7 @@ pub fn apply(ctx: &egui::Context) {
     ] {
         widget.fg_stroke = Stroke::new(1.0_f32, text());
     }
-    style.spacing.item_spacing = Vec2::new(8.0, 8.0);
+    style.spacing.item_spacing = Vec2::new(6.0, 7.0);
     style.spacing.button_padding = Vec2::new(12.0, 7.0);
     style.spacing.interact_size.y = 26.0;
     for widget in [
@@ -300,7 +300,7 @@ pub fn card_frame() -> egui::Frame {
         .fill(card())
         .stroke(Stroke::new(1.0_f32, line()))
         .corner_radius(CornerRadius::same(RADIUS))
-        .inner_margin(Margin::same(16))
+        .inner_margin(Margin::same(13))
         .shadow(Shadow {
             offset: [0, 4],
             blur: 18,

@@ -94,9 +94,6 @@ pub enum Dialog {
         list: Vec<totion_core::Invite>,
         loading: bool,
     },
-    Search {
-        query: String,
-    },
 }
 
 pub struct App {
@@ -315,14 +312,6 @@ impl App {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui.button("设置").clicked() {
                     self.view = View::Settings;
-                }
-                if ui.button("同步").clicked() {
-                    self.send(Command::SyncNow);
-                }
-                if ui.button("搜索").clicked() {
-                    self.dialog = Dialog::Search {
-                        query: String::new(),
-                    };
                 }
             });
         });
@@ -613,7 +602,7 @@ impl eframe::App for App {
         let side = egui::SidePanel::left("side")
             .show_separator_line(false)
             .resizable(false)
-            .exact_width(196.0)
+            .exact_width(172.0)
             .frame(
                 egui::Frame::new()
                     .fill(Color32::TRANSPARENT)
@@ -647,7 +636,7 @@ impl eframe::App for App {
     }
 }
 
-pub const MARGIN: f32 = 16.0;
+pub const MARGIN: f32 = 12.0;
 
 pub fn weekday_cn(date: NaiveDate) -> &'static str {
     const NAMES: [&str; 7] = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];

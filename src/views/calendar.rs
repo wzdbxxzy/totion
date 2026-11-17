@@ -40,7 +40,7 @@ pub fn draw(app: &mut App, ui: &mut egui::Ui) {
     } else {
         let gap = 5.0;
         let cell_w = ((width - gap * 6.0) / 7.0).max(20.0);
-        let cell_h = (cell_w * 0.52).clamp(46.0, 76.0);
+        let cell_h = (cell_w * 0.72).clamp(54.0, 92.0);
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .show(ui, |ui| {
@@ -110,7 +110,7 @@ fn month_grid(app: &mut App, ui: &mut egui::Ui, fixed_cell_h: Option<f32>) {
     let cell_w = ((ui.available_width() - gap * 6.0) / 7.0).max(20.0);
     let header_h = 18.0;
     let cell_h = fixed_cell_h.unwrap_or_else(|| {
-        ((ui.available_height() - header_h - gap * 6.0) / 6.0).max(54.0)
+        ((ui.available_height() - header_h - gap * 6.0) / 6.0).max(64.0)
     });
 
     ui.spacing_mut().item_spacing = Vec2::new(gap, gap);
@@ -202,41 +202,39 @@ fn day_cell(
         num_color,
     );
 
-    // 当日待办标题，最多两行
-    let mut y = rect.top() + 22.0;
-    for block in items.iter().take(2) {
-        if y + 12.0 > rect.bottom() - 4.0 {
-            break;
-        }
-        let mut x = rect.left() + 7.0;
-        if block.checked {
-            let c = egui::pos2(x + 4.0, y + 5.0);
-            painter.line_segment(
-                [egui::pos2(c.x - 3.0, c.y), egui::pos2(c.x - 1.0, c.y + 2.2)],
-                Stroke::new(1.2_f32, ok()),
+    // 当日事项用小圆点表示：实心＝已完成，空心＝未完成。
+    let total = items.len();
+    let done = items.iter().filter(|block| block.checked).count();
+    if total > 0 {
+        let dot_r = 2.4;
+        let step = 7.5;
+        let left = rect.left() + 8.0;
+        let max_per_row = (((rect.width() - 16.0) / step).floor() as usize).max(1);
+        let rows = ((total + max_per_row - 1) / max_per_row).min(2);
+        for index in 0..total.min(max_per_row * rows) {
+            let row = index / max_per_row;
+            let col = index % max_per_row;
+            let center = egui::pos2(
+                left + col as f32 * step,
+                rect.top() + 26.0 + row as f32 * 9.0,
             );
-            painter.line_segment(
-                [egui::pos2(c.x - 1.0, c.y + 2.2), egui::pos2(c.x + 3.2, c.y - 2.4)],
-                Stroke::new(1.2_f32, ok()),
-            );
-            x += 10.0;
+            let filled = index < done;
+            let color = if filled { ok() } else { text_muted() };
+            if filled {
+                painter.circle_filled(center, dot_r, color);
+            } else {
+                painter.circle_stroke(center, dot_r, Stroke::new(1.0_f32, color));
+            }
         }
-        let color = if block.checked {
-            text_muted()
-        } else if in_month {
-            text_dim()
-        } else {
-            text_muted()
-        };
-        let text = fit_text(&block.text, rect.right() - 8.0 - x, 10.5);
-        painter.text(
-            egui::pos2(x, y),
-            Align2::LEFT_TOP,
-            text,
-            FontId::proportional(10.5),
-            color,
-        );
-        y += 13.0;
+        if total > max_per_row * rows {
+            painter.text(
+                egui::pos2(left + max_per_row as f32 * step, rect.top() + 24.0),
+                Align2::LEFT_TOP,
+                format!("+{}", total - max_per_row * rows),
+                FontId::proportional(9.0),
+                text_muted(),
+            );
+        }
     }
 
     // 右下角：当天有总结的小圆点
@@ -532,6 +530,7 @@ fn shift_month(date: NaiveDate, delta: i32) -> NaiveDate {
 }
 
 /// 按目标宽度估算截断（中文按整字宽，西文约 0.55 字宽），超出加省略号。
+#[allow(dead_code)]
 fn fit_text(text: &str, max_width: f32, size: f32) -> String {
     if max_width <= size {
         return String::new();
