@@ -3051,7 +3051,7 @@ impl MainState {
         match comment.target_kind {
             CommentTargetKind::Page => {
                 self.show_all_pages = true;
-                self.view = View::Workspace;
+                self.set_view(View::Workspace);
                 self.focus = Focus::Pages;
                 if let Some(index) = self
                     .visible_pages()
@@ -3063,7 +3063,7 @@ impl MainState {
             }
             CommentTargetKind::Block => {
                 self.show_all_pages = true;
-                self.view = View::Workspace;
+                self.set_view(View::Workspace);
                 self.focus = Focus::Blocks;
                 let page_id = self
                     .blocks
@@ -3089,7 +3089,7 @@ impl MainState {
                 }
             }
             CommentTargetKind::Habit => {
-                self.view = View::Habits;
+                self.set_view(View::Habits);
                 if let Some(index) = self
                     .visible_habits()
                     .iter()
@@ -3550,7 +3550,7 @@ impl MainState {
         match hit {
             SearchHit::Page(page_id) => {
                 self.show_all_pages = true;
-                self.view = View::Workspace;
+                self.set_view(View::Workspace);
                 self.focus = Focus::Pages;
                 if let Some(index) = self
                     .visible_pages()
@@ -3562,7 +3562,7 @@ impl MainState {
             }
             SearchHit::Block { page_id, block_id } => {
                 self.show_all_pages = true;
-                self.view = View::Workspace;
+                self.set_view(View::Workspace);
                 self.focus = Focus::Blocks;
                 if let Some(index) = self
                     .visible_pages()
@@ -3580,7 +3580,7 @@ impl MainState {
                 }
             }
             SearchHit::Habit(habit_id) => {
-                self.view = View::Habits;
+                self.set_view(View::Habits);
                 if let Some(index) = self
                     .visible_habits()
                     .iter()
@@ -4063,7 +4063,7 @@ impl MainState {
                         }
                     }
                 }
-                self.view = View::Habits;
+                self.set_view(View::Habits);
                 self.clamp();
                 if let Some(index) = self
                     .visible_habits()

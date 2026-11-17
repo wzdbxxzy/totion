@@ -974,6 +974,26 @@ fn multiline_editing_moves_cursor_between_lines() {
 }
 
 #[test]
+fn search_jump_clears_workspace_transient_modes() {
+    let mut harness = Harness::new();
+    harness.state_mut().set_view(View::Workspace);
+    harness.state_mut().workspace_journal_mode = true;
+    let hit = harness
+        .state()
+        .compute_search("我的待办")
+        .into_iter()
+        .next()
+        .expect("应搜到待办");
+    harness.state_mut().jump_to_search_hit(hit);
+    assert!(
+        !harness.state().workspace_journal_mode,
+        "跳转应退出总结列表"
+    );
+    assert_eq!(harness.state().view(), View::Workspace);
+    assert_eq!(harness.state().focus(), Focus::Blocks);
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
