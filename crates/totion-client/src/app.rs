@@ -706,6 +706,12 @@ impl MainState {
         state
     }
 
+    /// 供桌面面板等外部入口复用的构造方法。
+    #[allow(dead_code)]
+    pub fn from_snapshot(api: Api, me: String, me_id: String, snapshot: Snapshot) -> Self {
+        Self::new(api, me, me_id, snapshot)
+    }
+
     pub fn workspace_name(&self) -> &str {
         &self.workspace_name
     }

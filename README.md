@@ -286,21 +286,23 @@ cat data/invite_code
 
 编辑和输入状态下，`Esc` 取消，`Enter` 保存（多行内容用 `Ctrl+S`）。
 
-## 桌面卡片（实验）
+## 桌面面板（实验）
 
-Windows 上可以把今日概览固定成一张半透明卡片，像桌面小组件：
+Windows 上可以把整套 TUI 放进屏幕右侧的毛玻璃侧栏，固定在桌面：
 
 ```powershell
 cargo run --release -p totion-client --bin totion-glass
+# 或者下载 Release 里的 totion-glass.exe
 ```
 
-- 复用客户端已经保存的身份（`%APPDATA%\totion\identity.json`），第一次需要先运行 `totion` 连接服务器。v0.12 起 Windows 的 Release 压缩包里也会带 `totion-glass.exe`，可以不解压源码直接双击。
-- 默认出现在桌面右下角，不抢焦点；左键拖动移动，双击刷新，右键退出，每 60 秒自动刷新一次。
-- 极简样式：380×236、深色半透明（约 59% 不透明度）、最多 4 条待办，超出显示「还有 N 条…」。
-- 内置壁纸命令（jpg / png / bmp）：`totion-glass --wallpaper "D:\壁纸\wallpaper.jpg"`。
-- 卡片用分层窗口的 32 位 ARGB 画布绘制，桌面会透过半透明背景显示；真正的 Acrylic 模糊需要 DWM composition，这一版先用半透明深色模拟，效果稳定后再考虑升级。
-- 仅 Windows 可用；macOS / Linux 上运行会提示不支持。
-- 本机没有 MSVC 时，把命令开头的 `cargo` 换成 README「开发」一节里的 GNU 工具链写法。
+- 面板占据屏幕右侧约 38% 宽度（可用 `--width 38` 调，范围 33–50），高度铺满工作区。
+- 整块面板是分层窗口的半透明画布，壁纸会透出来；配色统一映射成暖白极简风，和浅色/动漫壁纸更搭。
+- 内部就是完整的 TUI：`1`–`6` 切换界面、`j/k` 移动、`Space` 勾选、`C` 评论、`i` 邀请码、`/` 搜索、`?` 帮助、`q` 退出，和终端版一致。
+- 点击面板获得焦点后即可用键盘；右键退出。
+- `--opacity 150` 调整不透明度（60–235，越小越透）。
+- 复用客户端已经保存的身份（`%APPDATA%	otion\identity.json`），第一次需要先运行 `totion` 连接服务器。
+- 内置壁纸命令：`totion-glass --wallpaper "D:\壁纸\wallpaper.jpg"`。
+- 仅 Windows 可用；macOS / Linux 上运行会提示不支持。鼠标点击面板内部暂未接入，先用键盘操作。
 
 ## 邀请码
 
@@ -479,7 +481,7 @@ TOTION_INVITE_CODE=你的邀请码
 - [x] v0.10：滚轮与双击、勾选框点击、`g`/`G` 跳转、长列表滚动、状态栏淡出、弹窗统一、搜索结果可读化
 - [x] v0.11：页面/总结/成员/邀请码滚动、sticky 分组、相邻月份、多行编辑光标与横向滚动、离线状态、草稿保留、`r`/`Esc` 按键冲突修复
 - [x] v0.12：归档习惯查看/恢复、周统计、成员列表刷新、`Home`/`End`，以及实验性桌面卡片 `totion-glass`
-- [ ] 桌面卡片：Acrylic 真模糊、位置与内容可配置（已有实验版 `totion-glass`）
+- [ ] 桌面面板：Acrylic 真模糊、鼠标点击与位置记忆（已有实验版 `totion-glass`）
 - [ ] 一键 HTTPS 部署（Caddy 自动证书）
 - [ ] 提醒与桌面通知
 - [ ] Markdown / CSV 导出
