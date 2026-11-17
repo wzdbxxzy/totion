@@ -887,12 +887,15 @@ dependencies = [
  "eframe",
  "egui",
  "hex",
+ "image",
  "rand_core",
+ "raw-window-handle",
  "reqwest",
  "serde",
  "serde_json",
  "totion-core",
  "uuid",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1211,6 +1214,8 @@ dependencies = [
  "num-traits",
  "png",
  "tiff",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]

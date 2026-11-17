@@ -235,14 +235,12 @@ fn sync(api: &Api, since: i64, tx: &Sender<Event>) -> Option<i64> {
     for _ in 0..20 {
         match api.sync(cursor) {
             Ok(response) => {
-                let empty = response.changes.is_empty();
                 let last = response.last_seq;
-                if !empty {
-                    let _ = tx.send(Event::Changes {
-                        changes: response.changes,
-                        last_seq: last,
-                    });
-                }
+                // 即使没有变更也发一次，UI 用它刷新「最后一次同步」心跳。
+                let _ = tx.send(Event::Changes {
+                    changes: response.changes,
+                    last_seq: last,
+                });
                 cursor = last.max(cursor);
                 if !response.has_more {
                     break;

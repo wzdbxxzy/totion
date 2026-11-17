@@ -8,6 +8,8 @@ eframe = { version = "0.31", default-features = false, features = ["glow", "defa
 egui = "0.31"
 totion-core = { path = "../totion/crates/totion-core" }
 anyhow = "1"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
@@ -17,3 +19,11 @@ rand_core = { version = "0.6", features = ["getrandom"] }
 hex = "0.4"
 dirs = "5"
 uuid = { version = "1", features = ["v4", "serde"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_System_LibraryLoader",
+] }

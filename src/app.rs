@@ -111,12 +111,17 @@ pub struct App {
     pub editor: Editor,
     pub dialog: Dialog,
     toast: Option<(String, Instant, bool)>,
+    hwnd: Option<isize>,
+    backdrop: Option<crate::wallpaper::Backdrop>,
+    desktop_ready: bool,
 }
 
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         install_fonts(&cc.egui_ctx);
         apply(&cc.egui_ctx);
+        // 这块面板是贴在桌面上的，按 1.2 倍整体放大，远处也能看清。
+        cc.egui_ctx.set_zoom_factor(1.2);
         let saved = crate::identity::load_identity().ok().flatten();
         let (server_url, name) = match &saved {
             Some(identity) => (identity.server_url.clone(), identity.name.clone()),
@@ -134,7 +139,14 @@ impl App {
             invite_code: String::new(),
             login_error: None,
             registering: false,
-            view: View::Today,
+            view: match std::env::var("GLASSWING_VIEW").as_deref() {
+                Ok("workspace") => View::Workspace,
+                Ok("calendar") => View::Calendar,
+                Ok("habits") => View::Habits,
+                Ok("stats") => View::Stats,
+                Ok("inbox") => View::Inbox,
+                _ => View::Today,
+            },
             date: Local::now().date_naive(),
             selected_page: None,
             selected_habit: None,
@@ -143,6 +155,9 @@ impl App {
             editor: Editor::None,
             dialog: Dialog::None,
             toast: None,
+            hwnd: None,
+            backdrop: None,
+            desktop_ready: false,
         };
         if let Some(identity) = saved {
             app.connect(identity, None);
@@ -233,8 +248,15 @@ impl App {
                     self.last_ok = Instant::now();
                 }
                 Event::Error(message) => {
-                    self.toast(message.clone(), true);
-                    self.status = format!("连接异常 · {message}");
+                    if self.me_id.is_empty() {
+                        // 还没登录成功：回到登录页，把错误留在表单里。
+                        self.net = None;
+                        self.login_error = Some(message);
+                        self.status = "未连接".to_string();
+                    } else {
+                        self.toast(message.clone(), true);
+                        self.status = format!("连接异常 · {message}");
+                    }
                 }
                 Event::Invites(list) => {
                     if let Dialog::Invites {
@@ -275,6 +297,22 @@ impl App {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui.button("设置").clicked() {
                     self.dialog = Dialog::Settings;
+                }
+                if ui.button("邀请").clicked() {
+                    self.send(Command::ListInvites);
+                    self.dialog = Dialog::Invites {
+                        list: Vec::new(),
+                        loading: true,
+                    };
+                }
+                if ui.button("成员").clicked() {
+                    self.send(Command::Members);
+                    self.dialog = Dialog::Members;
+                }
+                if ui.button("搜索").clicked() {
+                    self.dialog = Dialog::Search {
+                        query: String::new(),
+                    };
                 }
                 ui.add_space(4.0);
                 let (dot, text) = if self.status.starts_with("已连接") {
@@ -510,9 +548,73 @@ impl App {
     }
 }
 
+impl App {
+    /// 第一帧：定尺寸、抓壁纸、挂到桌面层。
+    fn setup_desktop(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
+        if self.desktop_ready {
+            return;
+        }
+        let Some(hwnd) = crate::desktop::hwnd_of(frame) else {
+            self.desktop_ready = true;
+            return;
+        };
+        self.hwnd = Some(hwnd);
+        crate::desktop::place_right_half(hwnd);
+        let rect = crate::desktop::window_rect(hwnd);
+        self.backdrop = crate::desktop::wallpaper_path().and_then(|path| {
+            let rect = crate::desktop::window_rect(hwnd)?;
+            crate::wallpaper::Backdrop::from_wallpaper(
+                ctx,
+                &path,
+                crate::desktop::screen_size(),
+                rect,
+            )
+        });
+        let window_mode = std::env::var_os("GLASSWING_WINDOW").is_some();
+        let attached = if window_mode {
+            false
+        } else {
+            crate::desktop::attach_to_desktop(hwnd)
+        };
+        crate::desktop::log_line(&format!(
+            "hwnd={hwnd} rect={rect:?} backdrop={} attached={attached} class={}",
+            self.backdrop.is_some(),
+            crate::desktop::class_name(hwnd)
+        ));
+        self.desktop_ready = true;
+    }
+
+    /// 半透明底：整块窗口压一层深色玻璃，壁纸从后面透出来。
+    fn paint_backdrop(&self, ctx: &egui::Context) {
+        let rect = ctx.screen_rect();
+        let painter = ctx.layer_painter(egui::LayerId::background());
+        if let Some(backdrop) = &self.backdrop {
+            painter.image(
+                backdrop.texture.id(),
+                rect,
+                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                Color32::WHITE,
+            );
+        }
+        painter.rect_filled(
+            rect,
+            0.0,
+            Color32::from_rgba_unmultiplied(6, 10, 17, 70),
+        );
+        // 左边缘一条细线，给面板一个边界。
+        painter.vline(
+            rect.left() + 0.5,
+            rect.y_range(),
+            egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 26)),
+        );
+    }
+}
+
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        self.setup_desktop(ctx, frame);
         self.poll();
+        self.paint_backdrop(ctx);
         // 每秒刷新时钟与同步状态
         ctx.request_repaint_after(Duration::from_secs(1));
         if self.last_ok.elapsed() > Duration::from_secs(20) && self.status.starts_with("已连接") {
@@ -521,13 +623,13 @@ impl eframe::App for App {
 
         if self.net.is_none() && self.store.users.is_empty() && self.login_error.is_some() {
             egui::CentralPanel::default()
-                .frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::same(0)))
+                .frame(egui::Frame::new().fill(Color32::TRANSPARENT).inner_margin(egui::Margin::same(0)))
                 .show(ctx, |ui| self.login_screen(ui));
             return;
         }
         if self.me.is_empty() && self.store.workspace_name.is_empty() {
             egui::CentralPanel::default()
-                .frame(egui::Frame::new().fill(BG).inner_margin(egui::Margin::same(0)))
+                .frame(egui::Frame::new().fill(Color32::TRANSPARENT).inner_margin(egui::Margin::same(0)))
                 .show(ctx, |ui| self.login_screen(ui));
             return;
         }
@@ -535,7 +637,7 @@ impl eframe::App for App {
         let top = egui::TopBottomPanel::top("top")
             .frame(
                 egui::Frame::new()
-                    .fill(BG)
+                    .fill(Color32::TRANSPARENT)
                     .inner_margin(egui::Margin::symmetric(18, 10)),
             )
             .show(ctx, |ui| self.top_bar(ui));
@@ -555,7 +657,7 @@ impl eframe::App for App {
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::new()
-                    .fill(BG)
+                    .fill(Color32::TRANSPARENT)
                     .inner_margin(egui::Margin::symmetric(20, 14)),
             )
             .show(ctx, |ui| {

@@ -8,11 +8,11 @@ use eframe::egui::{
     Shadow, Stroke, TextStyle, Vec2, Visuals,
 };
 
-pub const BG: Color32 = Color32::from_rgb(6, 10, 17);
-pub const SIDEBAR: Color32 = Color32::from_rgb(9, 14, 22);
-pub const CARD: Color32 = Color32::from_rgb(17, 23, 34);
-pub const CARD_HI: Color32 = Color32::from_rgb(22, 30, 43);
-pub const FIELD: Color32 = Color32::from_rgb(12, 18, 27);
+pub const BG: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 0);
+pub const SIDEBAR: Color32 = Color32::from_rgba_premultiplied(2, 3, 5, 64);
+pub const CARD: Color32 = Color32::from_rgba_premultiplied(10, 13, 19, 150);
+pub const CARD_HI: Color32 = Color32::from_rgba_premultiplied(15, 19, 27, 178);
+pub const FIELD: Color32 = Color32::from_rgba_premultiplied(8, 10, 15, 150);
 
 pub const LINE: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 18);
 pub const LINE_SOFT: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 10);
