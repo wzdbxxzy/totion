@@ -2,6 +2,7 @@
 
 mod api;
 mod app;
+mod demo;
 mod desktop;
 mod identity;
 mod net;

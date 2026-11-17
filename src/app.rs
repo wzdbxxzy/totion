@@ -175,7 +175,12 @@ impl App {
             desktop_ready: false,
             last_anchor: Instant::now(),
         };
-        if let Some(identity) = saved {
+        if std::env::var_os("GLASSWING_DEMO").is_some() {
+            app.store = crate::demo::build();
+            app.me = "Guan".to_string();
+            app.me_id = "u1".to_string();
+            app.status = "演示数据".to_string();
+        } else if let Some(identity) = saved {
             app.connect(identity, None);
         }
         app
