@@ -2554,7 +2554,7 @@ fn draw_help(frame: &mut Frame, panel: &HelpPanel) {
         Line::from(" i 邀请码   m 成员视角   / 搜索   r 同步   ? 帮助   q 退出"),
         Line::from(" 成员视角：看某人的 1-6 界面（只读，可评论），Enter 切换"),
         Line::from(" 鼠标：点顶部标签切界面、点列表项选中、点日历格子选日期"),
-        Line::from(" g / G 跳到列表首/尾；日历里 g 回到今天"),
+        Line::from(" g / G 或 Home / End 跳到列表首/尾；日历里 g 回到今天"),
         Line::from(" Enter 保存（多行内容用 Ctrl+S）   Esc 取消"),
         Line::from(""),
         Line::from(Span::styled(

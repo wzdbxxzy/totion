@@ -1304,6 +1304,31 @@ fn opening_members_works_offline_with_cached_users() {
 }
 
 #[test]
+fn home_and_end_jump_lists() {
+    let mut harness = Harness::new();
+    harness.press(KeyCode::End);
+    assert_eq!(harness.state().selected_today_index(), 1);
+    harness.press(KeyCode::Home);
+    assert_eq!(harness.state().selected_today_index(), 0);
+
+    harness.state_mut().modal = Some(Modal::Members(MemberPanel { selected: 0 }));
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
+    match harness.state().modal() {
+        Some(Modal::Members(panel)) => assert_eq!(panel.selected, 2),
+        _ => panic!("成员面板应仍然打开"),
+    }
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+    match harness.state().modal() {
+        Some(Modal::Members(panel)) => assert_eq!(panel.selected, 0),
+        _ => panic!("成员面板应仍然打开"),
+    }
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

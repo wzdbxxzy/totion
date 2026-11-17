@@ -1849,8 +1849,8 @@ impl MainState {
                 KeyCode::Down | KeyCode::Char('j') => self.move_journal(1),
                 KeyCode::Enter | KeyCode::Char('e') => self.edit_selected_journal(),
                 KeyCode::Char('d') => self.delete_selected_journal(),
-                KeyCode::Char('g') => self.selected_journal_index = 0,
-                KeyCode::Char('G') => {
+                KeyCode::Char('g') | KeyCode::Home => self.selected_journal_index = 0,
+                KeyCode::Char('G') | KeyCode::End => {
                     let count = self.all_journals().len();
                     if count > 0 {
                         self.selected_journal_index = count - 1;
@@ -1884,8 +1884,8 @@ impl MainState {
             }
             KeyCode::Char(' ') => self.toggle_workspace_block(),
             KeyCode::Char('d') => self.delete_workspace_current(),
-            KeyCode::Char('g') => self.list_home(),
-            KeyCode::Char('G') => self.list_end(),
+            KeyCode::Char('g') | KeyCode::Home => self.list_home(),
+            KeyCode::Char('G') | KeyCode::End => self.list_end(),
             _ => {}
         }
     }
@@ -2003,8 +2003,8 @@ impl MainState {
             KeyCode::Char('a') => self.edit_today_summary(),
             KeyCode::Char('d') => self.delete_today_item(),
             KeyCode::Char('t') => self.open_event_form(BlockKind::Todo, self.view_key(), None),
-            KeyCode::Char('g') => self.today_home(),
-            KeyCode::Char('G') => self.today_end(),
+            KeyCode::Char('g') | KeyCode::Home => self.today_home(),
+            KeyCode::Char('G') | KeyCode::End => self.today_end(),
             _ => {}
         }
     }
@@ -2045,8 +2045,8 @@ impl MainState {
             KeyCode::Enter | KeyCode::Char('e') => self.edit_selected_habit(),
             KeyCode::Char('d') => self.delete_selected_habit(),
             KeyCode::Char('n') => self.open_habit_form(self.today_key(), None),
-            KeyCode::Char('g') => self.selected_habit_index = 0,
-            KeyCode::Char('G') => {
+            KeyCode::Char('g') | KeyCode::Home => self.selected_habit_index = 0,
+            KeyCode::Char('G') | KeyCode::End => {
                 let count = self.habits_list().len();
                 if count > 0 {
                     self.selected_habit_index = count - 1;
@@ -2109,8 +2109,8 @@ impl MainState {
             KeyCode::Char('r') => self.toggle_selected_comment_resolved(),
             KeyCode::Char('e') => self.edit_selected_comment(),
             KeyCode::Char('d') => self.delete_selected_comment(),
-            KeyCode::Char('g') => self.selected_inbox_index = 0,
-            KeyCode::Char('G') => {
+            KeyCode::Char('g') | KeyCode::Home => self.selected_inbox_index = 0,
+            KeyCode::Char('G') | KeyCode::End => {
                 let count = self.inbox_comments().len();
                 if count > 0 {
                     self.selected_inbox_index = count - 1;
@@ -3805,6 +3805,8 @@ impl MainState {
                         | KeyCode::Char('k')
                         | KeyCode::Char('g')
                         | KeyCode::Char('G')
+                        | KeyCode::Home
+                        | KeyCode::End
                 ),
                 Modal::Comments(_) => !matches!(
                     key.code,
@@ -3815,6 +3817,8 @@ impl MainState {
                         | KeyCode::Char('k')
                         | KeyCode::Char('g')
                         | KeyCode::Char('G')
+                        | KeyCode::Home
+                        | KeyCode::End
                         | KeyCode::Char('a')
                 ),
                 _ => false,
@@ -3873,8 +3877,8 @@ impl MainState {
                         panel.selected = (panel.selected + 1).min(count - 1);
                     }
                 }
-                KeyCode::Char('g') => panel.selected = 0,
-                KeyCode::Char('G') => {
+                KeyCode::Char('g') | KeyCode::Home => panel.selected = 0,
+                KeyCode::Char('G') | KeyCode::End => {
                     let count = self.calendar_blocks(panel.date).len();
                     if count > 0 {
                         panel.selected = count - 1;
@@ -3958,8 +3962,8 @@ impl MainState {
                         panel.selected = (panel.selected + 1).min(count - 1);
                     }
                 }
-                KeyCode::Char('g') => panel.selected = 0,
-                KeyCode::Char('G') => {
+                KeyCode::Char('g') | KeyCode::Home => panel.selected = 0,
+                KeyCode::Char('G') | KeyCode::End => {
                     let count = self.comments_for(panel.target_kind, &panel.target_id).len();
                     if count > 0 {
                         panel.selected = count - 1;
@@ -4037,6 +4041,12 @@ impl MainState {
                         panel.selected = (panel.selected + 1).min(panel.invites.len() - 1);
                     }
                 }
+                KeyCode::Home => panel.selected = 0,
+                KeyCode::End => {
+                    if !panel.invites.is_empty() {
+                        panel.selected = panel.invites.len() - 1;
+                    }
+                }
                 KeyCode::Char('g') => {
                     let request = CreateInviteRequest {
                         note: format!("由 {} 创建", self.me),
@@ -4079,8 +4089,8 @@ impl MainState {
                 KeyCode::Down | KeyCode::Char('j') => {
                     panel.selected = (panel.selected + 1).min(self.users.len());
                 }
-                KeyCode::Char('g') => panel.selected = 0,
-                KeyCode::Char('G') => panel.selected = self.users.len(),
+                KeyCode::Char('g') | KeyCode::Home => panel.selected = 0,
+                KeyCode::Char('G') | KeyCode::End => panel.selected = self.users.len(),
                 KeyCode::Enter => {
                     let selected = panel.selected;
                     self.apply_member_view(selected);
@@ -4149,6 +4159,8 @@ impl MainState {
                 KeyCode::PageUp => {
                     panel.scroll = panel.scroll.saturating_sub(10);
                 }
+                KeyCode::Home => panel.scroll = 0,
+                KeyCode::End => panel.scroll = usize::MAX,
                 _ => {}
             },
         }
