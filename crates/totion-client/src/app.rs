@@ -3526,6 +3526,8 @@ impl MainState {
                         | KeyCode::Down
                         | KeyCode::Char('j')
                         | KeyCode::Char('k')
+                        | KeyCode::Char('g')
+                        | KeyCode::Char('G')
                 ),
                 Modal::Comments(_) => !matches!(
                     key.code,
@@ -3534,6 +3536,8 @@ impl MainState {
                         | KeyCode::Down
                         | KeyCode::Char('j')
                         | KeyCode::Char('k')
+                        | KeyCode::Char('g')
+                        | KeyCode::Char('G')
                         | KeyCode::Char('a')
                 ),
                 _ => false,
@@ -3590,6 +3594,13 @@ impl MainState {
                     let count = self.calendar_blocks(panel.date).len();
                     if count > 0 {
                         panel.selected = (panel.selected + 1).min(count - 1);
+                    }
+                }
+                KeyCode::Char('g') => panel.selected = 0,
+                KeyCode::Char('G') => {
+                    let count = self.calendar_blocks(panel.date).len();
+                    if count > 0 {
+                        panel.selected = count - 1;
                     }
                 }
                 KeyCode::Char(' ') => {
@@ -3668,6 +3679,13 @@ impl MainState {
                     let count = self.comments_for(panel.target_kind, &panel.target_id).len();
                     if count > 0 {
                         panel.selected = (panel.selected + 1).min(count - 1);
+                    }
+                }
+                KeyCode::Char('g') => panel.selected = 0,
+                KeyCode::Char('G') => {
+                    let count = self.comments_for(panel.target_kind, &panel.target_id).len();
+                    if count > 0 {
+                        panel.selected = count - 1;
                     }
                 }
                 KeyCode::Char('a') => {
@@ -3784,6 +3802,8 @@ impl MainState {
                 KeyCode::Down | KeyCode::Char('j') => {
                     panel.selected = (panel.selected + 1).min(self.users.len());
                 }
+                KeyCode::Char('g') => panel.selected = 0,
+                KeyCode::Char('G') => panel.selected = self.users.len(),
                 KeyCode::Enter => {
                     let selected = panel.selected;
                     self.apply_member_view(selected);

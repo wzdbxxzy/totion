@@ -601,6 +601,58 @@ fn help_modal_scrolls_and_closes() {
 }
 
 #[test]
+fn modal_lists_support_g_and_shift_g() {
+    let mut harness = Harness::new();
+    harness.state_mut().modal = Some(Modal::Members(MemberPanel { selected: 0 }));
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE));
+    match harness.state().modal() {
+        Some(Modal::Members(panel)) => assert_eq!(panel.selected, 2),
+        _ => panic!("成员面板应仍然打开"),
+    }
+
+    {
+        let state = harness.state_mut();
+        for index in 0..3 {
+            state.comments.push(Comment {
+                id: format!("m{index}"),
+                target_kind: CommentTargetKind::Block,
+                target_id: "b1".to_string(),
+                body: "内容".to_string(),
+                resolved: false,
+                author_id: "u1".to_string(),
+                author_name: "Guan".to_string(),
+                version: 1,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                deleted: false,
+            });
+        }
+        state.modal = Some(Modal::Comments(CommentPanel {
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+            label: "待办".to_string(),
+            selected: 0,
+        }));
+    }
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE));
+    match harness.state().modal() {
+        Some(Modal::Comments(panel)) => assert_eq!(panel.selected, 2),
+        _ => panic!("评论面板应仍然打开"),
+    }
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
+    match harness.state().modal() {
+        Some(Modal::Comments(panel)) => assert_eq!(panel.selected, 0),
+        _ => panic!("评论面板应仍然打开"),
+    }
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
