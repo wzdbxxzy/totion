@@ -382,11 +382,11 @@ mod imp {
         // 优先使用终端向等宽字体，按 CJK 宽度的一半确定单元格宽度。
         let mut chosen: Option<(isize, isize, i32, i32)> = None;
         for face in ["Sarasa Mono SC", "NSimSun", "Consolas"] {
-            let normal = create_font(-18, FW_NORMAL, face);
+            let normal = create_font(-20, FW_NORMAL, face);
             SelectObject(mem, normal);
             let (ascii, cjk, line) = measure_font(mem);
             if cjk.cx >= ascii.cx * 3 / 2 && cjk.cx <= ascii.cx * 5 / 2 {
-                let bold = create_font(-18, FW_BOLD, face);
+                let bold = create_font(-20, FW_BOLD, face);
                 let (cell_w, cell_h) = cell_metrics(ascii.cx, cjk.cx, line.cy);
                 chosen = Some((normal as isize, bold as isize, cell_w, cell_h));
                 break;
@@ -394,9 +394,9 @@ mod imp {
             DeleteObject(normal);
         }
         let (normal, bold, cell_w, cell_h) = chosen.unwrap_or_else(|| {
-            let normal = create_font(-18, FW_NORMAL, "NSimSun");
-            let bold = create_font(-18, FW_BOLD, "NSimSun");
-            (normal as isize, bold as isize, 9, 18)
+            let normal = create_font(-20, FW_NORMAL, "NSimSun");
+            let bold = create_font(-20, FW_BOLD, "NSimSun");
+            (normal as isize, bold as isize, 10, 20)
         });
         FONT_NORMAL.with(|value| value.set(normal));
         FONT_BOLD.with(|value| value.set(bold));
@@ -805,6 +805,12 @@ mod imp {
                     continue;
                 }
                 let (r, g, b) = tui_rgb(cell.bg);
+                // 顶部标题条和选中行降低实心感，保留玻璃透光。
+                let (alpha, blend) = match cell.bg {
+                    TuiColor::Cyan | TuiColor::LightCyan => (135u32, 0.55),
+                    TuiColor::Rgb(38, 45, 56) => (175u32, 0.62),
+                    _ => (195u32, 0.72),
+                };
                 let left = offset_x + x as i32 * cell_w;
                 let top = offset_y + y as i32 * cell_h;
                 for py in top..(top + cell_h).min(height as i32) {
@@ -814,11 +820,10 @@ mod imp {
                             let pixel = *bits.add(index);
                             let (dr, dg, db) =
                                 ((pixel >> 16) & 0xFF, (pixel >> 8) & 0xFF, pixel & 0xFF);
-                            let blend = 0.72;
                             let nr = (r as f64 * blend + dr as f64 * (1.0 - blend)) as u32;
                             let ng = (g as f64 * blend + dg as f64 * (1.0 - blend)) as u32;
                             let nb = (b as f64 * blend + db as f64 * (1.0 - blend)) as u32;
-                            *bits.add(index) = (210u32 << 24) | (nr << 16) | (ng << 8) | nb;
+                            *bits.add(index) = (alpha << 24) | (nr << 16) | (ng << 8) | nb;
                         }
                     }
                 }
