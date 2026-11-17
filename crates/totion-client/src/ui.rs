@@ -2330,11 +2330,17 @@ fn draw_habit_form(frame: &mut Frame, form: &HabitForm) {
 }
 
 fn draw_comments(frame: &mut Frame, main: &MainState, panel: &CommentPanel) {
-    let area = Rect {
-        x: frame.area().width * 55 / 100,
-        y: 0,
-        width: frame.area().width * 45 / 100,
-        height: frame.area().height,
+    // 窄终端直接占满屏幕，宽终端贴在右侧 45%。
+    let screen = frame.area();
+    let area = if screen.width < 100 {
+        screen
+    } else {
+        Rect {
+            x: screen.width * 55 / 100,
+            y: 0,
+            width: screen.width * 45 / 100,
+            height: screen.height,
+        }
     };
     frame.render_widget(Clear, area);
 

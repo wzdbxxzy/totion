@@ -1372,6 +1372,48 @@ fn stats_shows_empty_data_hint() {
 }
 
 #[test]
+fn comments_panel_goes_fullscreen_on_narrow_terminal() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        state.comments.push(Comment {
+            id: "c1".to_string(),
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+            body: "内容".to_string(),
+            resolved: false,
+            author_id: "u1".to_string(),
+            author_name: "Guan".to_string(),
+            version: 1,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            deleted: false,
+        });
+        state.modal = Some(Modal::Comments(CommentPanel {
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+            label: "待办".to_string(),
+            selected: 0,
+        }));
+    }
+    harness.render(70, 20);
+    let narrow = buffer_line(harness.buffer.as_ref().expect("buffer"), 0);
+    let compact: String = narrow.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("评论"),
+        "窄屏时评论面板应占满首行: {compact}"
+    );
+
+    harness.render(120, 24);
+    let wide = buffer_line(harness.buffer.as_ref().expect("buffer"), 0);
+    let compact: String = wide.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("totion"),
+        "宽屏时顶部标题栏应保留: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
