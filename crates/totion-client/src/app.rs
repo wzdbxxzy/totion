@@ -1698,6 +1698,13 @@ impl MainState {
                 KeyCode::Down | KeyCode::Char('j') => self.move_journal(1),
                 KeyCode::Enter | KeyCode::Char('e') => self.edit_selected_journal(),
                 KeyCode::Char('d') => self.delete_selected_journal(),
+                KeyCode::Char('g') => self.selected_journal_index = 0,
+                KeyCode::Char('G') => {
+                    let count = self.all_journals().len();
+                    if count > 0 {
+                        self.selected_journal_index = count - 1;
+                    }
+                }
                 _ => {}
             }
             return;
@@ -1726,6 +1733,8 @@ impl MainState {
             }
             KeyCode::Char(' ') => self.toggle_workspace_block(),
             KeyCode::Char('d') => self.delete_workspace_current(),
+            KeyCode::Char('g') => self.list_home(),
+            KeyCode::Char('G') => self.list_end(),
             _ => {}
         }
     }
@@ -1843,6 +1852,8 @@ impl MainState {
             KeyCode::Char('a') => self.edit_today_summary(),
             KeyCode::Char('d') => self.delete_today_item(),
             KeyCode::Char('t') => self.open_event_form(BlockKind::Todo, self.view_key(), None),
+            KeyCode::Char('g') => self.today_home(),
+            KeyCode::Char('G') => self.today_end(),
             _ => {}
         }
     }
@@ -1852,6 +1863,11 @@ impl MainState {
             KeyCode::Esc => {
                 self.range_anchor = None;
                 self.range_focus = None;
+            }
+            KeyCode::Char('g') => {
+                self.selected_day = self.today;
+                self.calendar_month = self.today.with_day(1).unwrap_or(self.today);
+                self.selected_agenda_index = 0;
             }
             KeyCode::Char('v') => self.toggle_range_anchor(),
             KeyCode::Left | KeyCode::Char('h') => self.shift_day(-1),
@@ -1878,6 +1894,13 @@ impl MainState {
             KeyCode::Enter | KeyCode::Char('e') => self.edit_selected_habit(),
             KeyCode::Char('d') => self.delete_selected_habit(),
             KeyCode::Char('n') => self.open_habit_form(self.today_key(), None),
+            KeyCode::Char('g') => self.selected_habit_index = 0,
+            KeyCode::Char('G') => {
+                let count = self.visible_habits().len();
+                if count > 0 {
+                    self.selected_habit_index = count - 1;
+                }
+            }
             _ => {}
         }
     }
@@ -1925,6 +1948,13 @@ impl MainState {
             KeyCode::Char('r') => self.toggle_selected_comment_resolved(),
             KeyCode::Char('e') => self.edit_selected_comment(),
             KeyCode::Char('d') => self.delete_selected_comment(),
+            KeyCode::Char('g') => self.selected_inbox_index = 0,
+            KeyCode::Char('G') => {
+                let count = self.inbox_comments().len();
+                if count > 0 {
+                    self.selected_inbox_index = count - 1;
+                }
+            }
             _ => {}
         }
     }
@@ -1944,6 +1974,56 @@ impl MainState {
                 if count > 0 {
                     let next = self.selected_block_index as i64 + delta;
                     self.selected_block_index = next.clamp(0, count as i64 - 1) as usize;
+                }
+            }
+        }
+    }
+
+    fn today_home(&mut self) {
+        match self.today_focus {
+            TodayFocus::Items => self.selected_today_index = 0,
+            TodayFocus::Habits => self.selected_today_habit_index = 0,
+            TodayFocus::Journal => {}
+        }
+    }
+
+    fn today_end(&mut self) {
+        match self.today_focus {
+            TodayFocus::Items => {
+                let count = self.today_items().len();
+                if count > 0 {
+                    self.selected_today_index = count - 1;
+                }
+            }
+            TodayFocus::Habits => {
+                let count = self.today_habits().len();
+                if count > 0 {
+                    self.selected_today_habit_index = count - 1;
+                }
+            }
+            TodayFocus::Journal => {}
+        }
+    }
+
+    fn list_home(&mut self) {
+        match self.focus {
+            Focus::Pages => self.selected_page_index = 0,
+            Focus::Blocks => self.selected_block_index = 0,
+        }
+    }
+
+    fn list_end(&mut self) {
+        match self.focus {
+            Focus::Pages => {
+                let count = self.visible_pages().len();
+                if count > 0 {
+                    self.selected_page_index = count - 1;
+                }
+            }
+            Focus::Blocks => {
+                let count = self.visible_blocks().len();
+                if count > 0 {
+                    self.selected_block_index = count - 1;
                 }
             }
         }

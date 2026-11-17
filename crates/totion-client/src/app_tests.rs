@@ -490,6 +490,56 @@ fn double_click_calendar_opens_agenda() {
 }
 
 #[test]
+fn g_and_shift_g_jump_to_list_ends() {
+    let mut harness = Harness::new();
+    harness.press(KeyCode::Char('G'));
+    assert_eq!(harness.state().selected_today_index(), 1);
+    harness.press(KeyCode::Char('g'));
+    assert_eq!(harness.state().selected_today_index(), 0);
+
+    harness.state_mut().set_view(View::Inbox);
+    {
+        let state = harness.state_mut();
+        for index in 0..3 {
+            state.comments.push(Comment {
+                id: format!("g{index}"),
+                target_kind: CommentTargetKind::Block,
+                target_id: "b1".to_string(),
+                body: "内容".to_string(),
+                resolved: false,
+                author_id: "u1".to_string(),
+                author_name: "Guan".to_string(),
+                version: 1,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                deleted: false,
+            });
+        }
+        state.clamp();
+    }
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE));
+    assert_eq!(harness.state().selected_inbox_index(), 2);
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
+    assert_eq!(harness.state().selected_inbox_index(), 0);
+}
+
+#[test]
+fn g_jumps_calendar_back_to_today() {
+    let mut harness = Harness::new();
+    harness.state_mut().set_view(View::Calendar);
+    let today = harness.state().today();
+    harness.state_mut().selected_day = today - ChronoDuration::days(10);
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
+    assert_eq!(harness.state().selected_day(), harness.state().today());
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
