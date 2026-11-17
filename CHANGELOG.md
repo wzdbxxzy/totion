@@ -2,7 +2,7 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/)。
 
-## Unreleased
+## v0.13.0 — 2026-11-18
 
 ### 新增
 
