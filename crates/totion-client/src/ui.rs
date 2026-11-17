@@ -1,4 +1,4 @@
-use chrono::{Datelike, Local, NaiveDate, Utc};
+use chrono::{Datelike, Duration as ChronoDuration, Local, Months, NaiveDate, Utc};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -1414,13 +1414,22 @@ fn draw_calendar(frame: &mut Frame, area: Rect, main: &MainState) {
     for week in 0..6u16 {
         for weekday in 0..7u16 {
             let index = week as usize * 7 + weekday as usize;
-            if index < offset || index >= offset + days as usize {
-                continue;
-            }
-            let day = (index - offset + 1) as u32;
-            let Some(date) = NaiveDate::from_ymd_opt(month.year(), month.month(), day) else {
-                continue;
+            let date = if index < offset {
+                month - ChronoDuration::days((offset - index) as i64)
+            } else if index >= offset + days as usize {
+                let next_first = month + Months::new(1);
+                next_first + ChronoDuration::days((index - offset - days as usize) as i64)
+            } else {
+                match NaiveDate::from_ymd_opt(
+                    month.year(),
+                    month.month(),
+                    (index - offset + 1) as u32,
+                ) {
+                    Some(date) => date,
+                    None => continue,
+                }
             };
+            let other_month = date.month() != month.month() || date.year() != month.year();
             let rect = Rect {
                 x: inner.x + weekday * cell_w,
                 y: grid_y + week * cell_h,
@@ -1432,7 +1441,9 @@ fn draw_calendar(frame: &mut Frame, area: Rect, main: &MainState) {
             let in_range = range
                 .map(|(start, end)| date >= start && date <= end)
                 .unwrap_or(false);
-            let (background, border) = if date == selected {
+            let (background, border) = if other_month {
+                (Color::Rgb(13, 16, 20), Color::Rgb(32, 37, 44))
+            } else if date == selected {
                 (Color::Rgb(0, 70, 80), Color::Cyan)
             } else if date == today {
                 (Color::Rgb(16, 60, 36), Color::Green)
@@ -1452,7 +1463,9 @@ fn draw_calendar(frame: &mut Frame, area: Rect, main: &MainState) {
             let cell_inner = cell_block.inner(rect);
             frame.render_widget(cell_block, rect);
 
-            let day_color = if date == selected {
+            let day_color = if other_month {
+                Color::Rgb(70, 78, 90)
+            } else if date == selected {
                 Color::White
             } else if date == today {
                 Color::Green
@@ -1462,12 +1475,13 @@ fn draw_calendar(frame: &mut Frame, area: Rect, main: &MainState) {
                 Color::Gray
             };
             let mut lines: Vec<Line> = Vec::new();
+            let day = date.day();
             lines.push(Line::from(Span::styled(
                 format!("{day}"),
                 Style::default().fg(day_color).add_modifier(Modifier::BOLD),
             )));
 
-            if cell_inner.height > 1 {
+            if !other_month && cell_inner.height > 1 {
                 let max_items = (cell_inner.height as usize).saturating_sub(1);
                 for block in main.calendar_blocks(date).iter().take(max_items) {
                     let text =

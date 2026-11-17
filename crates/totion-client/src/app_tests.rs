@@ -855,6 +855,30 @@ fn confirm_shows_hint_on_wrong_input() {
 }
 
 #[test]
+fn calendar_shows_adjacent_month_days_and_click_navigates() {
+    let mut harness = Harness::new();
+    harness.state_mut().set_view(View::Calendar);
+    harness.render(120, 40);
+    let month = harness.state().calendar_month();
+    let neighbor = {
+        let cells = harness.state().calendar_cells.borrow();
+        cells
+            .iter()
+            .find(|(_, date)| date.month() != month.month() || date.year() != month.year())
+            .map(|(rect, date)| (*rect, *date))
+            .expect("应显示相邻月份的日期")
+    };
+    let (rect, date) = neighbor;
+    harness.click_at(rect.x + 1, rect.y + 1);
+    assert_eq!(harness.state().selected_day(), date);
+    assert_eq!(
+        harness.state().calendar_month().month(),
+        date.month(),
+        "点击相邻月份日期应切到该月"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
