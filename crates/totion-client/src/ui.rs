@@ -1651,9 +1651,18 @@ fn draw_stats(frame: &mut Frame, area: Rect, main: &MainState) {
 
     let weeks = ((sections[3].width.saturating_sub(10)) / 2).clamp(8, 52) as u32;
     let grid = main.aggregate_heatmap(weeks);
+    let has_checkins = main.checkins.iter().any(|checkin| !checkin.deleted);
+    let mut heatmap_lines: Vec<Line> = Vec::new();
+    if !has_checkins {
+        heatmap_lines.push(Line::from(Span::styled(
+            " 还没有打卡记录。去习惯界面（4）按 Space 打卡，这里会显示热力图。",
+            Style::default().fg(Color::DarkGray),
+        )));
+    }
+    heatmap_lines.extend(charts::heatmap_lines(&grid));
     frame.render_widget(
-        Paragraph::new(charts::heatmap_lines(&grid))
-            .block(block_title(" 最近 16 周打卡热力图 "))
+        Paragraph::new(heatmap_lines)
+            .block(block_title(format!(" 最近 {weeks} 周打卡热力图 ")))
             .wrap(Wrap { trim: false }),
         sections[3],
     );

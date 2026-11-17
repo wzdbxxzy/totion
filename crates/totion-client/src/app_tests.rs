@@ -434,6 +434,32 @@ fn mouse_wheel_moves_selection() {
     assert_eq!(harness.state().selected_today_index(), 0);
 }
 
+fn buffer_text(buffer: &ratatui::buffer::Buffer) -> String {
+    let area = buffer.area;
+    let mut output = String::new();
+    for y in 0..area.height {
+        for x in 0..area.width {
+            if let Some(cell) = buffer.cell((x, y)) {
+                output.push_str(cell.symbol());
+            }
+        }
+        output.push('\n');
+    }
+    output
+}
+
+#[test]
+fn stats_shows_heatmap_range_and_empty_hint() {
+    let mut harness = Harness::new();
+    harness.state_mut().set_view(View::Stats);
+    harness.render(120, 40);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    // 宽字符占用两个单元格，去掉空隙再匹配。
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(compact.contains("最近52周打卡热力图"), "缺少热力图标题");
+    assert!(compact.contains("还没有打卡记录"), "缺少空状态提示");
+}
+
 #[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
