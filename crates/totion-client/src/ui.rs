@@ -1093,8 +1093,18 @@ fn date_relation(view_date: NaiveDate, today: NaiveDate) -> String {
 fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
     let overview = main.week_overview();
     let selected = main.week_selected();
+    let budget = area.height.saturating_sub(4) as usize;
+    let heights: Vec<usize> = overview
+        .iter()
+        .map(|(_, _, blocks)| 1 + blocks.len().max(1) + 1)
+        .collect();
+    let start_day = scroll_start(&heights, selected, budget);
     let mut lines: Vec<Line> = Vec::new();
-    for (index, (date, stat, blocks)) in overview.iter().enumerate() {
+    let mut rendered_end = start_day;
+    for (index, (date, stat, blocks)) in overview.iter().enumerate().skip(start_day) {
+        if lines.len() >= budget && index != selected {
+            break;
+        }
         let is_selected = index == selected;
         let mut style = Style::default();
         if is_selected {
@@ -1162,19 +1172,31 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
             )));
         }
         lines.push(Line::from(""));
+        rendered_end = index + 1;
     }
     lines.push(Line::from(Span::styled(
         " j/k 或点击 选日 · h/l 前后一天 · Enter 查看该天 · w/Esc 返回",
         Style::default().fg(Color::DarkGray),
     )));
     let start = main.week_end() - chrono::Duration::days(6);
+    let title = if start_day > 0 || rendered_end < overview.len() {
+        format!(
+            " 周视图 {} ~ {} · {}-{}/7 ",
+            start.format("%m-%d"),
+            main.week_end().format("%m-%d"),
+            start_day + 1,
+            rendered_end.max(start_day + 1)
+        )
+    } else {
+        format!(
+            " 周视图 {} ~ {} ",
+            start.format("%m-%d"),
+            main.week_end().format("%m-%d")
+        )
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(format!(
-                " 周视图 {} ~ {} ",
-                start.format("%m-%d"),
-                main.week_end().format("%m-%d")
-            )))
+            .block(block_title(title))
             .wrap(Wrap { trim: false }),
         area,
     );
@@ -1816,8 +1838,10 @@ fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {
     let area = centered_rect(66, 62, frame.area());
     frame.render_widget(Clear, area);
     let blocks = main.calendar_blocks(panel.date);
+    let budget = area.height.saturating_sub(4) as usize;
+    let (start, end) = window_range(blocks.len(), panel.selected, budget);
     let mut lines: Vec<Line> = Vec::new();
-    for (index, block) in blocks.iter().enumerate() {
+    for (index, block) in blocks.iter().enumerate().take(end).skip(start) {
         let style = if index == panel.selected {
             Style::default().bg(Color::DarkGray)
         } else {
@@ -1850,12 +1874,20 @@ fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {
         " j/k 选择 · Space 勾选 · Enter 编辑 · d 删除 · t 新建 · Esc 关闭",
         Style::default().fg(Color::DarkGray),
     )));
+    let title = if start > 0 || end < blocks.len() {
+        format!(
+            " {} 议程 {}-{}/{} ",
+            panel.date.format("%Y-%m-%d"),
+            start + 1,
+            end,
+            blocks.len()
+        )
+    } else {
+        format!(" {} 议程 ", panel.date.format("%Y-%m-%d"))
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(format!(
-                " {} 议程 ",
-                panel.date.format("%Y-%m-%d")
-            )))
+            .block(block_title(title))
             .wrap(Wrap { trim: false }),
         area,
     );

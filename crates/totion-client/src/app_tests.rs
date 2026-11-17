@@ -339,6 +339,42 @@ fn inbox_scrolls_to_selected_comment() {
 }
 
 #[test]
+fn week_view_scrolls_to_selected_day() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        let today = state.today();
+        for offset in 0..7 {
+            let date = (today - ChronoDuration::days(6) + ChronoDuration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string();
+            for item in 0..4 {
+                state.blocks.push(sample_block(
+                    &format!("w{offset}-{item}"),
+                    &format!("任务 {offset}-{item}"),
+                    "u1",
+                    &date,
+                    "12:00",
+                ));
+            }
+        }
+        state.open_week_view();
+        state.week_selected = 6;
+        state.clamp();
+    }
+    harness.render(120, 24);
+    let actions: Vec<MouseAction> = harness
+        .state()
+        .mouse_hits
+        .borrow()
+        .iter()
+        .map(|(_, action)| *action)
+        .collect();
+    assert!(actions.contains(&MouseAction::WeekSelect(6)));
+    assert!(!actions.contains(&MouseAction::WeekSelect(0)));
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
