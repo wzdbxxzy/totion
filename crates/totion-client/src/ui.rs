@@ -2171,8 +2171,18 @@ fn draw_comments(frame: &mut Frame, main: &MainState, panel: &CommentPanel) {
     frame.render_widget(Clear, area);
 
     let comments = main.comments_for(panel.target_kind, &panel.target_id);
+    let budget = area.height.saturating_sub(2) as usize;
+    let heights: Vec<usize> = comments
+        .iter()
+        .map(|comment| 1 + comment.body.lines().count() + 1)
+        .collect();
+    let start = scroll_start(&heights, panel.selected, budget);
     let mut lines: Vec<Line> = Vec::new();
-    for (index, comment) in comments.iter().enumerate() {
+    let mut rendered_end = start;
+    for (index, comment) in comments.iter().enumerate().skip(start) {
+        if lines.len() >= budget && index != panel.selected {
+            break;
+        }
         let style = if index == panel.selected {
             selection_style()
         } else {
@@ -2190,30 +2200,37 @@ fn draw_comments(frame: &mut Frame, main: &MainState, panel: &CommentPanel) {
             ),
             style.fg(Color::Cyan),
         )));
-        let body = comment
-            .body
-            .lines()
-            .map(|line| format!("    {line}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        lines.push(Line::from(Span::styled(
-            body,
-            if index == panel.selected {
-                selection_style()
-            } else {
-                Style::default()
-            },
-        )));
+        let body_style = if index == panel.selected {
+            selection_style().fg(Color::Gray)
+        } else {
+            Style::default().fg(Color::Gray)
+        };
+        for line in comment.body.lines() {
+            lines.push(Line::from(Span::styled(format!("    {line}"), body_style)));
+        }
+        lines.push(Line::from(""));
+        rendered_end = index + 1;
     }
-    if lines.is_empty() {
+    if comments.is_empty() {
         lines.push(Line::from(Span::styled(
             " 还没有评论，按 a 添加",
             Style::default().fg(Color::DarkGray),
         )));
     }
+    let title = if start > 0 || rendered_end < comments.len() {
+        format!(
+            " 评论 · {} · {}-{}/{} ",
+            panel.label,
+            start + 1,
+            rendered_end.max(start + 1),
+            comments.len()
+        )
+    } else {
+        format!(" 评论 · {} ", panel.label)
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(modal_block(format!(" 评论 · {} ", panel.label)))
+            .block(modal_block(title))
             .wrap(Wrap { trim: false }),
         area,
     );

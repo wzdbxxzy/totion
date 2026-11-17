@@ -663,6 +663,42 @@ fn modals_use_unified_double_border() {
 }
 
 #[test]
+fn comments_modal_scrolls_to_selected_comment() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        for index in 0..5 {
+            state.comments.push(Comment {
+                id: format!("k{index}"),
+                target_kind: CommentTargetKind::Block,
+                target_id: "b1".to_string(),
+                body: "第一行\n第二行\n第三行".to_string(),
+                resolved: false,
+                author_id: "u1".to_string(),
+                author_name: "Guan".to_string(),
+                version: 1,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                deleted: false,
+            });
+        }
+        state.modal = Some(Modal::Comments(CommentPanel {
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+            label: "待办".to_string(),
+            selected: 4,
+        }));
+    }
+    harness.render(120, 24);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("2-5/5"),
+        "评论面板标题应显示滚动范围: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
