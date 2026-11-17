@@ -242,6 +242,29 @@ pub enum TodayFocus {
     Journal,
 }
 
+/// 鼠标点击目标；由绘制阶段登记，点击时反查。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseAction {
+    SwitchView(View),
+    FocusToday(TodayFocus),
+    SelectTodayItem(usize),
+    SelectTodayHabit(usize),
+    SelectPage(usize),
+    SelectBlock(usize),
+    SelectHabit(usize),
+    SelectInbox(usize),
+    OpenJournal(usize),
+    WeekSelect(usize),
+    PrevDay,
+    NextDay,
+    OpenWeek,
+    OpenMembers,
+    OpenInvites,
+    OpenSearch,
+    OpenHelp,
+    SyncNow,
+}
+
 pub struct SetupForm {
     pub server_url: String,
     pub name: String,
@@ -538,6 +561,7 @@ pub struct MainState {
     range_anchor: Option<NaiveDate>,
     range_focus: Option<NaiveDate>,
     pub calendar_cells: RefCell<Vec<(Rect, NaiveDate)>>,
+    mouse_hits: RefCell<Vec<(Rect, MouseAction)>>,
     caps: ServerCaps,
     stats_days: u32,
 }
@@ -590,6 +614,7 @@ impl MainState {
             range_anchor: None,
             range_focus: None,
             calendar_cells: RefCell::new(Vec::new()),
+            mouse_hits: RefCell::new(Vec::new()),
             caps: ServerCaps {
                 api_version: snapshot.api_version,
             },
@@ -866,6 +891,31 @@ impl MainState {
 
     pub fn week_end(&self) -> NaiveDate {
         self.week_end
+    }
+
+    pub fn clear_mouse_hits(&self) {
+        self.mouse_hits.borrow_mut().clear();
+    }
+
+    /// 绘制时登记一块可点击区域；后登记的优先级更高。
+    pub fn push_mouse_hit(&self, rect: Rect, action: MouseAction) {
+        if rect.width > 0 && rect.height > 0 {
+            self.mouse_hits.borrow_mut().push((rect, action));
+        }
+    }
+
+    fn mouse_hit_at(&self, column: u16, row: u16) -> Option<MouseAction> {
+        self.mouse_hits
+            .borrow()
+            .iter()
+            .rev()
+            .find(|(rect, _)| {
+                column >= rect.x
+                    && column < rect.x.saturating_add(rect.width)
+                    && row >= rect.y
+                    && row < rect.y.saturating_add(rect.height)
+            })
+            .map(|(_, action)| *action)
     }
 
     /// 周视图：每天返回完成统计和当天的待办列表（不包含总结/评论）。
@@ -1594,6 +1644,8 @@ impl MainState {
 
     fn set_view(&mut self, view: View) {
         self.view = view;
+        self.week_mode = false;
+        self.workspace_journal_mode = false;
         self.clamp();
     }
 
@@ -1676,6 +1728,15 @@ impl MainState {
         }
     }
 
+    fn open_week_view(&mut self) {
+        self.week_mode = true;
+        // 窗口最后一天取「当前查看日」和「今天」里较晚的那个，
+        // 这样从昨天进入周视图时也能看到今天和未来。
+        self.week_end = self.view_date.max(self.today);
+        let start = self.week_end - ChronoDuration::days(6);
+        self.week_selected = (self.view_date - start).num_days().clamp(0, 6) as usize;
+    }
+
     fn handle_today_key(&mut self, key: KeyEvent) {
         if self.week_mode {
             match key.code {
@@ -1715,14 +1776,7 @@ impl MainState {
                 self.view_date += ChronoDuration::days(1);
                 self.clamp();
             }
-            KeyCode::Char('w') | KeyCode::Char('W') => {
-                self.week_mode = true;
-                // 窗口最后一天取「当前查看日」和「今天」里较晚的那个，
-                // 这样从昨天进入周视图时也能看到今天和未来。
-                self.week_end = self.view_date.max(self.today);
-                let start = self.week_end - ChronoDuration::days(6);
-                self.week_selected = (self.view_date - start).num_days().clamp(0, 6) as usize;
-            }
+            KeyCode::Char('w') | KeyCode::Char('W') => self.open_week_view(),
             KeyCode::Tab => match self.today_focus {
                 TodayFocus::Items => {
                     self.journal_source = TodayFocus::Items;
@@ -2859,33 +2913,117 @@ impl MainState {
     }
 
     pub fn handle_mouse(&mut self, mouse: MouseEvent) {
-        if self.view != View::Calendar || self.modal.is_some() || self.editing.is_some() {
+        if self.editing.is_some() || self.modal.is_some() {
             return;
         }
-        let Some(date) = self.calendar_date_at(mouse.column, mouse.row) else {
-            return;
-        };
-        let shift = mouse.modifiers.contains(KeyModifiers::SHIFT);
-        match mouse.kind {
-            MouseEventKind::Down(MouseButton::Left) => {
-                self.selected_day = date;
-                self.calendar_month = date.with_day(1).unwrap_or(date);
-                self.selected_agenda_index = 0;
+
+        // 导航栏、列表行等登记的点击目标优先。
+        if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+            if let Some(action) = self.mouse_hit_at(mouse.column, mouse.row) {
+                self.apply_mouse_action(action);
+                return;
             }
-            MouseEventKind::Down(MouseButton::Right) if shift => {
-                self.range_anchor = Some(date);
-                self.range_focus = Some(date);
-                self.selected_day = date;
-                self.status = "已开始框选日期，拖动选择范围".to_string();
+        }
+
+        // 日历格子：左键选日，Shift + 右键框选。
+        if self.view == View::Calendar {
+            let Some(date) = self.calendar_date_at(mouse.column, mouse.row) else {
+                return;
+            };
+            let shift = mouse.modifiers.contains(KeyModifiers::SHIFT);
+            match mouse.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    self.selected_day = date;
+                    self.calendar_month = date.with_day(1).unwrap_or(date);
+                    self.selected_agenda_index = 0;
+                }
+                MouseEventKind::Down(MouseButton::Right) if shift => {
+                    self.range_anchor = Some(date);
+                    self.range_focus = Some(date);
+                    self.selected_day = date;
+                    self.status = "已开始框选日期，拖动选择范围".to_string();
+                }
+                MouseEventKind::Drag(MouseButton::Right) if self.range_anchor.is_some() => {
+                    self.range_focus = Some(date);
+                }
+                MouseEventKind::Up(MouseButton::Right) if self.range_anchor.is_some() => {
+                    self.range_focus = Some(date);
+                    self.selected_day = date;
+                }
+                _ => {}
             }
-            MouseEventKind::Drag(MouseButton::Right) if self.range_anchor.is_some() => {
-                self.range_focus = Some(date);
+        }
+    }
+
+    fn apply_mouse_action(&mut self, action: MouseAction) {
+        match action {
+            MouseAction::SwitchView(view) => {
+                self.view = view;
+                self.week_mode = false;
+                self.workspace_journal_mode = false;
+                self.clamp();
             }
-            MouseEventKind::Up(MouseButton::Right) if self.range_anchor.is_some() => {
-                self.range_focus = Some(date);
-                self.selected_day = date;
+            MouseAction::FocusToday(focus) => {
+                if focus == TodayFocus::Journal && self.today_focus != TodayFocus::Journal {
+                    self.journal_source = self.today_focus;
+                }
+                self.today_focus = focus;
             }
-            _ => {}
+            MouseAction::SelectTodayItem(index) => {
+                self.today_focus = TodayFocus::Items;
+                self.selected_today_index = index;
+                self.clamp();
+            }
+            MouseAction::SelectTodayHabit(index) => {
+                self.today_focus = TodayFocus::Habits;
+                self.selected_today_habit_index = index;
+                self.clamp();
+            }
+            MouseAction::SelectPage(index) => {
+                self.focus = Focus::Pages;
+                self.selected_page_index = index;
+                self.selected_block_index = 0;
+                self.clamp();
+            }
+            MouseAction::SelectBlock(index) => {
+                self.focus = Focus::Blocks;
+                self.selected_block_index = index;
+                self.clamp();
+            }
+            MouseAction::SelectHabit(index) => {
+                self.selected_habit_index = index;
+                self.clamp();
+            }
+            MouseAction::SelectInbox(index) => {
+                self.selected_inbox_index = index;
+                self.clamp();
+            }
+            MouseAction::OpenJournal(index) => {
+                self.workspace_journal_mode = true;
+                self.selected_journal_index = index;
+                self.clamp();
+            }
+            MouseAction::WeekSelect(index) => {
+                self.week_selected = index.min(6);
+            }
+            MouseAction::PrevDay => {
+                self.view_date -= ChronoDuration::days(1);
+                self.clamp();
+            }
+            MouseAction::NextDay => {
+                self.view_date += ChronoDuration::days(1);
+                self.clamp();
+            }
+            MouseAction::OpenWeek => self.open_week_view(),
+            MouseAction::OpenMembers => self.open_members(),
+            MouseAction::OpenInvites => self.open_invites(),
+            MouseAction::OpenSearch => self.open_search(),
+            MouseAction::OpenHelp => self.modal = Some(Modal::Help),
+            MouseAction::SyncNow => {
+                self.ensured_date = None;
+                self.ensure_today_page();
+                self.sync_now(true);
+            }
         }
     }
 

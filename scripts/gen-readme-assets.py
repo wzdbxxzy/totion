@@ -171,22 +171,30 @@ def today_screenshot():
         bold=True,
     )
 
+    # 导航栏：6 个界面 + 常用操作，可鼠标点击
+    body += "\n" + rect(24, 96, 96, 30, CYAN, None, 6)
+    body += "\n" + text(40, 116, " 1 今日 ", "#0d1117", 14, bold=True)
+    nav = [(130, " 2 工作区 "), (240, " 3 日历 "), (350, " 4 习惯 "), (460, " 5 统计 "), (570, " 6 留言 ")]
+    for x, label in nav:
+        body += "\n" + text(x, 116, label, MUTED, 14)
+    body += "\n" + text(700, 116, "m 成员   i 邀请   / 搜索   ? 帮助   r 同步", YELLOW, 13)
+
     # 日期与完成率
-    body += "\n" + text(40, 124, "2026-11-16 今天", TEXT, 18, bold=True)
-    body += "\n" + rect(270, 111, 220, 14, PANEL2, BORDER, 7)
-    body += "\n" + rect(270, 111, 125, 14, GREEN, None, 7)
-    body += "\n" + text(506, 124, "4/7   57%", MUTED, 15)
-    body += "\n" + text(650, 124, "h/l 或 [ ] 切换日期 · w 近一周", MUTED, 13)
+    body += "\n" + text(40, 150, "2026-11-16 今天", TEXT, 18, bold=True)
+    body += "\n" + rect(270, 137, 220, 14, PANEL2, BORDER, 7)
+    body += "\n" + rect(270, 137, 125, 14, GREEN, None, 7)
+    body += "\n" + text(506, 150, "4/7   57%", MUTED, 15)
+    body += "\n" + text(650, 150, "‹  h/l 切日期  ›   [周视图]", MUTED, 13)
 
     # 今日待办
-    body += "\n" + panel(24, 146, 700, 250, " 今日待办 [Tab] ")
+    body += "\n" + panel(24, 172, 700, 250, " 今日待办 [Tab] ")
     items = [
         ("09:00", "✓", "晨跑 5km", GREEN, TEXT),
         ("10:00", "○", "写周报", MUTED, TEXT),
         ("14:30", "○", "评审新设计", MUTED, TEXT),
         ("18:00", "○", "买菜", MUTED, TEXT),
     ]
-    y = 194
+    y = 220
     for time, mark, title, mark_color, title_color in items:
         body += "\n" + text(48, y, time, CYAN, 15)
         body += "\n" + text(112, y, mark, mark_color, 15)
@@ -194,13 +202,13 @@ def today_screenshot():
         y += 40
 
     # 今日习惯
-    body += "\n" + panel(744, 146, 512, 250, " 今日习惯 [Tab] ")
+    body += "\n" + panel(744, 172, 512, 250, " 今日习惯 [Tab] ")
     habits = [
         ("✓", "📖 阅读 30 分钟", "🔥 12 · 本周 5 次", GREEN),
         ("○", "🏃 跑步", "本周 2/3", YELLOW),
         ("○", "🧘 冥想", "本周 1/4", MUTED),
     ]
-    y = 194
+    y = 220
     for mark, title, extra, color in habits:
         body += "\n" + text(768, y, mark, GREEN if mark == "✓" else MUTED, 15)
         body += "\n" + text(812, y, title, TEXT, 15)
@@ -208,18 +216,18 @@ def today_screenshot():
         y += 40
 
     # 总结（单条文本框）+ 评论预览
-    body += "\n" + panel(24, 414, 820, 240, " 总结 [Tab] ")
-    body += "\n" + text(48, 466, "21:30 · Guan", CYAN, 14)
-    body += "\n" + text(48, 500, "周报写完了，明天给同事过一遍。迁移测试也过了。", TEXT, 15)
+    body += "\n" + panel(24, 440, 820, 240, " 总结 [Tab] ")
+    body += "\n" + text(48, 492, "21:30 · Guan", CYAN, 14)
+    body += "\n" + text(48, 526, "周报写完了，明天给同事过一遍。迁移测试也过了。", TEXT, 15)
 
-    body += "\n" + panel(868, 414, 388, 240, " 评论 ")
-    body += "\n" + text(892, 466, "队友：迁移测试过了吗？", TEXT, 14)
-    body += "\n" + text(892, 500, "Guan：过了，数据库也备份了。", MUTED, 14)
+    body += "\n" + panel(868, 440, 388, 240, " 评论 ")
+    body += "\n" + text(892, 492, "队友：迁移测试过了吗？", TEXT, 14)
+    body += "\n" + text(892, 526, "Guan：过了，数据库也备份了。", MUTED, 14)
 
-    body += "\n" + text(40, 686, "已连接 · 2 秒前同步", MUTED, 13)
+    body += "\n" + text(40, 712, "已连接 · 2 秒前同步", MUTED, 13)
     body += "\n" + text(
         40,
-        716,
+        742,
         "j/k 移动 · Space 勾选 · Enter 编辑 · d 删除 · a 总结 · t 新建 · h/l 切天 · w 周 · Tab 面板",
         MUTED,
         13,
@@ -678,7 +686,7 @@ def help_screenshot():
 
     x, y, w, h = 180, 70, 920, 580
     body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
-    body += "\n" + text(x + 30, y + 44, "帮助 · v0.8.1", CYAN, 18, bold=True)
+    body += "\n" + text(x + 30, y + 44, "帮助 · v0.9.0", CYAN, 18, bold=True)
 
     sections = [
         ("视图", "1 今日   2 工作区   3 日历   4 习惯   5 统计   6 留言"),

@@ -11,44 +11,52 @@
 <text x="640.0" y="26" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="middle">totion — 今日</text>
 <rect x="24" y="58" width="1232" height="32" rx="6" fill="#39d0d8"/>
 <text x="40" y="79" font-weight="600" fill="#0d1117" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">totion · 我的共享空间 · Guan · 3 位成员 · 今日 [1/6]</text>
-<text x="40" y="124" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">2026-11-16 今天</text>
-<rect x="270" y="111" width="220" height="14" rx="7" fill="#21262d" stroke="#30363d"/>
-<rect x="270" y="111" width="125" height="14" rx="7" fill="#3fb950"/>
-<text x="506" y="124" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">4/7   57%</text>
-<text x="650" y="124" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">h/l 或 [ ] 切换日期 · w 近一周</text>
-<rect x="24" y="146" width="700" height="250" rx="8" fill="#161b22" stroke="#30363d"/>
-<text x="38" y="170" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 今日待办 [Tab] </text>
-<text x="48" y="194" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">09:00</text>
-<text x="112" y="194" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">✓</text>
-<text x="156" y="194" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">晨跑 5km</text>
-<text x="48" y="234" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">10:00</text>
-<text x="112" y="234" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
-<text x="156" y="234" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">写周报</text>
-<text x="48" y="274" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">14:30</text>
-<text x="112" y="274" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
-<text x="156" y="274" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">评审新设计</text>
-<text x="48" y="314" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">18:00</text>
-<text x="112" y="314" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
-<text x="156" y="314" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">买菜</text>
-<rect x="744" y="146" width="512" height="250" rx="8" fill="#161b22" stroke="#30363d"/>
-<text x="758" y="170" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 今日习惯 [Tab] </text>
-<text x="768" y="194" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">✓</text>
-<text x="812" y="194" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">📖 阅读 30 分钟</text>
-<text x="1010" y="194" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">🔥 12 · 本周 5 次</text>
-<text x="768" y="234" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
-<text x="812" y="234" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">🏃 跑步</text>
-<text x="1010" y="234" fill="#d29922" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">本周 2/3</text>
-<text x="768" y="274" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
-<text x="812" y="274" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">🧘 冥想</text>
-<text x="1010" y="274" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">本周 1/4</text>
-<rect x="24" y="414" width="820" height="240" rx="8" fill="#161b22" stroke="#30363d"/>
-<text x="38" y="438" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 总结 [Tab] </text>
-<text x="48" y="466" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">21:30 · Guan</text>
-<text x="48" y="500" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">周报写完了，明天给同事过一遍。迁移测试也过了。</text>
-<rect x="868" y="414" width="388" height="240" rx="8" fill="#161b22" stroke="#30363d"/>
-<text x="882" y="438" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 评论 </text>
-<text x="892" y="466" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">队友：迁移测试过了吗？</text>
-<text x="892" y="500" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Guan：过了，数据库也备份了。</text>
-<text x="40" y="686" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">已连接 · 2 秒前同步</text>
-<text x="40" y="716" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">j/k 移动 · Space 勾选 · Enter 编辑 · d 删除 · a 总结 · t 新建 · h/l 切天 · w 周 · Tab 面板</text>
+<rect x="24" y="96" width="96" height="30" rx="6" fill="#39d0d8"/>
+<text x="40" y="116" font-weight="600" fill="#0d1117" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 1 今日 </text>
+<text x="130" y="116" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 2 工作区 </text>
+<text x="240" y="116" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 3 日历 </text>
+<text x="350" y="116" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 4 习惯 </text>
+<text x="460" y="116" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 5 统计 </text>
+<text x="570" y="116" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 6 留言 </text>
+<text x="700" y="116" fill="#d29922" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">m 成员   i 邀请   / 搜索   ? 帮助   r 同步</text>
+<text x="40" y="150" font-weight="600" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="18" text-anchor="start">2026-11-16 今天</text>
+<rect x="270" y="137" width="220" height="14" rx="7" fill="#21262d" stroke="#30363d"/>
+<rect x="270" y="137" width="125" height="14" rx="7" fill="#3fb950"/>
+<text x="506" y="150" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">4/7   57%</text>
+<text x="650" y="150" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">‹  h/l 切日期  ›   [周视图]</text>
+<rect x="24" y="172" width="700" height="250" rx="8" fill="#161b22" stroke="#30363d"/>
+<text x="38" y="196" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 今日待办 [Tab] </text>
+<text x="48" y="220" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">09:00</text>
+<text x="112" y="220" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">✓</text>
+<text x="156" y="220" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">晨跑 5km</text>
+<text x="48" y="260" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">10:00</text>
+<text x="112" y="260" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
+<text x="156" y="260" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">写周报</text>
+<text x="48" y="300" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">14:30</text>
+<text x="112" y="300" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
+<text x="156" y="300" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">评审新设计</text>
+<text x="48" y="340" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">18:00</text>
+<text x="112" y="340" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
+<text x="156" y="340" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">买菜</text>
+<rect x="744" y="172" width="512" height="250" rx="8" fill="#161b22" stroke="#30363d"/>
+<text x="758" y="196" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 今日习惯 [Tab] </text>
+<text x="768" y="220" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">✓</text>
+<text x="812" y="220" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">📖 阅读 30 分钟</text>
+<text x="1010" y="220" fill="#3fb950" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">🔥 12 · 本周 5 次</text>
+<text x="768" y="260" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
+<text x="812" y="260" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">🏃 跑步</text>
+<text x="1010" y="260" fill="#d29922" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">本周 2/3</text>
+<text x="768" y="300" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">○</text>
+<text x="812" y="300" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">🧘 冥想</text>
+<text x="1010" y="300" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">本周 1/4</text>
+<rect x="24" y="440" width="820" height="240" rx="8" fill="#161b22" stroke="#30363d"/>
+<text x="38" y="464" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 总结 [Tab] </text>
+<text x="48" y="492" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">21:30 · Guan</text>
+<text x="48" y="526" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="15" text-anchor="start">周报写完了，明天给同事过一遍。迁移测试也过了。</text>
+<rect x="868" y="440" width="388" height="240" rx="8" fill="#161b22" stroke="#30363d"/>
+<text x="882" y="464" font-weight="600" fill="#39d0d8" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start"> 评论 </text>
+<text x="892" y="492" fill="#c9d1d9" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">队友：迁移测试过了吗？</text>
+<text x="892" y="526" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14" text-anchor="start">Guan：过了，数据库也备份了。</text>
+<text x="40" y="712" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">已连接 · 2 秒前同步</text>
+<text x="40" y="742" fill="#8b949e" font-family="'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="13" text-anchor="start">j/k 移动 · Space 勾选 · Enter 编辑 · d 删除 · a 总结 · t 新建 · h/l 切天 · w 周 · Tab 面板</text>
 </svg>

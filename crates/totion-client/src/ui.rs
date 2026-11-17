@@ -10,7 +10,7 @@ use totion_core::HabitStats;
 
 use crate::app::{
     AgendaPanel, App, CommentPanel, Editing, EventForm, Focus, HabitForm, InvitePanel, MainState,
-    MemberPanel, Modal, Screen, SearchState, SetupForm, TodayFocus, TodayRow, View,
+    MemberPanel, Modal, MouseAction, Screen, SearchState, SetupForm, TodayFocus, TodayRow, View,
 };
 use crate::charts;
 
@@ -80,10 +80,12 @@ fn draw_setup(frame: &mut Frame, form: &SetupForm) {
 
 fn draw_main(frame: &mut Frame, main: &MainState) {
     let area = frame.area();
+    main.clear_mouse_hits();
     let editing_height = if main.editing().is_some() { 4 } else { 0 };
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Min(3),
             Constraint::Length(editing_height),
@@ -92,25 +94,66 @@ fn draw_main(frame: &mut Frame, main: &MainState) {
         .split(area);
 
     draw_header(frame, chunks[0], main);
+    draw_nav(frame, chunks[1], main);
 
     match main.view() {
-        View::Today => draw_today(frame, chunks[1], main),
-        View::Workspace => draw_workspace(frame, chunks[1], main),
-        View::Calendar => draw_calendar(frame, chunks[1], main),
-        View::Habits => draw_habits(frame, chunks[1], main),
-        View::Stats => draw_stats(frame, chunks[1], main),
-        View::Inbox => draw_inbox(frame, chunks[1], main),
+        View::Today => draw_today(frame, chunks[2], main),
+        View::Workspace => draw_workspace(frame, chunks[2], main),
+        View::Calendar => draw_calendar(frame, chunks[2], main),
+        View::Habits => draw_habits(frame, chunks[2], main),
+        View::Stats => draw_stats(frame, chunks[2], main),
+        View::Inbox => draw_inbox(frame, chunks[2], main),
     }
 
     if let Some(editing) = main.editing() {
-        draw_editing(frame, chunks[2], editing);
+        draw_editing(frame, chunks[3], editing);
     }
 
-    draw_footer(frame, chunks[3], main);
+    draw_footer(frame, chunks[4], main);
 
     if let Some(modal) = main.modal() {
         draw_modal(frame, main, modal);
     }
+}
+
+/// 顶端导航栏：6 个界面 + 常用操作，都可以鼠标点击。
+fn draw_nav(frame: &mut Frame, area: Rect, main: &MainState) {
+    let mut line = HitLine::new(main, area.x, area.y);
+    let tabs = [
+        (View::Today, "1 今日"),
+        (View::Workspace, "2 工作区"),
+        (View::Calendar, "3 日历"),
+        (View::Habits, "4 习惯"),
+        (View::Stats, "5 统计"),
+        (View::Inbox, "6 留言"),
+    ];
+    for (view, label) in tabs {
+        let style = if main.view() == view {
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::Gray)
+        };
+        line.push(
+            format!(" {label} "),
+            style,
+            Some(MouseAction::SwitchView(view)),
+        );
+    }
+    line.push("  ", Style::default(), None);
+    let actions = [
+        (" m 成员 ", MouseAction::OpenMembers),
+        (" i 邀请 ", MouseAction::OpenInvites),
+        (" / 搜索 ", MouseAction::OpenSearch),
+        (" ? 帮助 ", MouseAction::OpenHelp),
+        (" r 同步 ", MouseAction::SyncNow),
+    ];
+    for (label, action) in actions {
+        line.push(label, Style::default().fg(Color::Yellow), Some(action));
+    }
+    frame.render_widget(Paragraph::new(line.into_line()), area);
 }
 
 fn draw_header(frame: &mut Frame, area: Rect, main: &MainState) {
@@ -158,6 +201,61 @@ fn view_number(view: View) -> u8 {
         View::Stats => 5,
         View::Inbox => 6,
     }
+}
+
+/// 逐段拼接一行文本，同时按显示宽度登记鼠标点击区域。
+struct HitLine<'a> {
+    spans: Vec<Span<'static>>,
+    x: u16,
+    y: u16,
+    main: &'a MainState,
+}
+
+impl<'a> HitLine<'a> {
+    fn new(main: &'a MainState, x: u16, y: u16) -> Self {
+        Self {
+            spans: Vec::new(),
+            x,
+            y,
+            main,
+        }
+    }
+
+    fn push(&mut self, text: impl Into<String>, style: Style, action: Option<MouseAction>) {
+        let text: String = text.into();
+        let width = unicode_width::UnicodeWidthStr::width(text.as_str()) as u16;
+        if let Some(action) = action {
+            self.main.push_mouse_hit(
+                Rect {
+                    x: self.x,
+                    y: self.y,
+                    width,
+                    height: 1,
+                },
+                action,
+            );
+        }
+        self.spans.push(Span::styled(text, style));
+        self.x = self.x.saturating_add(width);
+    }
+
+    fn into_line(self) -> Line<'static> {
+        Line::from(self.spans)
+    }
+}
+
+/// 列表/内容区里第 `row` 行的可点击区域（相对内边距，跳过圆角边框）。
+fn list_row_rect(area: Rect, row: usize) -> Option<Rect> {
+    let height = area.height.saturating_sub(2);
+    if row as u16 >= height {
+        return None;
+    }
+    Some(Rect {
+        x: area.x.saturating_add(1),
+        y: area.y.saturating_add(1 + row as u16),
+        width: area.width.saturating_sub(2),
+        height: 1,
+    })
 }
 
 fn block_title(title: impl Into<String>) -> Block<'static> {
@@ -326,7 +424,7 @@ fn draw_summary_preview(frame: &mut Frame, area: Rect, main: &MainState) {
     let journals = main.all_journals();
     let limit = area.height.saturating_sub(2) as usize;
     let mut lines: Vec<Line> = Vec::new();
-    for journal in journals.iter().take(limit) {
+    for (index, journal) in journals.iter().take(limit).enumerate() {
         let tag = match journal.target_kind {
             totion_core::JournalTarget::Daily => "当日",
             totion_core::JournalTarget::Block => "待办",
@@ -341,6 +439,7 @@ fn draw_summary_preview(frame: &mut Frame, area: Rect, main: &MainState) {
             .chars()
             .take(30)
             .collect();
+        let row_index = lines.len();
         lines.push(Line::from(vec![
             Span::styled(
                 format!("{} ", journal.date),
@@ -353,6 +452,9 @@ fn draw_summary_preview(frame: &mut Frame, area: Rect, main: &MainState) {
             ),
             Span::styled(preview, Style::default().fg(Color::Gray)),
         ]));
+        if let Some(rect) = list_row_rect(area, row_index) {
+            main.push_mouse_hit(rect, MouseAction::OpenJournal(index));
+        }
     }
     if lines.is_empty() {
         lines.push(Line::from(Span::styled(
@@ -384,6 +486,7 @@ fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
             totion_core::JournalTarget::Block => "待办".to_string(),
             totion_core::JournalTarget::Habit => "习惯".to_string(),
         };
+        let row_index = lines.len();
         lines.push(Line::from(vec![
             Span::styled(
                 if selected { "▶ " } else { "  " },
@@ -398,6 +501,9 @@ fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
                 Style::default().fg(Color::Yellow),
             ),
         ]));
+        if let Some(rect) = list_row_rect(area, row_index) {
+            main.push_mouse_hit(rect, MouseAction::OpenJournal(index));
+        }
         let body = journal
             .body
             .lines()
@@ -459,6 +565,7 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
         }
         let comments =
             main.unresolved_comment_count(totion_core::CommentTargetKind::Page, &page.id);
+        let row_index = lines.len();
         lines.push(Line::from(vec![
             Span::styled(
                 format!(
@@ -474,6 +581,9 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
+        if let Some(rect) = list_row_rect(area, row_index) {
+            main.push_mouse_hit(rect, MouseAction::SelectPage(index));
+        }
     }
 
     if lines.is_empty() {
@@ -596,7 +706,11 @@ fn draw_blocks(frame: &mut Frame, area: Rect, main: &MainState) {
         } else {
             Style::default()
         };
+        let row_index = lines.len();
         lines.push(Line::from(spans).style(style));
+        if let Some(rect) = list_row_rect(area, row_index) {
+            main.push_mouse_hit(rect, MouseAction::SelectBlock(index));
+        }
     }
 
     if let Some(block_item) = blocks.get(main.selected_block_index()) {
@@ -666,37 +780,55 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
         ])
         .split(area);
 
-    frame.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled(
-                format!(" {date_label} {relation}  "),
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(bar, Style::default().fg(Color::Green)),
-            Span::styled(
-                format!("  {}/{}  {rate:.0}%", stat.done, stat.total),
-                Style::default().fg(Color::Gray),
-            ),
-            Span::styled(
-                "   h/l 或 [ ] 切换日期 · w 近一周",
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::styled(
-                if main.supports_v2() {
-                    ""
-                } else {
-                    "   （服务器版本过旧）"
-                },
-                Style::default().fg(Color::Yellow),
-            ),
-        ])),
-        outer[0],
+    let mut header = HitLine::new(main, outer[0].x, outer[0].y);
+    header.push(
+        " ‹ ",
+        Style::default().fg(Color::Cyan),
+        Some(MouseAction::PrevDay),
     );
+    header.push(
+        format!("{date_label} {relation} "),
+        Style::default().add_modifier(Modifier::BOLD),
+        None,
+    );
+    header.push(
+        " › ",
+        Style::default().fg(Color::Cyan),
+        Some(MouseAction::NextDay),
+    );
+    header.push(bar, Style::default().fg(Color::Green), None);
+    header.push(
+        format!("  {}/{}  {rate:.0}%", stat.done, stat.total),
+        Style::default().fg(Color::Gray),
+        None,
+    );
+    header.push(
+        "   [周视图] ",
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+        Some(MouseAction::OpenWeek),
+    );
+    header.push(
+        "  h/l 或 [ ] 切日期",
+        Style::default().fg(Color::DarkGray),
+        None,
+    );
+    if !main.supports_v2() {
+        header.push(
+            "   （服务器版本过旧）",
+            Style::default().fg(Color::Yellow),
+            None,
+        );
+    }
+    frame.render_widget(Paragraph::new(header.into_line()), outer[0]);
 
     let columns = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
         .split(outer[1]);
+    main.push_mouse_hit(columns[0], MouseAction::FocusToday(TodayFocus::Items));
+    main.push_mouse_hit(columns[1], MouseAction::FocusToday(TodayFocus::Habits));
 
     let selected_bg = Color::Rgb(38, 45, 56);
     let mut item_lines: Vec<Line> = Vec::new();
@@ -710,6 +842,7 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
             }
             let comments =
                 main.unresolved_comment_count(totion_core::CommentTargetKind::Block, &block.id);
+            let row_index = item_lines.len();
             item_lines.push(Line::from(vec![
                 Span::styled(
                     if selected { "▶ " } else { "  " },
@@ -726,6 +859,9 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
                 ),
                 Span::styled(format!("{}{}", block.text, comment_suffix(comments)), style),
             ]));
+            if let Some(rect) = list_row_rect(columns[0], row_index) {
+                main.push_mouse_hit(rect, MouseAction::SelectTodayItem(index));
+            }
         }
     }
     if item_lines.is_empty() {
@@ -751,6 +887,7 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
         if selected {
             style = style.bg(selected_bg).add_modifier(Modifier::BOLD);
         }
+        let row_index = habit_lines.len();
         habit_lines.push(Line::from(vec![
             Span::styled(
                 if selected { "▶ " } else { "  " },
@@ -775,6 +912,9 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
                 style,
             ),
         ]));
+        if let Some(rect) = list_row_rect(columns[1], row_index) {
+            main.push_mouse_hit(rect, MouseAction::SelectTodayHabit(index));
+        }
     }
     if habit_lines.is_empty() {
         habit_lines.push(Line::from(Span::styled(
@@ -798,6 +938,7 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
         .split(outer[2]);
 
     if !summaries.is_empty() {
+        main.push_mouse_hit(bottom[0], MouseAction::FocusToday(TodayFocus::Journal));
         let mut summary_lines: Vec<Line> = Vec::new();
         for summary in summaries.iter().take(3) {
             summary_lines.push(Line::from(vec![
@@ -895,6 +1036,7 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
         } else {
             stat.done as f64 / stat.total as f64 * 100.0
         };
+        let header_row = lines.len();
         lines.push(Line::from(vec![
             Span::styled(
                 if is_selected { "▶ " } else { "  " },
@@ -909,11 +1051,15 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
                 Style::default().fg(Color::Green),
             ),
         ]));
+        if let Some(rect) = list_row_rect(area, header_row) {
+            main.push_mouse_hit(rect, MouseAction::WeekSelect(index));
+        }
         for block in blocks {
             let time = match block.start_time.as_deref() {
                 Some(value) if !value.is_empty() => format!("{value} "),
                 _ => "      ".to_string(),
             };
+            let item_row = lines.len();
             lines.push(Line::from(vec![
                 Span::styled("    ", Style::default()),
                 Span::styled(time, Style::default().fg(Color::Cyan)),
@@ -934,6 +1080,9 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
                     },
                 ),
             ]));
+            if let Some(rect) = list_row_rect(area, item_row) {
+                main.push_mouse_hit(rect, MouseAction::WeekSelect(index));
+            }
         }
         if blocks.is_empty() {
             lines.push(Line::from(Span::styled(
@@ -944,7 +1093,7 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
         lines.push(Line::from(""));
     }
     lines.push(Line::from(Span::styled(
-        " j/k 选日 · h/l 前后一天 · Enter 查看该天 · w/Esc 返回",
+        " j/k 或点击 选日 · h/l 前后一天 · Enter 查看该天 · w/Esc 返回",
         Style::default().fg(Color::DarkGray),
     )));
     let start = main.week_end() - chrono::Duration::days(6);
@@ -1202,6 +1351,7 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
         let mark = if stats.checked_today { "[x]" } else { "[ ]" };
         let comments =
             main.unresolved_comment_count(totion_core::CommentTargetKind::Habit, &habit.id);
+        let row_index = lines.len();
         lines.push(Line::from(Span::styled(
             format!(
                 " {mark} {} {}  🔥{} {}{}",
@@ -1213,6 +1363,9 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
             ),
             style,
         )));
+        if let Some(rect) = list_row_rect(columns[0], row_index) {
+            main.push_mouse_hit(rect, MouseAction::SelectHabit(index));
+        }
     }
     if lines.is_empty() {
         lines.push(Line::from(Span::styled(
@@ -1616,6 +1769,7 @@ fn draw_inbox(frame: &mut Frame, area: Rect, main: &MainState) {
             Style::default()
         };
         let target = main.comment_target_label(comment.target_kind, &comment.target_id);
+        let row_index = lines.len();
         lines.push(Line::from(vec![
             Span::styled(
                 if selected { "▶ " } else { "  " },
@@ -1649,6 +1803,9 @@ fn draw_inbox(frame: &mut Frame, area: Rect, main: &MainState) {
             ),
             Span::styled(target, Style::default().fg(Color::Cyan)),
         ]));
+        if let Some(rect) = list_row_rect(area, row_index) {
+            main.push_mouse_hit(rect, MouseAction::SelectInbox(index));
+        }
         for line in comment.body.lines() {
             lines.push(Line::from(Span::styled(
                 format!("    {line}"),
@@ -1916,6 +2073,7 @@ fn draw_help(frame: &mut Frame) {
         )),
         Line::from(" i 邀请码   m 成员视角   / 搜索   r 同步   ? 帮助   q 退出"),
         Line::from(" 成员视角：看某人的 1-6 界面（只读，可评论），Enter 切换"),
+        Line::from(" 鼠标：点顶部标签切界面、点列表项选中、点日历格子选日期"),
         Line::from(" Enter 保存（多行内容用 Ctrl+S）   Esc 取消"),
         Line::from(""),
         Line::from(Span::styled(
