@@ -166,7 +166,7 @@ async fn health() -> Json<serde_json::Value> {
         "status": "ok",
         "service": "totion-server",
         "api_version": API_VERSION,
-        "features": ["calendar_time", "habits", "checkins", "daily", "comments", "sync_cursor"]
+        "features": ["calendar_time", "habits", "checkins", "daily", "comments", "sync_cursor", "member_view"]
     }))
 }
 
@@ -524,6 +524,7 @@ async fn create_block(
         completed_at: None,
         completed_by: None,
         section: req.section,
+        owner_id: user.id.clone(),
     };
     let seq = db::insert_block_and_change(&conn, &block, &user.name)?;
 
@@ -630,6 +631,7 @@ async fn create_habit(
         updated_at: now,
         updated_by: user.name.clone(),
         deleted: false,
+        owner_id: user.id.clone(),
     };
     let seq = db::insert_habit_and_change(&conn, &habit, &user.name)?;
     Ok(Json(WriteHabitResponse { habit, seq }))
@@ -1106,6 +1108,7 @@ async fn ensure_day(
                     completed_at: None,
                     completed_by: None,
                     section: Some(*section),
+                    owner_id: user.id.clone(),
                 };
                 db::insert_block(&tx, &block)?;
                 let data = serde_json::to_value(&block)?;

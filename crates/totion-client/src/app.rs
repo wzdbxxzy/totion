@@ -210,6 +210,12 @@ impl PendingDelete {
 }
 
 #[derive(Debug, Clone)]
+pub struct MemberPanel {
+    /// 0 = 共享视角，i+1 = users[i]
+    pub selected: usize,
+}
+
+#[derive(Debug, Clone)]
 pub enum Modal {
     EventForm(EventForm),
     HabitForm(HabitForm),
@@ -217,6 +223,7 @@ pub enum Modal {
     Search(SearchState),
     Agenda(AgendaPanel),
     Invites(InvitePanel),
+    Members(MemberPanel),
     Confirm(ConfirmState),
     Help,
 }
@@ -365,7 +372,12 @@ impl SetupForm {
 
         api.set_token(Some(auth.token));
         match api.snapshot() {
-            Ok(snapshot) => Some(Screen::Main(MainState::new(api, name, snapshot))),
+            Ok(snapshot) => Some(Screen::Main(MainState::new(
+                api,
+                name,
+                identity.user_id.clone(),
+                snapshot,
+            ))),
             Err(err) => {
                 self.error = Some(format!("拉取数据失败: {err}"));
                 None
@@ -394,9 +406,12 @@ impl App {
                     Ok(auth) => {
                         api.set_token(Some(auth.token.clone()));
                         match api.snapshot() {
-                            Ok(snapshot) => {
-                                Screen::Main(MainState::new(api, identity.name.clone(), snapshot))
-                            }
+                            Ok(snapshot) => Screen::Main(MainState::new(
+                                api,
+                                identity.name.clone(),
+                                identity.user_id.clone(),
+                                snapshot,
+                            )),
                             Err(err) => Screen::Setup(SetupForm::from_identity(
                                 identity,
                                 format!("拉取数据失败: {err}"),
@@ -470,6 +485,9 @@ fn login(api: &Api, identity: &Identity) -> Result<AuthResponse, ApiError> {
 pub struct MainState {
     api: Api,
     me: String,
+    me_id: String,
+    /// 成员视角：Some(user_id) 时 1-6 界面只显示该成员的数据（他人视角只读）。
+    view_user: Option<String>,
     workspace_name: String,
     users: Vec<User>,
     pub pages: Vec<Page>,
@@ -515,11 +533,13 @@ pub struct MainState {
 }
 
 impl MainState {
-    fn new(api: Api, me: String, snapshot: Snapshot) -> Self {
+    fn new(api: Api, me: String, me_id: String, snapshot: Snapshot) -> Self {
         let today = Local::now().date_naive();
         let mut state = Self {
             api,
             me,
+            me_id,
+            view_user: None,
             workspace_name: snapshot.workspace.name,
             users: snapshot.workspace.users,
             pages: snapshot.pages,
@@ -579,6 +599,76 @@ impl MainState {
 
     pub fn users(&self) -> &[User] {
         &self.users
+    }
+
+    /// 正在查看的成员（None = 共享视角）。
+    pub fn viewed_user(&self) -> Option<&User> {
+        let id = self.view_user.as_deref()?;
+        self.users.iter().find(|user| user.id == id)
+    }
+
+    /// 是否处于他人视角（只读）。
+    pub fn read_only(&self) -> bool {
+        matches!(&self.view_user, Some(id) if id != &self.me_id)
+    }
+
+    fn owner_visible(&self, owner_id: &str) -> bool {
+        match &self.view_user {
+            Some(id) => owner_id == id,
+            None => true,
+        }
+    }
+
+    fn author_visible(&self, author_id: &str) -> bool {
+        match &self.view_user {
+            Some(id) => author_id == id,
+            None => true,
+        }
+    }
+
+    fn scoped_blocks(&self) -> Vec<Block> {
+        self.blocks
+            .iter()
+            .filter(|block| !block.deleted && self.owner_visible(&block.owner_id))
+            .cloned()
+            .collect()
+    }
+
+    fn scoped_checkins(&self) -> Vec<HabitCheckin> {
+        match self.view_user.as_deref() {
+            Some(id) => {
+                let name = self
+                    .users
+                    .iter()
+                    .find(|user| user.id == id)
+                    .map(|user| user.name.as_str())
+                    .unwrap_or("");
+                self.checkins
+                    .iter()
+                    .filter(|checkin| !checkin.deleted && checkin.updated_by == name)
+                    .cloned()
+                    .collect()
+            }
+            None => self
+                .checkins
+                .iter()
+                .filter(|checkin| !checkin.deleted)
+                .cloned()
+                .collect(),
+        }
+    }
+
+    /// 只读视角下拦截写操作；返回 true 表示可以继续写。
+    fn ensure_writable(&mut self) -> bool {
+        if self.read_only() {
+            let name = self
+                .viewed_user()
+                .map(|user| user.name.clone())
+                .unwrap_or_else(|| "该成员".to_string());
+            self.status = format!("正在查看 {name} 的视角，只能评论，不能修改");
+            return false;
+        }
+        true
     }
 
     pub fn status(&self) -> &str {
@@ -661,6 +751,10 @@ impl MainState {
         self.caps.api_version >= 3
     }
 
+    pub fn supports_member_view(&self) -> bool {
+        self.caps.api_version >= 5
+    }
+
     pub fn visible_pages(&self) -> Vec<&Page> {
         let mut pages: Vec<&Page> = self
             .pages
@@ -678,7 +772,9 @@ impl MainState {
         let mut blocks: Vec<&Block> = self
             .blocks
             .iter()
-            .filter(|block| !block.deleted && block.page_id == page_id)
+            .filter(|block| {
+                !block.deleted && block.page_id == page_id && self.owner_visible(&block.owner_id)
+            })
             .collect();
         blocks.sort_by_key(|block| (block.position, block.updated_at));
         blocks
@@ -693,6 +789,7 @@ impl MainState {
                 !block.deleted
                     && block.due_date.as_deref() == Some(key.as_str())
                     && matches!(block.kind, BlockKind::Todo | BlockKind::CalendarEvent)
+                    && self.owner_visible(&block.owner_id)
             })
             .collect();
         blocks.sort_by_key(|block| {
@@ -718,7 +815,9 @@ impl MainState {
         let mut habits: Vec<Habit> = self
             .habits
             .iter()
-            .filter(|habit| !habit.deleted && !habit.archived)
+            .filter(|habit| {
+                !habit.deleted && !habit.archived && self.owner_visible(&habit.owner_id)
+            })
             .cloned()
             .collect();
         habits.sort_by_key(|habit| (habit.position, habit.created_at));
@@ -726,7 +825,12 @@ impl MainState {
     }
 
     pub fn habit_stats(&self, habit: &Habit) -> HabitStats {
-        habit_stats(habit.frequency, &habit.id, &self.checkins, self.today)
+        habit_stats(
+            habit.frequency,
+            &habit.id,
+            &self.scoped_checkins(),
+            self.today,
+        )
     }
 
     pub fn today_key(&self) -> String {
@@ -750,15 +854,20 @@ impl MainState {
     }
 
     pub fn week_overview(&self) -> Vec<(NaiveDate, DayStat, usize)> {
+        let blocks = self.scoped_blocks();
         (0..7)
             .map(|index| {
                 let date = self.view_date - ChronoDuration::days(6 - index);
                 let key = date.format("%Y-%m-%d").to_string();
-                let stat = block_day_stats(&self.blocks, &key);
+                let stat = block_day_stats(&blocks, &key);
                 let summaries = self
                     .journals
                     .iter()
-                    .filter(|journal| !journal.deleted && journal.date == key)
+                    .filter(|journal| {
+                        !journal.deleted
+                            && journal.date == key
+                            && self.author_visible(&journal.author_id)
+                    })
                     .count();
                 (date, stat, summaries)
             })
@@ -774,7 +883,7 @@ impl MainState {
     }
 
     pub fn habit_stats_on(&self, habit: &Habit, date: NaiveDate) -> HabitStats {
-        habit_stats(habit.frequency, &habit.id, &self.checkins, date)
+        habit_stats(habit.frequency, &habit.id, &self.scoped_checkins(), date)
     }
 
     pub fn daily_page(&self) -> Option<&Page> {
@@ -794,6 +903,7 @@ impl MainState {
                 !block.deleted
                     && block.due_date.as_deref() == Some(key.as_str())
                     && matches!(block.kind, BlockKind::Todo | BlockKind::CalendarEvent)
+                    && self.owner_visible(&block.owner_id)
             })
             .cloned()
             .collect();
@@ -846,7 +956,7 @@ impl MainState {
         let mut journals: Vec<JournalEntry> = self
             .journals
             .iter()
-            .filter(|journal| !journal.deleted)
+            .filter(|journal| !journal.deleted && self.author_visible(&journal.author_id))
             .cloned()
             .collect();
         journals.sort_by_key(|journal| {
@@ -863,7 +973,10 @@ impl MainState {
             .journals
             .iter()
             .filter(|journal| {
-                !journal.deleted && journal.target_kind == kind && journal.target_id == target_id
+                !journal.deleted
+                    && journal.target_kind == kind
+                    && journal.target_id == target_id
+                    && self.author_visible(&journal.author_id)
             })
             .cloned()
             .collect();
@@ -924,7 +1037,7 @@ impl MainState {
         let mut comments: Vec<Comment> = self
             .comments
             .iter()
-            .filter(|comment| !comment.deleted)
+            .filter(|comment| !comment.deleted && self.author_visible(&comment.author_id))
             .cloned()
             .collect();
         comments.sort_by_key(|comment| (comment.resolved, std::cmp::Reverse(comment.updated_at)));
@@ -989,7 +1102,7 @@ impl MainState {
     }
 
     pub fn today_completion(&self) -> DayStat {
-        let mut stat = block_day_stats(&self.blocks, &self.view_key());
+        let mut stat = block_day_stats(&self.scoped_blocks(), &self.view_key());
         for habit in self.visible_habits() {
             let stats = self.habit_stats_on(&habit, self.view_date);
             if habit_due_on(habit.frequency, self.view_date, stats.weekly_done) {
@@ -1003,11 +1116,11 @@ impl MainState {
     }
 
     pub fn completion_series(&self, days: u32) -> Vec<(String, DayStat)> {
-        completion_series(&self.blocks, days, self.today)
+        completion_series(&self.scoped_blocks(), days, self.today)
     }
 
     pub fn heatmap_grid(&self, habit: &Habit, weeks: u32) -> Vec<Vec<bool>> {
-        totion_core::heatmap_grid(&self.checkins, &habit.id, weeks, self.today)
+        totion_core::heatmap_grid(&self.scoped_checkins(), &habit.id, weeks, self.today)
     }
 
     pub fn aggregate_heatmap(&self, weeks: u32) -> Vec<Vec<bool>> {
@@ -1148,6 +1261,10 @@ impl MainState {
     }
 
     fn ensure_today_page(&mut self) {
+        // 他人视角只读，不去替自己创建每日页，避免污染数据。
+        if self.read_only() {
+            return;
+        }
         let date = self.today_key();
         if self.ensured_date.as_deref() == Some(date.as_str()) {
             return;
@@ -1432,6 +1549,7 @@ impl MainState {
             KeyCode::Char('/') => self.open_search(),
             KeyCode::Char('C') => self.open_comments(),
             KeyCode::Char('i') => self.open_invites(),
+            KeyCode::Char('m') => self.open_members(),
             KeyCode::Char('r') => {
                 self.ensured_date = None;
                 self.ensure_today_page();
@@ -1504,6 +1622,9 @@ impl MainState {
     }
 
     fn edit_selected_journal(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let journals = self.all_journals();
         if let Some(journal) = journals.get(self.selected_journal_index) {
             self.editing = Some(Editing {
@@ -1519,6 +1640,9 @@ impl MainState {
     }
 
     fn delete_selected_journal(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let journals = self.all_journals();
         if let Some(journal) = journals.get(self.selected_journal_index) {
             self.request_delete(PendingDelete::Summary {
@@ -1735,6 +1859,9 @@ impl MainState {
     }
 
     fn start_edit(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         match self.focus {
             Focus::Pages => {
                 if let Some(page) = self.current_page() {
@@ -1766,6 +1893,9 @@ impl MainState {
     }
 
     fn edit_today_item(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         match self.today_focus {
             TodayFocus::Items => {
                 let rows = self.today_items();
@@ -1791,6 +1921,9 @@ impl MainState {
     }
 
     fn edit_selected_habit(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let habits = self.visible_habits();
         if let Some(habit) = habits.get(self.selected_habit_index) {
             self.editing = Some(Editing {
@@ -2037,6 +2170,9 @@ impl MainState {
     }
 
     fn new_workspace_block(&mut self, kind: BlockKind) {
+        if !self.ensure_writable() {
+            return;
+        }
         let Some(page_id) = self.current_page_id() else {
             self.status = "请先创建或选择一个页面".to_string();
             return;
@@ -2082,6 +2218,9 @@ impl MainState {
     }
 
     fn new_page(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let position = self.visible_pages().len() as i64;
         let request = CreatePageRequest {
             title: "新页面".to_string(),
@@ -2120,6 +2259,9 @@ impl MainState {
     }
 
     fn toggle_workspace_block(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let Some(block) = self.current_block() else {
             return;
         };
@@ -2156,6 +2298,9 @@ impl MainState {
     }
 
     fn toggle_today_item(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         match self.today_focus {
             TodayFocus::Items => {
                 let rows = self.today_items();
@@ -2214,6 +2359,9 @@ impl MainState {
     }
 
     fn check_in_selected_habit(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let habits = self.visible_habits();
         if let Some(habit) = habits.get(self.selected_habit_index) {
             self.check_in(habit);
@@ -2251,6 +2399,9 @@ impl MainState {
     }
 
     fn undo_selected_habit(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let habits = self.visible_habits();
         if let Some(habit) = habits.get(self.selected_habit_index) {
             self.undo_checkin(habit);
@@ -2258,6 +2409,9 @@ impl MainState {
     }
 
     fn undo_today_habit(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         if self.today_focus != TodayFocus::Habits {
             self.status = "按 Tab 切到习惯面板后再撤销".to_string();
             return;
@@ -2325,6 +2479,9 @@ impl MainState {
     }
 
     fn delete_workspace_current(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         match self.focus {
             Focus::Pages => {
                 if let Some(page) = self.current_page() {
@@ -2355,6 +2512,9 @@ impl MainState {
     }
 
     fn delete_today_item(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         match self.today_focus {
             TodayFocus::Items => {
                 let rows = self.today_items();
@@ -2400,6 +2560,9 @@ impl MainState {
     }
 
     fn delete_selected_habit(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let habits = self.visible_habits();
         if let Some(habit) = habits.get(self.selected_habit_index) {
             self.request_delete(PendingDelete::Habit {
@@ -2411,6 +2574,9 @@ impl MainState {
     }
 
     fn open_event_form(&mut self, kind: BlockKind, date: String, range_end: Option<String>) {
+        if !self.ensure_writable() {
+            return;
+        }
         self.modal = Some(Modal::EventForm(EventForm {
             kind,
             title: String::new(),
@@ -2424,6 +2590,9 @@ impl MainState {
     }
 
     fn open_habit_form(&mut self, date: String, range_end: Option<String>) {
+        if !self.ensure_writable() {
+            return;
+        }
         self.modal = Some(Modal::HabitForm(HabitForm {
             title: String::new(),
             note: String::new(),
@@ -2475,6 +2644,9 @@ impl MainState {
     }
 
     fn edit_today_summary(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
         let Some((kind, target_id)) = self.current_summary_target() else {
             self.status = "先选中一条待办或习惯".to_string();
             return;
@@ -2811,6 +2983,53 @@ impl MainState {
         }
     }
 
+    fn open_members(&mut self) {
+        if !self.supports_member_view() {
+            self.status = "服务器版本过旧，需要升级后才能使用成员视角".to_string();
+            return;
+        }
+        let selected = match &self.view_user {
+            None => 0,
+            Some(id) => self
+                .users
+                .iter()
+                .position(|user| &user.id == id)
+                .map(|index| index + 1)
+                .unwrap_or(0),
+        };
+        self.modal = Some(Modal::Members(MemberPanel { selected }));
+    }
+
+    fn apply_member_view(&mut self, selected: usize) {
+        if selected == 0 {
+            self.view_user = None;
+            self.status = "已回到共享视角".to_string();
+        } else if let Some(user) = self.users.get(selected - 1) {
+            let name = user.name.clone();
+            let own = user.id == self.me_id;
+            self.view_user = Some(user.id.clone());
+            self.status = if own {
+                format!("正在查看自己的视角（{name}）")
+            } else {
+                format!("正在查看 {name} 的视角（只读，可以评论）")
+            };
+        }
+        self.selected_page_index = 0;
+        self.selected_block_index = 0;
+        self.selected_today_index = 0;
+        self.selected_today_habit_index = 0;
+        self.selected_habit_index = 0;
+        self.selected_agenda_index = 0;
+        self.selected_inbox_index = 0;
+        self.selected_journal_index = 0;
+        self.focus = Focus::Pages;
+        self.today_focus = TodayFocus::Items;
+        self.journal_source = TodayFocus::Items;
+        self.week_mode = false;
+        self.workspace_journal_mode = false;
+        self.clamp();
+    }
+
     fn compute_search(&self, query: &str) -> Vec<SearchHit> {
         let query = query.to_lowercase();
         if query.is_empty() {
@@ -2822,7 +3041,11 @@ impl MainState {
                 results.push(SearchHit::Page(page.id.clone()));
             }
         }
-        for block in self.blocks.iter().filter(|block| !block.deleted) {
+        for block in self
+            .blocks
+            .iter()
+            .filter(|block| !block.deleted && self.owner_visible(&block.owner_id))
+        {
             if block.text.to_lowercase().contains(&query) {
                 results.push(SearchHit::Block {
                     page_id: block.page_id.clone(),
@@ -2830,7 +3053,11 @@ impl MainState {
                 });
             }
         }
-        for habit in self.habits.iter().filter(|habit| !habit.deleted) {
+        for habit in self
+            .habits
+            .iter()
+            .filter(|habit| !habit.deleted && self.owner_visible(&habit.owner_id))
+        {
             if habit.title.to_lowercase().contains(&query) {
                 results.push(SearchHit::Habit(habit.id.clone()));
             }
@@ -2890,6 +3117,22 @@ impl MainState {
         let Some(mut modal) = self.modal.take() else {
             return;
         };
+        // 他人视角下议程只允许浏览，不允许勾选/编辑/删除/新建。
+        let read_only_blocked = self.read_only()
+            && matches!(&modal, Modal::Agenda(_))
+            && !matches!(
+                key.code,
+                KeyCode::Esc
+                    | KeyCode::Up
+                    | KeyCode::Down
+                    | KeyCode::Char('j')
+                    | KeyCode::Char('k')
+            );
+        if read_only_blocked {
+            self.status = "正在查看他人视角（只读），可以评论但不能修改".to_string();
+            self.modal = Some(modal);
+            return;
+        }
         match &mut modal {
             Modal::EventForm(form) => match key.code {
                 KeyCode::Esc => return,
@@ -3123,6 +3366,21 @@ impl MainState {
                 }
                 _ => {}
             },
+            Modal::Members(panel) => match key.code {
+                KeyCode::Esc => return,
+                KeyCode::Up | KeyCode::Char('k') => {
+                    panel.selected = panel.selected.saturating_sub(1);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    panel.selected = (panel.selected + 1).min(self.users.len());
+                }
+                KeyCode::Enter => {
+                    let selected = panel.selected;
+                    self.apply_member_view(selected);
+                    return;
+                }
+                _ => {}
+            },
             Modal::Search(state) => match key.code {
                 KeyCode::Esc => return,
                 KeyCode::Backspace => {
@@ -3195,7 +3453,11 @@ impl MainState {
             let position = self
                 .blocks
                 .iter()
-                .filter(|block| !block.deleted && block.page_id == page_id)
+                .filter(|block| {
+                    !block.deleted
+                        && block.page_id == page_id
+                        && self.owner_visible(&block.owner_id)
+                })
                 .count() as i64;
             let request = CreateBlockRequest {
                 page_id,

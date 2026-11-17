@@ -177,6 +177,9 @@ pub struct Block {
     /// 日报页的记录区类型
     #[serde(default)]
     pub section: Option<BlockSection>,
+    /// 创建者（归属成员）id；旧数据为空字符串
+    #[serde(default)]
+    pub owner_id: Id,
 }
 
 impl Block {
@@ -221,6 +224,9 @@ pub struct Habit {
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
     pub deleted: bool,
+    /// 创建者（归属成员）id；旧数据为空字符串
+    #[serde(default)]
+    pub owner_id: Id,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

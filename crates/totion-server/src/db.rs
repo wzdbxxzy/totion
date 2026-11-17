@@ -8,7 +8,7 @@ use totion_core::{
     HabitFrequency, Invite, JournalEntry, JournalTarget, Page, PageKind, User,
 };
 
-pub const SCHEMA_VERSION: i64 = 4;
+pub const SCHEMA_VERSION: i64 = 5;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS meta (
@@ -188,6 +188,10 @@ fn migrate(conn: &Connection) -> AnyResult<()> {
         apply_v4(&tx)?;
         set_meta(&tx, "schema_version", "4")?;
     }
+    if current < 5 {
+        apply_v5(&tx)?;
+        set_meta(&tx, "schema_version", "5")?;
+    }
     tx.commit()?;
     Ok(())
 }
@@ -237,6 +241,36 @@ fn apply_v3(conn: &Connection) -> rusqlite::Result<()> {
 
 fn apply_v4(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(V4_TABLES)?;
+    Ok(())
+}
+
+/// v5：给待办块和习惯加归属人。旧数据没有创建者，只能按「最后修改人」的名字反查用户 id 近似回填。
+fn apply_v5(conn: &Connection) -> rusqlite::Result<()> {
+    let additions = [
+        (
+            "blocks",
+            "owner_id",
+            "ALTER TABLE blocks ADD COLUMN owner_id TEXT NOT NULL DEFAULT ''",
+        ),
+        (
+            "habits",
+            "owner_id",
+            "ALTER TABLE habits ADD COLUMN owner_id TEXT NOT NULL DEFAULT ''",
+        ),
+    ];
+    for (table, column, ddl) in additions {
+        if !column_exists(conn, table, column)? {
+            conn.execute_batch(ddl)?;
+        }
+    }
+    conn.execute_batch(
+        "UPDATE blocks SET owner_id =
+             COALESCE((SELECT id FROM users WHERE users.name = blocks.updated_by LIMIT 1), '')
+         WHERE owner_id = '';
+         UPDATE habits SET owner_id =
+             COALESCE((SELECT id FROM users WHERE users.name = habits.updated_by LIMIT 1), '')
+         WHERE owner_id = '';",
+    )?;
     Ok(())
 }
 
@@ -393,6 +427,7 @@ pub fn row_to_block(row: &Row) -> rusqlite::Result<Block> {
         completed_at: parse_opt_ts(row.get(14)?),
         completed_by: row.get(15)?,
         section: section.and_then(|value| BlockSection::from_wire(&value)),
+        owner_id: row.get(17)?,
     })
 }
 
@@ -410,6 +445,7 @@ pub fn row_to_habit(row: &Row) -> rusqlite::Result<Habit> {
         updated_at: parse_ts(&row.get::<_, String>(9)?),
         updated_by: row.get(10)?,
         deleted: row.get::<_, i64>(11)? != 0,
+        owner_id: row.get(12)?,
     })
 }
 
@@ -479,9 +515,10 @@ pub fn row_to_invite(row: &Row) -> rusqlite::Result<Invite> {
 const PAGE_COLUMNS: &str =
     "id, title, icon, kind, position, version, updated_at, updated_by, deleted, date";
 const BLOCK_COLUMNS: &str = "id, page_id, kind, text, checked, due_date, streak, position, version,
-    updated_at, updated_by, deleted, start_time, end_time, completed_at, completed_by, section";
+    updated_at, updated_by, deleted, start_time, end_time, completed_at, completed_by, section,
+    owner_id";
 const HABIT_COLUMNS: &str = "id, title, icon, note, frequency, position, archived, version,
-    created_at, updated_at, updated_by, deleted";
+    created_at, updated_at, updated_by, deleted, owner_id";
 const CHECKIN_COLUMNS: &str = "id, habit_id, date, note, version, created_at, updated_at,
     updated_by, deleted";
 const COMMENT_COLUMNS: &str = "id, target_kind, target_id, body, resolved, author_id,
@@ -763,8 +800,8 @@ pub fn insert_block(conn: &Connection, block: &Block) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO blocks(id, page_id, kind, text, checked, due_date, streak, position,
                             version, updated_at, updated_by, deleted, start_time, end_time,
-                            completed_at, completed_by, section)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+                            completed_at, completed_by, section, owner_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
         params![
             block.id,
             block.page_id,
@@ -783,6 +820,7 @@ pub fn insert_block(conn: &Connection, block: &Block) -> rusqlite::Result<()> {
             block.completed_at.map(|value| value.to_rfc3339()),
             block.completed_by,
             block.section.map(section_to_str),
+            block.owner_id,
         ],
     )?;
     Ok(())
@@ -791,8 +829,8 @@ pub fn insert_block(conn: &Connection, block: &Block) -> rusqlite::Result<()> {
 pub fn insert_habit(conn: &Connection, habit: &Habit) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO habits(id, title, icon, note, frequency, position, archived, version,
-                            created_at, updated_at, updated_by, deleted)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                            created_at, updated_at, updated_by, deleted, owner_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             habit.id,
             habit.title,
@@ -806,6 +844,7 @@ pub fn insert_habit(conn: &Connection, habit: &Habit) -> rusqlite::Result<()> {
             habit.updated_at.to_rfc3339(),
             habit.updated_by,
             habit.deleted as i64,
+            habit.owner_id,
         ],
     )?;
     Ok(())

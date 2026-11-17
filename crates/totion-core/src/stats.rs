@@ -225,6 +225,7 @@ mod tests {
             completed_at: None,
             completed_by: None,
             section: None,
+            owner_id: String::new(),
         }
     }
 

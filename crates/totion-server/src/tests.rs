@@ -74,13 +74,19 @@ fn migrates_v1_database_in_place() {
         [],
     )
     .unwrap();
+    conn.execute(
+        "INSERT INTO users(id, name, public_key, created_at)
+         VALUES ('u-guan', 'Guan', 'key-guan', '2026-01-01T00:00:00Z')",
+        [],
+    )
+    .unwrap();
 
     db::init(&conn).unwrap();
     db::init(&conn).unwrap();
 
     assert_eq!(
         db::get_meta(&conn, "schema_version").unwrap().as_deref(),
-        Some("4")
+        Some("5")
     );
     let pages: i64 = conn
         .query_row("SELECT COUNT(*) FROM pages", [], |row| row.get(0))
@@ -102,6 +108,8 @@ fn migrates_v1_database_in_place() {
     let block = db::find_block(&conn, "b1").unwrap().unwrap();
     assert_eq!(block.text, "old block");
     assert!(block.start_time.is_none());
+    // v5 迁移按最后修改人名字反查用户 id 回填归属人。
+    assert_eq!(block.owner_id, "u-guan");
 }
 
 #[tokio::test]
@@ -277,6 +285,7 @@ async fn habit_checkin_is_idempotent_and_can_be_undone() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+    assert_eq!(habit["habit"]["owner_id"], "user-1");
     let habit_id = habit["habit"]["id"].as_str().unwrap().to_string();
 
     let (status, first) = call(
@@ -552,6 +561,7 @@ async fn block_completion_records_timestamp_and_actor() {
     )
     .await;
     let block_id = block["block"]["id"].as_str().unwrap().to_string();
+    assert_eq!(block["block"]["owner_id"], "user-1");
     assert!(block["block"]["completed_at"].is_null());
 
     let (_, done) = call(

@@ -61,7 +61,7 @@ pub struct WorkspaceInfo {
     pub users: Vec<User>,
 }
 
-pub const API_VERSION: u32 = 4;
+pub const API_VERSION: u32 = 5;
 
 fn default_api_version() -> u32 {
     // 旧服务器不会返回该字段，按 v1 处理。

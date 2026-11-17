@@ -10,7 +10,7 @@ use totion_core::HabitStats;
 
 use crate::app::{
     AgendaPanel, App, CommentPanel, Editing, EventForm, Focus, HabitForm, InvitePanel, MainState,
-    Modal, Screen, SearchState, SetupForm, TodayFocus, TodayRow, View,
+    MemberPanel, Modal, Screen, SearchState, SetupForm, TodayFocus, TodayRow, View,
 };
 use crate::charts;
 
@@ -114,22 +114,39 @@ fn draw_main(frame: &mut Frame, main: &MainState) {
 }
 
 fn draw_header(frame: &mut Frame, area: Rect, main: &MainState) {
-    let text = format!(
-        " totion · {} · {} · {} 位成员 · {} [{}/5]",
-        main.workspace_name(),
-        main.me(),
-        main.users().len(),
-        main.view().label(),
-        view_number(main.view())
-    );
-    let paragraph = Paragraph::new(Line::from(Span::styled(
-        text,
+    let mut spans = vec![Span::styled(
+        format!(
+            " totion · {} · {} · {} 位成员 · {} [{}/6]",
+            main.workspace_name(),
+            main.me(),
+            main.users().len(),
+            main.view().label(),
+            view_number(main.view())
+        ),
         Style::default()
             .fg(Color::Black)
             .bg(Color::Cyan)
             .add_modifier(Modifier::BOLD),
-    )));
-    frame.render_widget(paragraph, area);
+    )];
+    if let Some(user) = main.viewed_user() {
+        let label = if main.read_only() {
+            format!(" 视角：{}（只读，可评论） ", user.name)
+        } else {
+            format!(" 视角：{}（我） ", user.name)
+        };
+        spans.push(Span::styled(
+            label,
+            Style::default()
+                .fg(Color::Black)
+                .bg(if main.read_only() {
+                    Color::Yellow
+                } else {
+                    Color::Green
+                })
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 fn view_number(view: View) -> u8 {
@@ -224,7 +241,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
         ))
     } else {
         Line::from(Span::styled(
-            format!(" {}", main.status()),
+            format!(" {}  ·  m 成员视角", main.status()),
             Style::default().fg(Color::Gray),
         ))
     };
@@ -241,6 +258,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
                 " j/k 选择 · Space 勾选 · Enter 编辑 · d 删除 · t/c 新建 · Esc 关闭"
             }
             Modal::Invites(_) => " g 生成新码 · x 撤销/恢复 · j/k 选择 · Esc 关闭",
+            Modal::Members(_) => " j/k 选择 · Enter 切换视角 · Esc 关闭",
             Modal::Confirm(_) => " 输入 delete 并回车确认 · Esc 取消",
             Modal::Help => " 按 Esc 关闭帮助",
         }
@@ -1349,9 +1367,58 @@ fn draw_modal(frame: &mut Frame, main: &MainState, modal: &Modal) {
         Modal::Search(state) => draw_search(frame, state),
         Modal::Agenda(panel) => draw_agenda(frame, main, panel),
         Modal::Invites(panel) => draw_invites(frame, panel),
+        Modal::Members(panel) => draw_members(frame, main, panel),
         Modal::Confirm(confirm) => draw_confirm(frame, confirm),
         Modal::Help => draw_help(frame),
     }
+}
+
+fn draw_members(frame: &mut Frame, main: &MainState, panel: &MemberPanel) {
+    let area = centered_rect(56, 64, frame.area());
+    frame.render_widget(Clear, area);
+    let mut lines: Vec<Line> = Vec::new();
+    lines.push(Line::from(Span::styled(
+        " 选择一个成员，切换到对方的 1-6 界面",
+        Style::default()
+            .fg(Color::Gray)
+            .add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(""));
+
+    let mut entries: Vec<(String, bool, &'static str)> =
+        vec![("共享空间（全部数据）".to_string(), true, "")];
+    for user in main.users() {
+        let is_me = user.name == main.me();
+        entries.push((user.name.clone(), false, if is_me { "（我）" } else { "" }));
+    }
+    for (index, (label, shared, suffix)) in entries.iter().enumerate() {
+        let selected = index == panel.selected;
+        let style = if selected {
+            Style::default()
+                .bg(Color::Rgb(38, 45, 56))
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+        let current = if selected { "▶ " } else { "  " };
+        let tag = if *shared { " [共享] " } else { " [成员] " };
+        lines.push(Line::from(vec![
+            Span::styled(current, Style::default().fg(Color::Cyan)),
+            Span::styled(tag, Style::default().fg(Color::Yellow)),
+            Span::styled(format!("{label}{suffix}"), style),
+        ]));
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        " 他人视角只读，可以评论；Enter 切换，Esc 关闭",
+        Style::default().fg(Color::DarkGray),
+    )));
+    frame.render_widget(
+        Paragraph::new(lines)
+            .block(block_title(" 成员视角 · m "))
+            .wrap(Wrap { trim: false }),
+        area,
+    );
 }
 
 fn draw_confirm(frame: &mut Frame, confirm: &crate::app::ConfirmState) {
@@ -1813,7 +1880,8 @@ fn draw_help(frame: &mut Frame) {
             " 其他",
             Style::default().add_modifier(Modifier::BOLD),
         )),
-        Line::from(" i 邀请码   / 搜索   r 同步   ? 帮助   q 退出"),
+        Line::from(" i 邀请码   m 成员视角   / 搜索   r 同步   ? 帮助   q 退出"),
+        Line::from(" 成员视角：看某人的 1-6 界面（只读，可评论），Enter 切换"),
         Line::from(" Enter 保存（多行内容用 Ctrl+S）   Esc 取消"),
         Line::from(""),
         Line::from(Span::styled(

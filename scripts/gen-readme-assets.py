@@ -678,7 +678,7 @@ def help_screenshot():
 
     x, y, w, h = 180, 70, 920, 580
     body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
-    body += "\n" + text(x + 30, y + 44, "帮助 · v0.7.1", CYAN, 18, bold=True)
+    body += "\n" + text(x + 30, y + 44, "帮助 · v0.8.0", CYAN, 18, bold=True)
 
     sections = [
         ("视图", "1 今日   2 工作区   3 日历   4 习惯   5 统计   6 留言"),
@@ -688,7 +688,7 @@ def help_screenshot():
         ("批量", "选中日期范围后按 t 批量新建待办（最多 62 天）"),
         ("习惯", "n 新建；d 归档；Space 打卡；u 撤销；Ctrl+F 切换频率"),
         ("删除", "按 d 后输入 delete 并回车确认；Esc 取消"),
-        ("协作", "C 评论；6 留言；i 邀请码；/ 搜索；r 同步"),
+        ("协作", "C 评论；6 留言；m 成员视角；i 邀请码；/ 搜索；r 同步"),
         ("其他", "? 帮助；q 或 Ctrl+C 退出"),
     ]
     line_y = y + 90
@@ -818,6 +818,53 @@ def invites_screenshot():
     return svg(width, height, body, defs)
 
 
+def members_screenshot():
+    width, height = 1280, 640
+    defs, body = window(width, height, "totion — 成员视角")
+
+    body += "\n" + rect(24, 58, width - 48, 32, CYAN, None, 6)
+    body += "\n" + text(
+        40,
+        79,
+        "totion · 我的共享空间 · Guan · 3 位成员 · 今日 [1/6]",
+        "#0d1117",
+        15,
+        bold=True,
+    )
+
+    x, y, w, h = 300, 120, 680, 420
+    body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
+    body += "\n" + text(x + 28, y + 40, "成员视角 · m", CYAN, 18, bold=True)
+    body += "\n" + text(x + 28, y + 74, "选择一个成员，切换到对方的 1-6 界面", MUTED, 13)
+
+    rows = [
+        ("[共享] ", "共享空间（全部数据）", ""),
+        ("[成员] ", "Guan", "（我）"),
+        ("[成员] ", "小明", ""),
+        ("[成员] ", "小红", ""),
+    ]
+    row_y = y + 118
+    for index, (tag, name, suffix) in enumerate(rows):
+        if index == 2:
+            body += "\n" + rect(x + 16, row_y - 24, w - 32, 34, PANEL2, None, 6)
+            mark = "▶ "
+        else:
+            mark = "  "
+        body += "\n" + text(x + 28, row_y, mark, CYAN, 15)
+        body += "\n" + text(x + 60, row_y, tag, YELLOW, 14)
+        body += "\n" + text(x + 130, row_y, name + suffix, TEXT, 15, bold=(index == 2))
+        row_y += 52
+
+    body += "\n" + text(
+        x + 28,
+        y + h - 30,
+        "他人视角只读，可以评论；Enter 切换，Esc 关闭",
+        MUTED,
+        13,
+    )
+    return svg(width, height, body, defs)
+
+
 def main():
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
     screenshots = os.path.join(out_dir, "screenshots")
@@ -836,6 +883,7 @@ def main():
         os.path.join(screenshots, "search.svg"): search_screenshot(),
         os.path.join(screenshots, "inbox.svg"): inbox_screenshot(),
         os.path.join(screenshots, "invites.svg"): invites_screenshot(),
+        os.path.join(screenshots, "members.svg"): members_screenshot(),
         os.path.join(screenshots, "help.svg"): help_screenshot(),
         os.path.join(screenshots, "new-event.svg"): new_event_screenshot(),
     }
