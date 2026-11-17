@@ -337,10 +337,8 @@ impl App {
             let width = ui.available_width();
             let (rect, response) =
                 ui.allocate_exact_size(egui::Vec2::new(width, 38.0), egui::Sense::click());
-            let fill = if active {
-                Color32::from_rgba_unmultiplied(ACCENT.r(), ACCENT.g(), ACCENT.b(), 36)
-            } else if response.hovered() {
-                CARD_HI
+            let fill = if response.hovered() && !active {
+                Color32::from_rgba_unmultiplied(255, 255, 255, 14)
             } else {
                 Color32::TRANSPARENT
             };
@@ -357,7 +355,7 @@ impl App {
                 egui::Align2::LEFT_CENTER,
                 view.label(),
                 egui::FontId::proportional(14.5),
-                if active { TEXT } else { TEXT_DIM },
+                if active { ACCENT } else { TEXT_DIM },
             );
             if response.clicked() {
                 self.view = view;
@@ -536,13 +534,13 @@ impl App {
         painter.rect_filled(
             rect,
             0.0,
-            Color32::from_rgba_unmultiplied(252, 250, 247, 96),
+            Color32::from_rgba_unmultiplied(12, 10, 10, 120),
         );
         // 左边缘一条细线，给面板一个边界。
         painter.vline(
             rect.left() + 0.5,
             rect.y_range(),
-            egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 0, 0, 30)),
+            egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 26)),
         );
     }
 }
