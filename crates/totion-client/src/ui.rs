@@ -1880,7 +1880,9 @@ fn draw_members(frame: &mut Frame, main: &MainState, panel: &MemberPanel) {
         let is_me = user.name == main.me();
         entries.push((user.name.clone(), false, if is_me { "（我）" } else { "" }));
     }
-    for (index, (label, shared, suffix)) in entries.iter().enumerate() {
+    let budget = area.height.saturating_sub(6) as usize;
+    let (start, end) = window_range(entries.len(), panel.selected, budget);
+    for (index, (label, shared, suffix)) in entries.iter().enumerate().take(end).skip(start) {
         let selected = index == panel.selected;
         let style = if selected {
             selection_style()
@@ -1900,9 +1902,14 @@ fn draw_members(frame: &mut Frame, main: &MainState, panel: &MemberPanel) {
         " 他人视角只读，可以评论；Enter 切换，Esc 关闭",
         Style::default().fg(Color::DarkGray),
     )));
+    let title = if start > 0 || end < entries.len() {
+        format!(" 成员视角 · m · {}-{}/{} ", start + 1, end, entries.len())
+    } else {
+        " 成员视角 · m ".to_string()
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(modal_block(" 成员视角 · m "))
+            .block(modal_block(title))
             .wrap(Wrap { trim: false }),
         area,
     );
@@ -1948,7 +1955,15 @@ fn draw_invites(frame: &mut Frame, panel: &InvitePanel) {
     frame.render_widget(Clear, area);
     let now = Utc::now();
     let mut lines: Vec<Line> = Vec::new();
-    for (index, invite) in panel.invites.iter().enumerate() {
+    let message_rows = if panel.message.is_some() { 2 } else { 0 };
+    let budget = area.height.saturating_sub(4 + message_rows) as usize;
+    let heights: Vec<usize> = panel.invites.iter().map(|_| 2).collect();
+    let start = scroll_start(&heights, panel.selected, budget);
+    let mut rendered_end = start;
+    for (index, invite) in panel.invites.iter().enumerate().skip(start) {
+        if lines.len() >= budget && index != panel.selected {
+            break;
+        }
         let selected = index == panel.selected;
         let style = if selected {
             selection_style()
@@ -1996,8 +2011,9 @@ fn draw_invites(frame: &mut Frame, panel: &InvitePanel) {
             format!("    {} · {}", invite.note, invite.created_by),
             style.fg(Color::Gray),
         )));
+        rendered_end = index + 1;
     }
-    if lines.is_empty() {
+    if panel.invites.is_empty() {
         lines.push(Line::from(Span::styled(
             " 还没有邀请码，按 g 生成一个",
             Style::default().fg(Color::DarkGray),
@@ -2015,7 +2031,17 @@ fn draw_invites(frame: &mut Frame, panel: &InvitePanel) {
         " g 生成新码 · x 撤销/恢复 · j/k 选择 · Esc 关闭",
         Style::default().fg(Color::DarkGray),
     )));
-    frame.render_widget(Paragraph::new(lines).block(modal_block(" 邀请码 ")), area);
+    let title = if start > 0 || rendered_end < panel.invites.len() {
+        format!(
+            " 邀请码 {}-{}/{} ",
+            start + 1,
+            rendered_end.max(start + 1),
+            panel.invites.len()
+        )
+    } else {
+        " 邀请码 ".to_string()
+    };
+    frame.render_widget(Paragraph::new(lines).block(modal_block(title)), area);
 }
 
 fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {

@@ -1053,6 +1053,27 @@ fn long_edit_line_scrolls_horizontally() {
 }
 
 #[test]
+fn members_modal_scrolls_to_selected_member() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        for index in 0..30 {
+            state
+                .users
+                .push(sample_user(&format!("u{index}"), &format!("成员{index}")));
+        }
+        state.modal = Some(Modal::Members(MemberPanel { selected: 30 }));
+    }
+    harness.render(120, 24);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("24-33/33"),
+        "成员面板应显示滚动范围: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
