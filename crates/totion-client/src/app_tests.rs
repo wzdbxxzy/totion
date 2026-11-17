@@ -375,6 +375,22 @@ fn week_view_scrolls_to_selected_day() {
 }
 
 #[test]
+fn status_fades_back_to_connection_state() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        state.status = "已删除".to_string();
+        state.status_seen = "已删除".to_string();
+        state.status_since = Instant::now();
+    }
+    assert_eq!(harness.state().status(), "已删除");
+
+    harness.state_mut().status_since = Instant::now() - Duration::from_secs(10);
+    let idle = harness.state().status();
+    assert!(idle.starts_with("已连接"), "期望回到连接状态，实际: {idle}");
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

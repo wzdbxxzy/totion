@@ -545,6 +545,9 @@ pub struct MainState {
     editing: Option<Editing>,
     modal: Option<Modal>,
     status: String,
+    /// 上一条已展示过的状态，用来判断状态是否变化。
+    status_seen: String,
+    status_since: Instant,
     notice: Option<String>,
     last_sync: Option<Instant>,
     calendar_month: NaiveDate,
@@ -599,6 +602,8 @@ impl MainState {
             editing: None,
             modal: None,
             status: "已连接".to_string(),
+            status_seen: "已连接".to_string(),
+            status_since: Instant::now(),
             notice: None,
             last_sync: Some(Instant::now()),
             calendar_month: today.with_day(1).unwrap_or(today),
@@ -709,8 +714,25 @@ impl MainState {
         true
     }
 
-    pub fn status(&self) -> &str {
-        &self.status
+    /// 状态栏文案：操作提示显示几秒后淡出，回到连接状态（k9s/lazygit 风格）。
+    pub fn status(&self) -> String {
+        let is_error = ["失败", "错误", "冲突", "无法", "过旧"]
+            .iter()
+            .any(|word| self.status.contains(word));
+        let ttl = if is_error {
+            Duration::from_secs(8)
+        } else {
+            Duration::from_secs(4)
+        };
+        if self.status_since.elapsed() < ttl {
+            return self.status.clone();
+        }
+        match self.last_sync {
+            Some(at) if at.elapsed().as_secs() >= 2 => {
+                format!("已连接 · {} 秒前同步", at.elapsed().as_secs())
+            }
+            _ => "已连接".to_string(),
+        }
     }
 
     pub fn notice(&self) -> Option<&str> {
@@ -1316,6 +1338,10 @@ impl MainState {
     }
 
     pub fn tick(&mut self) {
+        if self.status != self.status_seen {
+            self.status_seen = self.status.clone();
+            self.status_since = Instant::now();
+        }
         let now = Local::now().date_naive();
         if now != self.today {
             self.today = now;
