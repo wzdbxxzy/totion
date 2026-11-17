@@ -1555,6 +1555,32 @@ fn panel_nav_uses_quiet_marker_instead_of_chip() {
 }
 
 #[test]
+fn panel_footer_keeps_status_only() {
+    let mut harness = Harness::new();
+    harness.render_panel(100, 30);
+    let buffer = harness.buffer.as_ref().expect("buffer");
+    let text: String = (0..30).map(|row| buffer_line(buffer, row)).collect();
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("已连接"),
+        "面板底部应保留状态行: {compact}"
+    );
+    assert!(
+        !compact.contains("Tab面板"),
+        "面板底部不应再放整行按键说明: {compact}"
+    );
+
+    harness.render(120, 30);
+    let buffer = harness.buffer.as_ref().expect("buffer");
+    let text: String = (0..30).map(|row| buffer_line(buffer, row)).collect();
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("Tab面板"),
+        "终端版应保留按键说明: {compact}"
+    );
+}
+
+#[test]
 fn panel_mode_draws_hairline_rules_instead_of_boxes() {
     let mut harness = Harness::new();
     harness.render_panel(100, 30);

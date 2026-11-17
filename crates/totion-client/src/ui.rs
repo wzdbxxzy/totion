@@ -123,7 +123,7 @@ fn draw_main(frame: &mut Frame, main: &MainState, panel: bool) {
             Constraint::Length(1),
             Constraint::Min(3),
             Constraint::Length(editing_height),
-            Constraint::Length(2),
+            Constraint::Length(if panel { 1 } else { 2 }),
         ])
         .split(area);
 
@@ -145,7 +145,7 @@ fn draw_main(frame: &mut Frame, main: &MainState, panel: bool) {
         draw_editing(frame, chunks[3], editing);
     }
 
-    draw_footer(frame, chunks[4], main);
+    draw_footer(frame, chunks[4], main, panel);
 
     if let Some(modal) = main.modal() {
         draw_modal(frame, main, modal);
@@ -525,7 +525,7 @@ fn editing_preview(editing: &Editing, width: u16) -> Vec<Line<'static>> {
     output
 }
 
-fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
+fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState, panel: bool) {
     let status_line = if let Some(notice) = main.notice() {
         Line::from(Span::styled(
             format!(" {notice}"),
@@ -592,10 +592,15 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
         }
     };
 
-    let lines = vec![
-        status_line,
-        Line::from(Span::styled(help, Style::default().fg(Color::DarkGray))),
-    ];
+    let lines = if panel {
+        // 面板里只留状态：整行按键说明在毛玻璃上太吵，按键查 `?` 帮助。
+        vec![status_line]
+    } else {
+        vec![
+            status_line,
+            Line::from(Span::styled(help, Style::default().fg(Color::DarkGray))),
+        ]
+    };
     frame.render_widget(Paragraph::new(lines), area);
 }
 
