@@ -686,7 +686,7 @@ def help_screenshot():
 
     x, y, w, h = 180, 70, 920, 580
     body += "\n" + rect(x, y, w, h, PANEL, BORDER, 12)
-    body += "\n" + text(x + 30, y + 44, "帮助 · v0.11.0", CYAN, 18, bold=True)
+    body += "\n" + text(x + 30, y + 44, "帮助 · v0.12.0", CYAN, 18, bold=True)
 
     sections = [
         ("视图", "1 今日   2 工作区   3 日历   4 习惯   5 统计   6 留言"),
