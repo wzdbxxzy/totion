@@ -91,6 +91,7 @@ fn sample_state() -> MainState {
 
 struct Harness {
     app: App,
+    buffer: Option<ratatui::buffer::Buffer>,
 }
 
 impl Harness {
@@ -100,6 +101,7 @@ impl Harness {
                 screen: Screen::Main(sample_state()),
                 should_quit: false,
             },
+            buffer: None,
         }
     }
 
@@ -124,6 +126,7 @@ impl Harness {
         terminal
             .draw(|frame| crate::ui::draw(frame, app))
             .expect("绘制界面");
+        self.buffer = Some(terminal.backend().buffer().clone());
     }
 
     fn action_rect(&self, action: MouseAction) -> Rect {
@@ -388,6 +391,22 @@ fn status_fades_back_to_connection_state() {
     harness.state_mut().status_since = Instant::now() - Duration::from_secs(10);
     let idle = harness.state().status();
     assert!(idle.starts_with("已连接"), "期望回到连接状态，实际: {idle}");
+}
+
+#[test]
+fn selected_rows_use_shared_highlight_style() {
+    let mut harness = Harness::new();
+    harness.render(120, 30);
+    let selected = harness.action_rect(MouseAction::SelectTodayItem(0));
+    let buffer = harness.buffer.as_ref().expect("buffer");
+    let cell = buffer
+        .cell((selected.x + 2, selected.y))
+        .expect("选中行单元格");
+    assert_eq!(cell.bg, crate::ui::SELECTION_BG);
+
+    let other = harness.action_rect(MouseAction::SelectTodayItem(1));
+    let cell = buffer.cell((other.x + 2, other.y)).expect("未选中行单元格");
+    assert_ne!(cell.bg, crate::ui::SELECTION_BG);
 }
 
 #[test]

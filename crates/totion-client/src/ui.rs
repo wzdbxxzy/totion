@@ -14,6 +14,15 @@ use crate::app::{
 };
 use crate::charts;
 
+/// 选中行统一背景（lazygit/k9s 风格的深色高亮）。
+pub(crate) const SELECTION_BG: Color = Color::Rgb(38, 45, 56);
+
+pub(crate) fn selection_style() -> Style {
+    Style::default()
+        .bg(SELECTION_BG)
+        .add_modifier(Modifier::BOLD)
+}
+
 pub fn draw(frame: &mut Frame, app: &App) {
     match &app.screen {
         Screen::Setup(form) => draw_setup(frame, form),
@@ -510,9 +519,7 @@ fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
         let selected = index == main.selected_journal_index();
         let mut style = Style::default();
         if selected {
-            style = style
-                .bg(Color::Rgb(38, 45, 56))
-                .add_modifier(Modifier::BOLD);
+            style = selection_style();
         }
         let target = match journal.target_kind {
             totion_core::JournalTarget::Daily => "当日".to_string(),
@@ -520,20 +527,23 @@ fn draw_journal_list(frame: &mut Frame, area: Rect, main: &MainState) {
             totion_core::JournalTarget::Habit => "习惯".to_string(),
         };
         let row_index = lines.len();
-        lines.push(Line::from(vec![
-            Span::styled(
-                if selected { "▶ " } else { "  " },
-                Style::default().fg(Color::Cyan),
-            ),
-            Span::styled(
-                format!("{} {} ", journal.date, journal.time),
-                Style::default().fg(Color::Cyan),
-            ),
-            Span::styled(
-                format!("[{target}] {} · {}", journal.target_id, journal.author_name),
-                Style::default().fg(Color::Yellow),
-            ),
-        ]));
+        lines.push(
+            Line::from(vec![
+                Span::styled(
+                    if selected { "▶ " } else { "  " },
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(
+                    format!("{} {} ", journal.date, journal.time),
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(
+                    format!("[{target}] {} · {}", journal.target_id, journal.author_name),
+                    Style::default().fg(Color::Yellow),
+                ),
+            ])
+            .style(style),
+        );
         if let Some(rect) = list_row_rect(area, row_index) {
             main.push_mouse_hit(rect, MouseAction::OpenJournal(index));
         }
@@ -591,10 +601,7 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
         };
         let mut style = Style::default();
         if index == main.selected_page_index() && main.focus() == Focus::Pages {
-            style = style
-                .bg(Color::DarkGray)
-                .fg(Color::White)
-                .add_modifier(Modifier::BOLD);
+            style = selection_style().fg(Color::White);
         }
         let comments =
             main.unresolved_comment_count(totion_core::CommentTargetKind::Page, &page.id);
@@ -747,7 +754,7 @@ fn draw_blocks(frame: &mut Frame, area: Rect, main: &MainState) {
         }
 
         let style = if is_selected && main.focus() == Focus::Blocks {
-            Style::default().bg(Color::DarkGray)
+            selection_style()
         } else {
             Style::default()
         };
@@ -875,7 +882,6 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
     main.push_mouse_hit(columns[0], MouseAction::FocusToday(TodayFocus::Items));
     main.push_mouse_hit(columns[1], MouseAction::FocusToday(TodayFocus::Habits));
 
-    let selected_bg = Color::Rgb(38, 45, 56);
     let item_height = columns[0].height.saturating_sub(2) as usize;
     let (item_start, item_end) =
         window_range(items.len(), main.selected_today_index(), item_height);
@@ -886,27 +892,30 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
             let selected = focus == TodayFocus::Items && index == main.selected_today_index();
             let mut style = Style::default();
             if selected {
-                style = style.bg(selected_bg).add_modifier(Modifier::BOLD);
+                style = selection_style();
             }
             let comments =
                 main.unresolved_comment_count(totion_core::CommentTargetKind::Block, &block.id);
             let row_index = item_lines.len();
-            item_lines.push(Line::from(vec![
-                Span::styled(
-                    if selected { "▶ " } else { "  " },
-                    Style::default().fg(Color::Cyan),
-                ),
-                Span::styled(format!("{time} "), Style::default().fg(Color::Cyan)),
-                Span::styled(
-                    if block.checked { "✓ " } else { "○ " },
-                    Style::default().fg(if block.checked {
-                        Color::Green
-                    } else {
-                        Color::Gray
-                    }),
-                ),
-                Span::styled(format!("{}{}", block.text, comment_suffix(comments)), style),
-            ]));
+            item_lines.push(
+                Line::from(vec![
+                    Span::styled(
+                        if selected { "▶ " } else { "  " },
+                        Style::default().fg(Color::Cyan),
+                    ),
+                    Span::styled(format!("{time} "), Style::default().fg(Color::Cyan)),
+                    Span::styled(
+                        if block.checked { "✓ " } else { "○ " },
+                        Style::default().fg(if block.checked {
+                            Color::Green
+                        } else {
+                            Color::Gray
+                        }),
+                    ),
+                    Span::styled(format!("{}{}", block.text, comment_suffix(comments)), style),
+                ])
+                .style(style),
+            );
             if let Some(rect) = list_row_rect(columns[0], row_index) {
                 main.push_mouse_hit(rect, MouseAction::SelectTodayItem(index));
             }
@@ -946,33 +955,36 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
         let selected = focus == TodayFocus::Habits && index == main.selected_today_habit_index();
         let mut style = Style::default();
         if selected {
-            style = style.bg(selected_bg).add_modifier(Modifier::BOLD);
+            style = selection_style();
         }
         let row_index = habit_lines.len();
-        habit_lines.push(Line::from(vec![
-            Span::styled(
-                if selected { "▶ " } else { "  " },
-                Style::default().fg(Color::Cyan),
-            ),
-            Span::styled(
-                if stats.checked_today { "✓ " } else { "○ " },
-                Style::default().fg(if stats.checked_today {
-                    Color::Green
-                } else {
-                    Color::Gray
-                }),
-            ),
-            Span::styled(
-                format!(
-                    "{} {}  🔥{} · {}",
-                    habit.icon,
-                    habit.title,
-                    stats.current_streak,
-                    weekly_label(*stats)
+        habit_lines.push(
+            Line::from(vec![
+                Span::styled(
+                    if selected { "▶ " } else { "  " },
+                    Style::default().fg(Color::Cyan),
                 ),
-                style,
-            ),
-        ]));
+                Span::styled(
+                    if stats.checked_today { "✓ " } else { "○ " },
+                    Style::default().fg(if stats.checked_today {
+                        Color::Green
+                    } else {
+                        Color::Gray
+                    }),
+                ),
+                Span::styled(
+                    format!(
+                        "{} {}  🔥{} · {}",
+                        habit.icon,
+                        habit.title,
+                        stats.current_streak,
+                        weekly_label(*stats)
+                    ),
+                    style,
+                ),
+            ])
+            .style(style),
+        );
         if let Some(rect) = list_row_rect(columns[1], row_index) {
             main.push_mouse_hit(rect, MouseAction::SelectTodayHabit(index));
         }
@@ -1108,9 +1120,7 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
         let is_selected = index == selected;
         let mut style = Style::default();
         if is_selected {
-            style = style
-                .bg(Color::Rgb(38, 45, 56))
-                .add_modifier(Modifier::BOLD);
+            style = selection_style();
         }
         let rate = if stat.total == 0 {
             0.0
@@ -1118,20 +1128,23 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
             stat.done as f64 / stat.total as f64 * 100.0
         };
         let header_row = lines.len();
-        lines.push(Line::from(vec![
-            Span::styled(
-                if is_selected { "▶ " } else { "  " },
-                Style::default().fg(Color::Cyan),
-            ),
-            Span::styled(
-                format!("{} {}  ", date.format("%m-%d"), weekday_label(*date)),
-                style,
-            ),
-            Span::styled(
-                format!("完成 {}/{}  {rate:.0}%", stat.done, stat.total),
-                Style::default().fg(Color::Green),
-            ),
-        ]));
+        lines.push(
+            Line::from(vec![
+                Span::styled(
+                    if is_selected { "▶ " } else { "  " },
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(
+                    format!("{} {}  ", date.format("%m-%d"), weekday_label(*date)),
+                    style,
+                ),
+                Span::styled(
+                    format!("完成 {}/{}  {rate:.0}%", stat.done, stat.total),
+                    Style::default().fg(Color::Green),
+                ),
+            ])
+            .style(style),
+        );
         if let Some(rect) = list_row_rect(area, header_row) {
             main.push_mouse_hit(rect, MouseAction::WeekSelect(index));
         }
@@ -1465,7 +1478,7 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
     for (index, habit) in habits.iter().enumerate().take(habit_end).skip(habit_start) {
         let stats = main.habit_stats(habit);
         let style = if index == main.selected_habit_index() {
-            Style::default().bg(Color::DarkGray)
+            selection_style()
         } else {
             Style::default()
         };
@@ -1706,9 +1719,7 @@ fn draw_members(frame: &mut Frame, main: &MainState, panel: &MemberPanel) {
     for (index, (label, shared, suffix)) in entries.iter().enumerate() {
         let selected = index == panel.selected;
         let style = if selected {
-            Style::default()
-                .bg(Color::Rgb(38, 45, 56))
-                .add_modifier(Modifier::BOLD)
+            selection_style()
         } else {
             Style::default()
         };
@@ -1770,7 +1781,7 @@ fn draw_invites(frame: &mut Frame, panel: &InvitePanel) {
     for (index, invite) in panel.invites.iter().enumerate() {
         let selected = index == panel.selected;
         let style = if selected {
-            Style::default().bg(Color::DarkGray)
+            selection_style()
         } else {
             Style::default()
         };
@@ -1786,28 +1797,31 @@ fn draw_invites(frame: &mut Frame, panel: &InvitePanel) {
                 .to_string(),
             None => "不过期".to_string(),
         };
-        lines.push(Line::from(vec![
-            Span::styled(
-                if selected { "▶ " } else { "  " },
-                Style::default().fg(Color::Cyan),
-            ),
-            Span::styled(
-                format!("{} ", invite.code),
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(
-                format!("{status} "),
-                Style::default().fg(if status == "有效" {
-                    Color::Green
-                } else {
-                    Color::Gray
-                }),
-            ),
-            Span::styled(
-                format!("已用 {uses} · {expires}"),
-                Style::default().fg(Color::DarkGray),
-            ),
-        ]));
+        lines.push(
+            Line::from(vec![
+                Span::styled(
+                    if selected { "▶ " } else { "  " },
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(
+                    format!("{} ", invite.code),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("{status} "),
+                    Style::default().fg(if status == "有效" {
+                        Color::Green
+                    } else {
+                        Color::Gray
+                    }),
+                ),
+                Span::styled(
+                    format!("已用 {uses} · {expires}"),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ])
+            .style(style),
+        );
         lines.push(Line::from(Span::styled(
             format!("    {} · {}", invite.note, invite.created_by),
             style.fg(Color::Gray),
@@ -1843,25 +1857,28 @@ fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {
     let mut lines: Vec<Line> = Vec::new();
     for (index, block) in blocks.iter().enumerate().take(end).skip(start) {
         let style = if index == panel.selected {
-            Style::default().bg(Color::DarkGray)
+            selection_style()
         } else {
             Style::default()
         };
         let time = block.start_time.as_deref().unwrap_or("--:--");
         let comments =
             main.unresolved_comment_count(totion_core::CommentTargetKind::Block, &block.id);
-        lines.push(Line::from(vec![
-            Span::styled(format!(" {time} "), Style::default().fg(Color::Cyan)),
-            Span::styled(
-                if block.checked { "✓ " } else { "○ " },
-                Style::default().fg(if block.checked {
-                    Color::Green
-                } else {
-                    Color::Gray
-                }),
-            ),
-            Span::styled(format!("{}{}", block.text, comment_suffix(comments)), style),
-        ]));
+        lines.push(
+            Line::from(vec![
+                Span::styled(format!(" {time} "), Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    if block.checked { "✓ " } else { "○ " },
+                    Style::default().fg(if block.checked {
+                        Color::Green
+                    } else {
+                        Color::Gray
+                    }),
+                ),
+                Span::styled(format!("{}{}", block.text, comment_suffix(comments)), style),
+            ])
+            .style(style),
+        );
     }
     if lines.is_empty() {
         lines.push(Line::from(Span::styled(
@@ -1907,45 +1924,48 @@ fn draw_inbox(frame: &mut Frame, area: Rect, main: &MainState) {
     for (index, comment) in comments.iter().enumerate() {
         let selected = index == main.selected_inbox_index();
         let style = if selected {
-            Style::default().bg(Color::DarkGray)
+            selection_style()
         } else {
             Style::default()
         };
         let target = main.comment_target_label(comment.target_kind, &comment.target_id);
         let mut block: Vec<Line> = Vec::new();
-        block.push(Line::from(vec![
-            Span::styled(
-                if selected { "▶ " } else { "  " },
-                Style::default().fg(Color::Cyan),
-            ),
-            Span::styled(
-                if comment.resolved {
-                    "[已解决] "
-                } else {
-                    "[未解决] "
-                },
-                Style::default().fg(if comment.resolved {
-                    Color::Green
-                } else {
-                    Color::Yellow
-                }),
-            ),
-            Span::styled(
-                format!("{} ", comment.author_name),
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(
-                format!(
-                    "{} ",
-                    comment
-                        .updated_at
-                        .with_timezone(&Local)
-                        .format("%m-%d %H:%M")
+        block.push(
+            Line::from(vec![
+                Span::styled(
+                    if selected { "▶ " } else { "  " },
+                    Style::default().fg(Color::Cyan),
                 ),
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::styled(target, Style::default().fg(Color::Cyan)),
-        ]));
+                Span::styled(
+                    if comment.resolved {
+                        "[已解决] "
+                    } else {
+                        "[未解决] "
+                    },
+                    Style::default().fg(if comment.resolved {
+                        Color::Green
+                    } else {
+                        Color::Yellow
+                    }),
+                ),
+                Span::styled(
+                    format!("{} ", comment.author_name),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(
+                        "{} ",
+                        comment
+                            .updated_at
+                            .with_timezone(&Local)
+                            .format("%m-%d %H:%M")
+                    ),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(target, Style::default().fg(Color::Cyan)),
+            ])
+            .style(style),
+        );
         for line in comment.body.lines() {
             block.push(Line::from(Span::styled(
                 format!("    {line}"),
@@ -2103,7 +2123,7 @@ fn draw_comments(frame: &mut Frame, main: &MainState, panel: &CommentPanel) {
     let mut lines: Vec<Line> = Vec::new();
     for (index, comment) in comments.iter().enumerate() {
         let style = if index == panel.selected {
-            Style::default().bg(Color::DarkGray)
+            selection_style()
         } else {
             Style::default()
         };
@@ -2128,7 +2148,7 @@ fn draw_comments(frame: &mut Frame, main: &MainState, panel: &CommentPanel) {
         lines.push(Line::from(Span::styled(
             body,
             if index == panel.selected {
-                Style::default().bg(Color::DarkGray)
+                selection_style()
             } else {
                 Style::default()
             },
@@ -2195,7 +2215,7 @@ fn draw_search(frame: &mut Frame, main: &MainState, state: &SearchState) {
     let (start, end) = window_range(state.results.len(), state.selected, budget);
     for (index, hit) in state.results.iter().enumerate().take(end).skip(start) {
         let style = if index == state.selected {
-            Style::default().bg(Color::DarkGray)
+            selection_style()
         } else {
             Style::default()
         };
@@ -2210,7 +2230,7 @@ fn draw_search(frame: &mut Frame, main: &MainState, state: &SearchState) {
             &state.query,
             style,
         ));
-        lines.push(Line::from(spans));
+        lines.push(Line::from(spans).style(style));
     }
     if state.results.is_empty() && !state.query.is_empty() {
         lines.push(Line::from(Span::styled(
