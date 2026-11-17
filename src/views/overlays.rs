@@ -19,7 +19,7 @@ pub fn draw(app: &mut App, ctx: &egui::Context) {
 
 fn window_frame() -> egui::Frame {
     egui::Frame::new()
-        .fill(Color32::from_rgb(15, 21, 31))
+        .fill(Color32::from_rgb(252, 250, 246))
         .stroke(egui::Stroke::new(1.0, LINE))
         .corner_radius(egui::CornerRadius::same(16))
         .inner_margin(egui::Margin::same(20))

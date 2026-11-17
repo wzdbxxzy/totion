@@ -536,13 +536,13 @@ impl App {
         painter.rect_filled(
             rect,
             0.0,
-            Color32::from_rgba_unmultiplied(12, 10, 10, 120),
+            Color32::from_rgba_unmultiplied(252, 250, 247, 96),
         );
         // 左边缘一条细线，给面板一个边界。
         painter.vline(
             rect.left() + 0.5,
             rect.y_range(),
-            egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 26)),
+            egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(0, 0, 0, 30)),
         );
     }
 }

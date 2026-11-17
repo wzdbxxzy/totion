@@ -9,23 +9,23 @@ use eframe::egui::{
 };
 
 pub const BG: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 0);
-pub const SIDEBAR: Color32 = Color32::from_rgba_premultiplied(3, 2, 3, 70);
-pub const CARD: Color32 = Color32::from_rgba_premultiplied(19, 17, 16, 184);
-pub const CARD_HI: Color32 = Color32::from_rgba_premultiplied(31, 28, 26, 208);
-pub const FIELD: Color32 = Color32::from_rgba_premultiplied(11, 10, 10, 176);
+pub const SIDEBAR: Color32 = Color32::from_rgba_premultiplied(72, 72, 72, 72);
+pub const CARD: Color32 = Color32::from_rgba_premultiplied(172, 170, 167, 172);
+pub const CARD_HI: Color32 = Color32::from_rgba_premultiplied(205, 205, 205, 205);
+pub const FIELD: Color32 = Color32::from_rgba_premultiplied(160, 160, 160, 160);
 
-pub const LINE: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 18);
-pub const LINE_SOFT: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 10);
+pub const LINE: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 26);
+pub const LINE_SOFT: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 14);
 
-pub const TEXT: Color32 = Color32::from_rgb(246, 242, 236);
-pub const TEXT_DIM: Color32 = Color32::from_rgb(206, 198, 190);
-pub const TEXT_MUTED: Color32 = Color32::from_rgb(150, 141, 133);
+pub const TEXT: Color32 = Color32::from_rgb(28, 25, 22);
+pub const TEXT_DIM: Color32 = Color32::from_rgb(78, 71, 64);
+pub const TEXT_MUTED: Color32 = Color32::from_rgb(116, 107, 98);
 
-pub const ACCENT: Color32 = Color32::from_rgb(216, 181, 140);
-pub const ACCENT_SOFT: Color32 = Color32::from_rgba_premultiplied(31, 26, 20, 44);
-pub const OK: Color32 = Color32::from_rgb(111, 194, 154);
-pub const WARN: Color32 = Color32::from_rgb(224, 168, 99);
-pub const DANGER: Color32 = Color32::from_rgb(217, 122, 112);
+pub const ACCENT: Color32 = Color32::from_rgb(139, 100, 58);
+pub const ACCENT_SOFT: Color32 = Color32::from_rgba_premultiplied(26, 19, 11, 48);
+pub const OK: Color32 = Color32::from_rgb(56, 128, 86);
+pub const WARN: Color32 = Color32::from_rgb(164, 106, 30);
+pub const DANGER: Color32 = Color32::from_rgb(176, 62, 52);
 
 pub const RADIUS: u8 = 14;
 
@@ -109,10 +109,21 @@ pub fn apply(ctx: &egui::Context) {
     style.visuals.widgets.hovered.bg_fill = CARD_HI;
     style.visuals.widgets.hovered.weak_bg_fill = CARD_HI;
     style.visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, LINE);
-    style.visuals.widgets.active.bg_fill = ACCENT_SOFT;
-    style.visuals.widgets.active.weak_bg_fill = ACCENT_SOFT;
-    style.visuals.selection.bg_fill = ACCENT_SOFT;
-    style.visuals.selection.stroke = Stroke::new(1.0, ACCENT);
+    let warm = Color32::from_rgba_premultiplied(26, 19, 11, 64);
+    style.visuals.widgets.active.bg_fill = warm;
+    style.visuals.widgets.active.weak_bg_fill = warm;
+    style.visuals.selection.bg_fill = warm;
+    style.visuals.selection.stroke = Stroke::new(1.0_f32, TEXT);
+    style.visuals.hyperlink_color = ACCENT;
+    for widget in [
+        &mut style.visuals.widgets.noninteractive,
+        &mut style.visuals.widgets.inactive,
+        &mut style.visuals.widgets.hovered,
+        &mut style.visuals.widgets.active,
+        &mut style.visuals.widgets.open,
+    ] {
+        widget.fg_stroke = Stroke::new(1.0_f32, TEXT);
+    }
     style.visuals.window_corner_radius = CornerRadius::same(RADIUS);
     style.spacing.item_spacing = Vec2::new(10.0, 10.0);
     style.spacing.button_padding = Vec2::new(12.0, 7.0);
@@ -146,7 +157,7 @@ pub fn card_frame() -> egui::Frame {
             offset: [0, 4],
             blur: 18,
             spread: 0,
-            color: Color32::from_black_alpha(70),
+            color: Color32::from_black_alpha(40),
         })
 }
 
