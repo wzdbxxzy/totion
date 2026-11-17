@@ -1533,9 +1533,12 @@ impl MainState {
             return;
         }
         let was_today = self.view_date == self.today;
+        let calendar_was_today = self.selected_day == self.today;
         self.today = now;
-        self.calendar_month = now.with_day(1).unwrap_or(now);
-        self.selected_day = now;
+        if calendar_was_today {
+            self.selected_day = now;
+            self.calendar_month = now.with_day(1).unwrap_or(now);
+        }
         if was_today {
             self.view_date = now;
             if self.week_mode {

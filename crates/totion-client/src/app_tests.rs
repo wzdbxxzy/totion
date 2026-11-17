@@ -1448,6 +1448,35 @@ fn midnight_rolls_today_view_forward() {
     }
     assert_eq!(harness.state().week_end(), today, "周视图窗口应跟到新一天");
     assert_eq!(harness.state().week_selected(), 6);
+
+    {
+        let state = harness.state_mut();
+        state.today = yesterday;
+        state.view_date = yesterday;
+        state.selected_day = yesterday;
+        state.calendar_month = yesterday.with_day(1).unwrap_or(yesterday);
+        state.roll_day(today);
+    }
+    assert_eq!(
+        harness.state().selected_day(),
+        today,
+        "日历选中今天时应跟到新一天"
+    );
+
+    let browsing = yesterday - ChronoDuration::days(40);
+    {
+        let state = harness.state_mut();
+        state.today = yesterday;
+        state.view_date = browsing;
+        state.selected_day = browsing;
+        state.calendar_month = browsing.with_day(1).unwrap_or(browsing);
+        state.roll_day(today);
+    }
+    assert_eq!(
+        harness.state().selected_day(),
+        browsing,
+        "日历在看别的日期时不应被拉走"
+    );
 }
 
 #[test]
