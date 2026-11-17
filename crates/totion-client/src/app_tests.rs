@@ -540,6 +540,30 @@ fn g_jumps_calendar_back_to_today() {
 }
 
 #[test]
+fn checkbox_hit_area_sits_on_the_toggle_marker() {
+    let mut harness = Harness::new();
+    harness.render(120, 30);
+    let row = harness.action_rect(MouseAction::SelectTodayItem(0));
+    let checkbox = harness.action_rect(MouseAction::ToggleTodayItem(0));
+    assert_eq!(checkbox.x, row.x + 8);
+    assert_eq!(checkbox.y, row.y);
+    assert_eq!(checkbox.width, 2);
+}
+
+#[test]
+fn checkbox_click_is_blocked_in_member_view() {
+    let mut harness = Harness::new();
+    harness.state_mut().apply_member_view(2);
+    harness.render(120, 30);
+    harness.click_action(MouseAction::ToggleTodayItem(0));
+    assert!(
+        harness.state().status.contains("只能评论"),
+        "只读视角应拦下勾选，实际状态: {}",
+        harness.state().status
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

@@ -918,6 +918,14 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
             );
             if let Some(rect) = list_row_rect(columns[0], row_index) {
                 main.push_mouse_hit(rect, MouseAction::SelectTodayItem(index));
+                // 点击 ✓/○ 直接勾选：▶ + 时间 占 8 格。
+                let checkbox = Rect {
+                    x: rect.x.saturating_add(8),
+                    y: rect.y,
+                    width: 2,
+                    height: 1,
+                };
+                main.push_mouse_hit(checkbox, MouseAction::ToggleTodayItem(index));
             }
         }
     }
@@ -987,6 +995,13 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
         );
         if let Some(rect) = list_row_rect(columns[1], row_index) {
             main.push_mouse_hit(rect, MouseAction::SelectTodayHabit(index));
+            let checkbox = Rect {
+                x: rect.x.saturating_add(2),
+                y: rect.y,
+                width: 2,
+                height: 1,
+            };
+            main.push_mouse_hit(checkbox, MouseAction::ToggleTodayHabit(index));
         }
     }
     if habit_lines.is_empty() {

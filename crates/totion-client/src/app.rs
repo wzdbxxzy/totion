@@ -249,6 +249,8 @@ pub enum MouseAction {
     FocusToday(TodayFocus),
     SelectTodayItem(usize),
     SelectTodayHabit(usize),
+    ToggleTodayItem(usize),
+    ToggleTodayHabit(usize),
     SelectPage(usize),
     SelectBlock(usize),
     SelectHabit(usize),
@@ -3123,6 +3125,18 @@ impl MainState {
                 self.today_focus = TodayFocus::Habits;
                 self.selected_today_habit_index = index;
                 self.clamp();
+            }
+            MouseAction::ToggleTodayItem(index) => {
+                self.today_focus = TodayFocus::Items;
+                self.selected_today_index = index;
+                self.clamp();
+                self.toggle_today_item();
+            }
+            MouseAction::ToggleTodayHabit(index) => {
+                self.today_focus = TodayFocus::Habits;
+                self.selected_today_habit_index = index;
+                self.clamp();
+                self.toggle_today_item();
             }
             MouseAction::SelectPage(index) => {
                 self.focus = Focus::Pages;
