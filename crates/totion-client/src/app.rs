@@ -628,6 +628,8 @@ pub struct MainState {
     ensured_date: Option<String>,
     daily_page_id: Option<String>,
     show_all_pages: bool,
+    /// 习惯界面是否同时列出已归档习惯。
+    show_archived_habits: bool,
     workspace_journal_mode: bool,
     selected_journal_index: usize,
     range_anchor: Option<NaiveDate>,
@@ -686,6 +688,7 @@ impl MainState {
             ensured_date: None,
             daily_page_id: None,
             show_all_pages: false,
+            show_archived_habits: false,
             workspace_journal_mode: false,
             selected_journal_index: 0,
             range_anchor: None,
@@ -873,6 +876,10 @@ impl MainState {
         self.show_all_pages
     }
 
+    pub fn show_archived_habits(&self) -> bool {
+        self.show_archived_habits
+    }
+
     pub fn range_is_active(&self) -> bool {
         self.range_anchor.is_some()
     }
@@ -951,6 +958,22 @@ impl MainState {
             .iter()
             .filter(|habit| {
                 !habit.deleted && !habit.archived && self.owner_visible(&habit.owner_id)
+            })
+            .cloned()
+            .collect();
+        habits.sort_by_key(|habit| (habit.position, habit.created_at));
+        habits
+    }
+
+    /// 习惯界面用的列表：开启「查看归档」时包含已归档习惯。
+    pub fn habits_list(&self) -> Vec<Habit> {
+        let mut habits: Vec<Habit> = self
+            .habits
+            .iter()
+            .filter(|habit| {
+                !habit.deleted
+                    && (self.show_archived_habits || !habit.archived)
+                    && self.owner_visible(&habit.owner_id)
             })
             .cloned()
             .collect();
@@ -1404,7 +1427,7 @@ impl MainState {
         } else {
             self.selected_today_habit_index.min(today_habit_count - 1)
         };
-        let habit_count = self.visible_habits().len();
+        let habit_count = self.habits_list().len();
         self.selected_habit_index = if habit_count == 0 {
             0
         } else {
@@ -2024,11 +2047,21 @@ impl MainState {
             KeyCode::Char('n') => self.open_habit_form(self.today_key(), None),
             KeyCode::Char('g') => self.selected_habit_index = 0,
             KeyCode::Char('G') => {
-                let count = self.visible_habits().len();
+                let count = self.habits_list().len();
                 if count > 0 {
                     self.selected_habit_index = count - 1;
                 }
             }
+            KeyCode::Char('A') => {
+                self.show_archived_habits = !self.show_archived_habits;
+                self.clamp();
+                self.status = if self.show_archived_habits {
+                    "已显示归档习惯，按 R 恢复选中项".to_string()
+                } else {
+                    "已隐藏归档习惯".to_string()
+                };
+            }
+            KeyCode::Char('R') => self.restore_selected_habit(),
             _ => {}
         }
     }
@@ -2178,7 +2211,7 @@ impl MainState {
     }
 
     fn move_habit(&mut self, delta: i64) {
-        let count = self.visible_habits().len();
+        let count = self.habits_list().len();
         if count > 0 {
             let next = self.selected_habit_index as i64 + delta;
             self.selected_habit_index = next.clamp(0, count as i64 - 1) as usize;
@@ -2275,7 +2308,7 @@ impl MainState {
         if !self.ensure_writable() {
             return;
         }
-        let habits = self.visible_habits();
+        let habits = self.habits_list();
         if let Some(habit) = habits.get(self.selected_habit_index) {
             self.editing = Some(Editing {
                 target: EditTarget::HabitTitle {
@@ -2802,8 +2835,12 @@ impl MainState {
         if !self.ensure_writable() {
             return;
         }
-        let habits = self.visible_habits();
+        let habits = self.habits_list();
         if let Some(habit) = habits.get(self.selected_habit_index) {
+            if habit.archived {
+                self.status = "已归档的习惯不能打卡".to_string();
+                return;
+            }
             self.check_in(habit);
         }
     }
@@ -2842,7 +2879,7 @@ impl MainState {
         if !self.ensure_writable() {
             return;
         }
-        let habits = self.visible_habits();
+        let habits = self.habits_list();
         if let Some(habit) = habits.get(self.selected_habit_index) {
             self.undo_checkin(habit);
         }
@@ -3008,12 +3045,47 @@ impl MainState {
         }
     }
 
+    fn restore_selected_habit(&mut self) {
+        if !self.ensure_writable() {
+            return;
+        }
+        let habits = self.habits_list();
+        let Some(habit) = habits.get(self.selected_habit_index) else {
+            return;
+        };
+        if !habit.archived {
+            self.status = "该习惯没有归档".to_string();
+            return;
+        }
+        let title = habit.title.clone();
+        let ok = self.update_habit(
+            &habit.id,
+            UpdateHabitRequest {
+                expected_version: habit.version,
+                title: None,
+                icon: None,
+                note: None,
+                frequency: None,
+                position: None,
+                archived: Some(false),
+                deleted: None,
+            },
+        );
+        if ok {
+            self.status = format!("已恢复习惯「{title}」");
+        }
+    }
+
     fn delete_selected_habit(&mut self) {
         if !self.ensure_writable() {
             return;
         }
-        let habits = self.visible_habits();
+        let habits = self.habits_list();
         if let Some(habit) = habits.get(self.selected_habit_index) {
+            if habit.archived {
+                self.status = "该习惯已经归档".to_string();
+                return;
+            }
             self.request_delete(PendingDelete::Habit {
                 id: habit.id.clone(),
                 version: habit.version,

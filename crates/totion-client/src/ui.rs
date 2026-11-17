@@ -463,7 +463,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
                 " h/l 选日 · j/k 前后周 · [ ] 换月 · Enter/双击 议程 · v 框选 · t 新建/批量待办"
             }
             View::Habits => {
-                " n 新建习惯 · j/k 选择 · Space 打卡/取消 · u 撤销 · e 改名称 · d 删除 · C 评论 · q 退出"
+                " n 新建 · Space 打卡/取消 · u 撤销 · e 改名 · d 归档 · A 归档列表 · R 恢复 · C 评论"
             }
             View::Stats => " h/l 切换 7/14/30/90 天窗口 · q 退出",
             View::Inbox => {
@@ -1634,7 +1634,7 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
         .constraints([Constraint::Percentage(36), Constraint::Percentage(64)])
         .split(area);
 
-    let habits = main.visible_habits();
+    let habits = main.habits_list();
     let list_height = columns[0].height.saturating_sub(2) as usize;
     let (habit_start, habit_end) =
         window_range(habits.len(), main.selected_habit_index(), list_height);
@@ -1649,10 +1649,11 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
         let mark = if stats.checked_today { "[x]" } else { "[ ]" };
         let comments =
             main.unresolved_comment_count(totion_core::CommentTargetKind::Habit, &habit.id);
+        let archived = if habit.archived { "  · 已归档" } else { "" };
         let row_index = lines.len();
         lines.push(Line::from(Span::styled(
             format!(
-                " {mark} {} {}  🔥{} {}{}",
+                " {mark} {} {}  🔥{} {}{}{archived}",
                 habit.icon,
                 habit.title,
                 stats.current_streak,
@@ -1673,6 +1674,8 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
     }
     let list_title = if list_height > 0 && habits.len() > list_height {
         format!(" 习惯 {}-{}/{} ", habit_start + 1, habit_end, habits.len())
+    } else if main.show_archived_habits() {
+        " 习惯 · 含归档 ".to_string()
     } else {
         " 习惯 ".to_string()
     };
@@ -2535,7 +2538,7 @@ fn draw_help(frame: &mut Frame, panel: &HelpPanel) {
             " 习惯",
             Style::default().add_modifier(Modifier::BOLD),
         )),
-        Line::from(" n 新建   Space 打卡/取消   u 撤销   e 改名称   d 删除"),
+        Line::from(" n 新建   Space 打卡/取消   u 撤销   e 改名   d 归档   A 归档列表 / R 恢复"),
         Line::from(""),
         Line::from(Span::styled(
             " 留言 / 评论",

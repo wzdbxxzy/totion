@@ -1250,6 +1250,52 @@ fn week_view_footer_shows_week_totals() {
 }
 
 #[test]
+fn habits_view_can_show_archived_and_block_checkin() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        state.habits.push(Habit {
+            id: "h2".to_string(),
+            title: "旧习惯".to_string(),
+            icon: "🌱".to_string(),
+            note: String::new(),
+            frequency: HabitFrequency::Daily,
+            position: 1,
+            archived: true,
+            version: 1,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            updated_by: "Guan".to_string(),
+            deleted: false,
+            owner_id: "u1".to_string(),
+        });
+        state.set_view(View::Habits);
+        state.clamp();
+    }
+    assert_eq!(harness.state().habits_list().len(), 1);
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('A'), KeyModifiers::NONE));
+    assert!(harness.state().show_archived_habits());
+    assert_eq!(harness.state().habits_list().len(), 2);
+
+    harness.state_mut().selected_habit_index = 1;
+    harness.state_mut().check_in_selected_habit();
+    assert!(
+        harness.state().status.contains("不能打卡"),
+        "已归档习惯不应能打卡，实际: {}",
+        harness.state().status
+    );
+    harness.render(120, 24);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("已归档"),
+        "列表应标记已归档习惯: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
