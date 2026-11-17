@@ -383,3 +383,43 @@ pub fn clear_appwindow(hwnd: isize) {
         SetWindowLongW(window, GWL_EXSTYLE, ex as i32);
     }
 }
+
+/// 工作区（不含任务栏）在屏幕坐标系里的位置与大小。
+pub fn work_area() -> (i32, i32, i32, i32) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SystemParametersInfoW, SPI_GETWORKAREA};
+    unsafe {
+        let mut rect: RECT = std::mem::zeroed();
+        let ok = SystemParametersInfoW(
+            SPI_GETWORKAREA,
+            0,
+            &mut rect as *mut RECT as *mut std::ffi::c_void,
+            0,
+        );
+        if ok == 0 {
+            let (w, h) = screen_size();
+            return (0, 0, w, h);
+        }
+        (
+            rect.left,
+            rect.top,
+            rect.right - rect.left,
+            rect.bottom - rect.top,
+        )
+    }
+}
+
+/// 把窗口放到工作区右半，避开任务栏，保证上下留白对称。
+pub fn place_right_half_workarea(hwnd: isize) {
+    let (ax, ay, aw, ah) = work_area();
+    unsafe {
+        SetWindowPos(
+            hwnd as HWND,
+            HWND_TOP,
+            ax + aw / 2,
+            ay,
+            aw - aw / 2,
+            ah,
+            0,
+        );
+    }
+}

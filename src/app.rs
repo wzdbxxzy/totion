@@ -484,7 +484,7 @@ impl App {
         };
         self.hwnd = Some(hwnd);
         crate::desktop::log_line(&format!("setup: hwnd={hwnd}"));
-        crate::desktop::place_right_half(hwnd);
+        crate::desktop::place_right_half_workarea(hwnd);
         crate::desktop::log_line("setup: placed");
         let rect = crate::desktop::window_rect(hwnd);
         crate::desktop::log_line("setup: loading wallpaper");
@@ -550,6 +550,11 @@ impl App {
 }
 
 impl eframe::App for App {
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        // 窗口底色必须全透明，否则页边距会露出一层底色。
+        egui::Rgba::TRANSPARENT.to_array()
+    }
+
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.setup_desktop(ctx, frame);
         if !self.logged && self.started.elapsed().as_secs() >= 3 {
