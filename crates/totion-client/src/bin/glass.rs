@@ -17,6 +17,11 @@ fn main() {
 
 #[cfg(windows)]
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 3 && args[1] == "--wallpaper" {
+        imp::set_wallpaper(&args[2]);
+        return;
+    }
     imp::run();
 }
 
@@ -47,15 +52,15 @@ mod imp {
         WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE,
     };
 
-    const WIDTH: i32 = 460;
-    const HEIGHT: i32 = 330;
-    const PADDING: i32 = 22;
-    const RADIUS: i32 = 22;
+    const WIDTH: i32 = 380;
+    const HEIGHT: i32 = 236;
+    const PADDING: i32 = 20;
+    const RADIUS: i32 = 18;
     const TIMER_REFRESH: usize = 1;
 
     // 背景与文字颜色（ARGB / COLORREF 0x00BBGGRR）。
     const BG_RGB: u32 = 0x001D_1612; // #12161D
-    const BG_ALPHA: u32 = 208;
+    const BG_ALPHA: u32 = 150;
     const BORDER_RGB: u32 = 0x0050_4438; // #384450
 
     thread_local! {
@@ -135,6 +140,25 @@ mod imp {
             while GetMessageW(&mut message, ptr::null_mut(), 0, 0) > 0 {
                 TranslateMessage(&message);
                 DispatchMessageW(&message);
+            }
+        }
+    }
+
+    pub fn set_wallpaper(path: &str) -> bool {
+        unsafe {
+            let value = wide(path);
+            let ok = SystemParametersInfoW(
+                0x0014, // SPI_SETDESKWALLPAPER
+                0,
+                value.as_ptr() as *mut c_void,
+                0x01 | 0x02, // SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+            );
+            if ok == 0 {
+                eprintln!("设置壁纸失败，请确认文件路径存在且为 jpg/png/bmp");
+                false
+            } else {
+                println!("壁纸已设置为: {path}");
+                true
             }
         }
     }
@@ -240,9 +264,9 @@ mod imp {
         SelectObject(mem, bitmap);
         CANVAS.with(|value| value.set((mem as isize, bitmap as isize, bits as isize)));
 
-        let title = create_font(-24, FW_BOLD, "Microsoft YaHei UI");
-        let body = create_font(-16, FW_NORMAL, "Microsoft YaHei UI");
-        let small = create_font(-13, FW_NORMAL, "Microsoft YaHei UI");
+        let title = create_font(-20, FW_BOLD, "Microsoft YaHei UI");
+        let body = create_font(-14, FW_NORMAL, "Microsoft YaHei UI");
+        let small = create_font(-11, FW_NORMAL, "Microsoft YaHei UI");
         FONT_TITLE.with(|value| value.set(title as isize));
         FONT_BODY.with(|value| value.set(body as isize));
         FONT_SMALL.with(|value| value.set(small as isize));
@@ -330,7 +354,7 @@ mod imp {
                     && x as i32 >= 2
                     && y as i32 >= 2;
                 if outer && !inner {
-                    *bits.add(y * width + x) = (150u32 << 24) | BORDER_RGB;
+                    *bits.add(y * width + x) = (60u32 << 24) | BORDER_RGB;
                 }
             }
         }
@@ -341,14 +365,15 @@ mod imp {
         let snapshot = SNAPSHOT.with(|value| value.borrow().clone());
         let error = ERROR.with(|value| value.borrow().clone());
 
-        text(mem, "totion", PADDING, PADDING, 0x00F0_F0F0, &FONT_TITLE);
+        // 极简：小号 wordmark + 日期
+        text(mem, "totion", PADDING, PADDING, 0x0090_8878, &FONT_SMALL);
         text(
             mem,
-            &format!("{} {}", today.format("%Y-%m-%d"), weekday_label(today)),
+            &format!("{} {}", today.format("%m-%d"), weekday_label(today)),
+            WIDTH - PADDING - 80,
             PADDING,
-            PADDING + 34,
-            0x00B0_A8A0,
-            &FONT_BODY,
+            0x00B6_ADA6,
+            &FONT_SMALL,
         );
 
         if let Some(snapshot) = snapshot {
@@ -362,32 +387,40 @@ mod imp {
             };
             text(
                 mem,
-                &format!("{done}/{total}  {:.0}%", rate * 100.0),
+                &format!("{done}/{total}"),
                 PADDING,
-                PADDING + 62,
-                0x00F0_F0F0,
+                PADDING + 12,
+                0x00F5_F0EC,
+                &FONT_TITLE,
+            );
+            text(
+                mem,
+                &format!("{:.0}%", rate * 100.0),
+                PADDING + 74,
+                PADDING + 18,
+                0x00B6_ADA6,
                 &FONT_BODY,
             );
             bar(
                 mem,
-                PADDING + 100,
-                PADDING + 68,
-                WIDTH - PADDING * 2 - 100,
-                10,
+                PADDING + 124,
+                PADDING + 34,
+                WIDTH - PADDING * 2 - 124,
+                4,
                 rate,
             );
 
-            // 最多显示 5 条：5 * 26px 不会压到底部的习惯/提示行。
-            let mut y = PADDING + 96;
+            // 最多 4 条，留出底部习惯与提示行。
+            let mut y = PADDING + 58;
             if todos.is_empty() {
-                text(mem, "今天没有待办", PADDING, y, 0x00B0_A8A0, &FONT_BODY);
+                text(mem, "今天没有待办", PADDING, y, 0x00B6_ADA6, &FONT_BODY);
             } else {
-                for block in todos.iter().take(5) {
+                for block in todos.iter().take(4) {
                     let mark = if block.checked { "✓" } else { "○" };
                     let color = if block.checked {
-                        0x0050_B93F
+                        0x00E8_D8C8
                     } else {
-                        0x00B0_A8A0
+                        0x008E_8680
                     };
                     text(mem, mark, PADDING, y, color, &FONT_BODY);
                     let title = format!(
@@ -402,20 +435,20 @@ mod imp {
                     text(
                         mem,
                         &truncate(&title, 30),
-                        PADDING + 22,
+                        PADDING + 18,
                         y,
-                        0x00F0_F0F0,
+                        0x00F5_F0EC,
                         &FONT_BODY,
                     );
-                    y += 26;
+                    y += 24;
                 }
-                if todos.len() > 8 {
+                if todos.len() > 4 {
                     text(
                         mem,
-                        &format!("还有 {} 条…", todos.len() - 5),
-                        PADDING + 22,
+                        &format!("还有 {} 条…", todos.len() - 4),
+                        PADDING + 18,
                         y,
-                        0x00B0_A8A0,
+                        0x008E_8680,
                         &FONT_SMALL,
                     );
                 }
@@ -426,8 +459,8 @@ mod imp {
                 mem,
                 &format!("习惯 {checked_habits}/{total_habits} 已打卡"),
                 PADDING,
-                HEIGHT - 52,
-                0x00D8_D039,
+                HEIGHT - 42,
+                0x00E8_D8C8,
                 &FONT_SMALL,
             );
         } else {
@@ -436,8 +469,8 @@ mod imp {
                 mem,
                 &truncate(&message, 30),
                 PADDING,
-                PADDING + 80,
-                0x00B0_A8A0,
+                PADDING + 58,
+                0x00B6_ADA6,
                 &FONT_BODY,
             );
         }
@@ -445,8 +478,8 @@ mod imp {
             mem,
             "拖动移动 · 双击刷新 · 右键退出",
             PADDING,
-            HEIGHT - 28,
-            0x0090_8878,
+            HEIGHT - 22,
+            0x008E_8680,
             &FONT_SMALL,
         );
 
@@ -584,7 +617,7 @@ mod imp {
     }
 
     unsafe fn bar(hdc: HDC, x: i32, y: i32, width: i32, height: i32, rate: f64) {
-        let track = CreateSolidBrush(0x0030_2A24);
+        let track = CreateSolidBrush(0x0040_3A34);
         let old = SelectObject(hdc, track);
         RoundRect(hdc, x, y, x + width, y + height, height, height);
         SelectObject(hdc, old);
@@ -592,7 +625,7 @@ mod imp {
 
         let filled = (width as f64 * rate.clamp(0.0, 1.0)) as i32;
         if filled > 0 {
-            let brush = CreateSolidBrush(0x00D8_D039);
+            let brush = CreateSolidBrush(0x00E8_D8C8);
             let old = SelectObject(hdc, brush);
             RoundRect(
                 hdc,

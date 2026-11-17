@@ -296,6 +296,8 @@ cargo run --release -p totion-client --bin totion-glass
 
 - 复用客户端已经保存的身份（`%APPDATA%\totion\identity.json`），第一次需要先运行 `totion` 连接服务器。v0.12 起 Windows 的 Release 压缩包里也会带 `totion-glass.exe`，可以不解压源码直接双击。
 - 默认出现在桌面右下角，不抢焦点；左键拖动移动，双击刷新，右键退出，每 60 秒自动刷新一次。
+- 极简样式：380×236、深色半透明（约 59% 不透明度）、最多 4 条待办，超出显示「还有 N 条…」。
+- 内置壁纸命令（jpg / png / bmp）：`totion-glass --wallpaper "D:\壁纸\wallpaper.jpg"`。
 - 卡片用分层窗口的 32 位 ARGB 画布绘制，桌面会透过半透明背景显示；真正的 Acrylic 模糊需要 DWM composition，这一版先用半透明深色模拟，效果稳定后再考虑升级。
 - 仅 Windows 可用；macOS / Linux 上运行会提示不支持。
 - 本机没有 MSVC 时，把命令开头的 `cargo` 换成 README「开发」一节里的 GNU 工具链写法。
