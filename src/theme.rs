@@ -360,7 +360,8 @@ pub fn flat_frame() -> egui::Frame {
 
 /// 小标签（V4 / 只读 / 已归档 之类）。
 pub fn pill(ui: &mut egui::Ui, label: &str, color: Color32) {
-    let bg = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 34);
+    // 标签只用文字着色，底色保持中性，避免出现一块块黄/绿色块。
+    let bg = card_hi();
     egui::Frame::new()
         .fill(bg)
         .corner_radius(CornerRadius::same(6))

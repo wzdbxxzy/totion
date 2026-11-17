@@ -424,15 +424,15 @@ fn block_row(app: &mut App, ui: &mut egui::Ui, block: &Block) {
                 });
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    ui.spacing_mut().item_spacing.x = 3.0;
+                    ui.spacing_mut().item_spacing.x = 14.0;
                     if was_hovered {
                         if action_button(ui, "删除", danger()) {
                             delete = true;
                         }
-                        if action_button(ui, "留言", text_dim()) {
+                        if action_button(ui, "留言", text_muted()) {
                             comment = true;
                         }
-                        if action_button(ui, "编辑", text_dim()) {
+                        if action_button(ui, "编辑", text_muted()) {
                             edit = true;
                         }
                     } else {
