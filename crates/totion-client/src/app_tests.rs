@@ -1555,6 +1555,29 @@ fn panel_nav_uses_quiet_marker_instead_of_chip() {
 }
 
 #[test]
+fn panel_mode_draws_hairline_rules_instead_of_boxes() {
+    let mut harness = Harness::new();
+    harness.render_panel(100, 30);
+    let buffer = harness.buffer.as_ref().expect("buffer");
+    let mut rules = 0;
+    for row in 2..26 {
+        let line = buffer_line(buffer, row);
+        rules += line.matches('─').count();
+        assert!(
+            !line.contains('╭') && !line.contains('╰'),
+            "面板模式不应出现圆角边框（第 {row} 行）: {line}"
+        );
+    }
+    assert!(rules > 20, "面板模式应有分组细线: {rules}");
+
+    harness.render(120, 30);
+    let text: String = (0..30)
+        .map(|row| buffer_line(harness.buffer.as_ref().expect("buffer"), row))
+        .collect();
+    assert!(text.contains('╭'), "终端版应保留圆角边框");
+}
+
+#[test]
 fn narrow_nav_drops_actions_instead_of_clipping() {
     let mut harness = Harness::new();
     harness.render(70, 20);

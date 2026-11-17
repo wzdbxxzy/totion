@@ -25,6 +25,7 @@ pub(crate) fn selection_style() -> Style {
 }
 
 pub fn draw(frame: &mut Frame, app: &App) {
+    PANEL_MODE.with(|value| value.set(false));
     match &app.screen {
         Screen::Setup(form) => draw_setup(frame, form),
         Screen::Main(main) => draw_main(frame, main, false),
@@ -34,10 +35,20 @@ pub fn draw(frame: &mut Frame, app: &App) {
 /// 桌面面板模式：去掉顶部高亮的标题条，只保留导航和内容，减少大面积色块。
 #[allow(dead_code)]
 pub fn draw_panel(frame: &mut Frame, app: &App) {
+    PANEL_MODE.with(|value| value.set(true));
     match &app.screen {
         Screen::Setup(form) => draw_setup(frame, form),
         Screen::Main(main) => draw_main(frame, main, true),
     }
+}
+
+thread_local! {
+    /// 当前这一帧是不是桌面面板（决定用更轻的分隔线代替终端味边框）。
+    static PANEL_MODE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn panel_mode() -> bool {
+    PANEL_MODE.with(|value| value.get())
 }
 
 fn draw_setup(frame: &mut Frame, form: &SetupForm) {
@@ -351,16 +362,30 @@ impl<'a> HitLine<'a> {
     }
 }
 
-/// 列表/内容区里第 `row` 行的可点击区域（相对内边距，跳过圆角边框）。
+/// 分组框当前占用的内边距（列, 行）：终端版是四面圆角框，面板版只有顶部细线。
+fn block_inset() -> (u16, u16) {
+    if panel_mode() {
+        (0, 1)
+    } else {
+        (1, 1)
+    }
+}
+
+fn block_inner_height(area: Rect) -> usize {
+    area.height.saturating_sub(block_inset().1) as usize
+}
+
+/// 列表/内容区里第 `row` 行的可点击区域（相对内边距，跳过边框）。
 fn list_row_rect(area: Rect, row: usize) -> Option<Rect> {
-    let height = area.height.saturating_sub(2);
+    let (inset_x, inset_y) = block_inset();
+    let height = area.height.saturating_sub(inset_y);
     if row as u16 >= height {
         return None;
     }
     Some(Rect {
-        x: area.x.saturating_add(1),
-        y: area.y.saturating_add(1 + row as u16),
-        width: area.width.saturating_sub(2),
+        x: area.x.saturating_add(inset_x),
+        y: area.y.saturating_add(inset_y + row as u16),
+        width: area.width.saturating_sub(inset_x * 2),
         height: 1,
     })
 }
@@ -380,13 +405,35 @@ fn modal_block(title: impl Into<String>) -> Block<'static> {
         ))
 }
 
+/// 面板模式下的分组：只留一条顶部细线 + 标题，不再画整圈终端边框。
+const PANEL_RULE: Color = Color::Rgb(88, 80, 72);
+
+fn panel_block(title: String, focused: bool) -> Block<'static> {
+    let (rule, text) = if focused {
+        (Color::Cyan, Color::White)
+    } else {
+        (PANEL_RULE, Color::Gray)
+    };
+    Block::default()
+        .borders(Borders::TOP)
+        .border_style(Style::default().fg(rule))
+        .title(Span::styled(
+            format!(" {title} "),
+            Style::default().fg(text).add_modifier(Modifier::BOLD),
+        ))
+}
+
 fn block_title(title: impl Into<String>) -> Block<'static> {
+    let title = title.into();
+    if panel_mode() {
+        return panel_block(title, false);
+    }
     Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(Color::Rgb(58, 68, 80)))
         .title(Span::styled(
-            title.into(),
+            title,
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
@@ -394,6 +441,10 @@ fn block_title(title: impl Into<String>) -> Block<'static> {
 }
 
 fn block_title_focused(title: impl Into<String>, focused: bool) -> Block<'static> {
+    let title = title.into();
+    if panel_mode() {
+        return panel_block(title, focused);
+    }
     let border = if focused {
         Color::Cyan
     } else {
@@ -404,7 +455,7 @@ fn block_title_focused(title: impl Into<String>, focused: bool) -> Block<'static
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border))
         .title(Span::styled(
-            title.into(),
+            title,
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
@@ -574,7 +625,7 @@ fn draw_workspace(frame: &mut Frame, area: Rect, main: &MainState) {
 /// 工作区右下常驻的「全部总结」预览，无需按 J 就能看到今日写过的总结。
 fn draw_summary_preview(frame: &mut Frame, area: Rect, main: &MainState) {
     let journals = main.all_journals();
-    let limit = area.height.saturating_sub(2) as usize;
+    let limit = block_inner_height(area);
     let mut lines: Vec<Line> = Vec::new();
     for (index, journal) in journals.iter().take(limit).enumerate() {
         let tag = match journal.target_kind {
@@ -843,7 +894,7 @@ fn draw_blocks(frame: &mut Frame, area: Rect, main: &MainState) {
         .map(|page| page.title.clone())
         .unwrap_or_else(|| "内容".to_string());
     let blocks = main.visible_blocks();
-    let list_height = area.height.saturating_sub(2) as usize;
+    let list_height = block_inner_height(area);
     let (block_start, block_end) =
         window_range(blocks.len(), main.selected_block_index(), list_height);
     let block = block_title(if list_height > 0 && blocks.len() > list_height {
@@ -1066,7 +1117,7 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
     main.push_mouse_hit(columns[0], MouseAction::FocusToday(TodayFocus::Items));
     main.push_mouse_hit(columns[1], MouseAction::FocusToday(TodayFocus::Habits));
 
-    let item_height = columns[0].height.saturating_sub(2) as usize;
+    let item_height = block_inner_height(columns[0]);
     let (item_start, item_end) =
         window_range(items.len(), main.selected_today_index(), item_height);
     let mut item_lines: Vec<Line> = Vec::new();
@@ -1136,7 +1187,7 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
         columns[0],
     );
 
-    let habit_height = columns[1].height.saturating_sub(2) as usize;
+    let habit_height = block_inner_height(columns[1]);
     let (habit_start, habit_end) = window_range(
         habits.len(),
         main.selected_today_habit_index(),
@@ -1704,7 +1755,7 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
         .split(area);
 
     let habits = main.habits_list();
-    let list_height = columns[0].height.saturating_sub(2) as usize;
+    let list_height = block_inner_height(columns[0]);
     let (habit_start, habit_end) =
         window_range(habits.len(), main.selected_habit_index(), list_height);
     let mut lines: Vec<Line> = Vec::new();
