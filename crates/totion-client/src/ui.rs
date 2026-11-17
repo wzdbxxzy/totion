@@ -217,6 +217,25 @@ pub(crate) fn window_range(total: usize, selected: usize, height: usize) -> (usi
     (start, start + height)
 }
 
+/// 变高行列表（例如留言：每条占多行）取可视起点，保证选中块落在窗口内。
+pub(crate) fn scroll_start(heights: &[usize], selected: usize, budget: usize) -> usize {
+    if heights.is_empty() || budget == 0 {
+        return 0;
+    }
+    let selected = selected.min(heights.len() - 1);
+    let mut start = selected;
+    let mut used = heights[selected].min(budget);
+    while start > 0 {
+        let next = heights[start - 1];
+        if used + next > budget {
+            break;
+        }
+        start -= 1;
+        used += next;
+    }
+    start
+}
+
 /// 逐段拼接一行文本，同时按显示宽度登记鼠标点击区域。
 struct HitLine<'a> {
     spans: Vec<Span<'static>>,
@@ -1845,7 +1864,14 @@ fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {
 fn draw_inbox(frame: &mut Frame, area: Rect, main: &MainState) {
     let comments = main.inbox_comments();
     let unresolved = comments.iter().filter(|comment| !comment.resolved).count();
-    let mut lines: Vec<Line> = Vec::new();
+    let budget = area.height.saturating_sub(4) as usize;
+    let heights: Vec<usize> = comments
+        .iter()
+        .map(|comment| 1 + comment.body.lines().count() + 1)
+        .collect();
+    let start = scroll_start(&heights, main.selected_inbox_index(), budget);
+
+    let mut blocks: Vec<Vec<Line>> = Vec::new();
     for (index, comment) in comments.iter().enumerate() {
         let selected = index == main.selected_inbox_index();
         let style = if selected {
@@ -1854,8 +1880,8 @@ fn draw_inbox(frame: &mut Frame, area: Rect, main: &MainState) {
             Style::default()
         };
         let target = main.comment_target_label(comment.target_kind, &comment.target_id);
-        let row_index = lines.len();
-        lines.push(Line::from(vec![
+        let mut block: Vec<Line> = Vec::new();
+        block.push(Line::from(vec![
             Span::styled(
                 if selected { "▶ " } else { "  " },
                 Style::default().fg(Color::Cyan),
@@ -1888,18 +1914,30 @@ fn draw_inbox(frame: &mut Frame, area: Rect, main: &MainState) {
             ),
             Span::styled(target, Style::default().fg(Color::Cyan)),
         ]));
-        if let Some(rect) = list_row_rect(area, row_index) {
-            main.push_mouse_hit(rect, MouseAction::SelectInbox(index));
-        }
         for line in comment.body.lines() {
-            lines.push(Line::from(Span::styled(
+            block.push(Line::from(Span::styled(
                 format!("    {line}"),
                 style.fg(Color::Gray),
             )));
         }
-        lines.push(Line::from(""));
+        block.push(Line::from(""));
+        blocks.push(block);
     }
-    if lines.is_empty() {
+
+    let mut lines: Vec<Line> = Vec::new();
+    let mut rendered_end = start;
+    for (index, block) in blocks.iter().enumerate().skip(start) {
+        if lines.len() >= budget {
+            break;
+        }
+        let row_index = lines.len();
+        lines.extend(block.iter().cloned());
+        if let Some(rect) = list_row_rect(area, row_index) {
+            main.push_mouse_hit(rect, MouseAction::SelectInbox(index));
+        }
+        rendered_end = index + 1;
+    }
+    if comments.is_empty() {
         lines.push(Line::from(Span::styled(
             " 还没有留言。选中一个页面/内容块/习惯后按 C 发表评论。",
             Style::default().fg(Color::DarkGray),
@@ -1909,9 +1947,19 @@ fn draw_inbox(frame: &mut Frame, area: Rect, main: &MainState) {
         " j/k 选择 · Enter 跳转 · a 回复 · r 解决/取消 · e 编辑 · d 删除",
         Style::default().fg(Color::DarkGray),
     )));
+    let title = if start > 0 || rendered_end < comments.len() {
+        format!(
+            " 留言 · {}-{}/{} · {unresolved} 条未解决 ",
+            start + 1,
+            rendered_end.max(start + 1),
+            comments.len()
+        )
+    } else {
+        format!(" 留言 · {unresolved} 条未解决 ")
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(format!(" 留言 · {unresolved} 条未解决 ")))
+            .block(block_title(title))
             .wrap(Wrap { trim: false }),
         area,
     );
@@ -2111,7 +2159,9 @@ fn draw_search(frame: &mut Frame, main: &MainState, state: &SearchState) {
             .add_modifier(Modifier::BOLD),
     ))];
     lines.push(Line::from(""));
-    for (index, hit) in state.results.iter().enumerate() {
+    let budget = area.height.saturating_sub(4) as usize;
+    let (start, end) = window_range(state.results.len(), state.selected, budget);
+    for (index, hit) in state.results.iter().enumerate().take(end).skip(start) {
         let style = if index == state.selected {
             Style::default().bg(Color::DarkGray)
         } else {
@@ -2136,12 +2186,22 @@ fn draw_search(frame: &mut Frame, main: &MainState, state: &SearchState) {
             Style::default().fg(Color::DarkGray),
         )));
     }
+    let title = if start > 0 || end < state.results.len() {
+        format!(
+            " 搜索（{}-{}/{} · Enter 跳转 · Esc 关闭） ",
+            start + 1,
+            end,
+            state.results.len()
+        )
+    } else {
+        format!(
+            " 搜索（{} 条 · Enter 跳转 · Esc 关闭） ",
+            state.results.len()
+        )
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(format!(
-                " 搜索（{} 条 · Enter 跳转 · Esc 关闭） ",
-                state.results.len()
-            )))
+            .block(block_title(title))
             .wrap(Wrap { trim: false }),
         area,
     );

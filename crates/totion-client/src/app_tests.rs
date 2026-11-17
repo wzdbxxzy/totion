@@ -295,6 +295,50 @@ fn long_today_list_scrolls_to_selected_item() {
 }
 
 #[test]
+fn scroll_start_handles_variable_heights() {
+    assert_eq!(crate::ui::scroll_start(&[], 0, 5), 0);
+    assert_eq!(crate::ui::scroll_start(&[2, 2, 2], 2, 10), 0);
+    assert_eq!(crate::ui::scroll_start(&[2, 2, 2, 2, 2], 0, 5), 0);
+    assert_eq!(crate::ui::scroll_start(&[2, 2, 2, 2, 2], 4, 5), 3);
+    assert_eq!(crate::ui::scroll_start(&[10, 2, 2], 1, 5), 1);
+}
+
+#[test]
+fn inbox_scrolls_to_selected_comment() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        for index in 0..20 {
+            state.comments.push(Comment {
+                id: format!("c{index}"),
+                target_kind: CommentTargetKind::Block,
+                target_id: "b1".to_string(),
+                body: "第一行\n第二行".to_string(),
+                resolved: false,
+                author_id: "u1".to_string(),
+                author_name: "Guan".to_string(),
+                version: 1,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                deleted: false,
+            });
+        }
+        state.selected_inbox_index = 19;
+        state.set_view(View::Inbox);
+        state.clamp();
+    }
+    harness.render(120, 24);
+    let actions: Vec<MouseAction> = harness
+        .state()
+        .mouse_hits
+        .borrow()
+        .iter()
+        .map(|(_, action)| *action)
+        .collect();
+    assert!(actions.contains(&MouseAction::SelectInbox(19)));
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
