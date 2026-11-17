@@ -129,6 +129,16 @@ impl Harness {
         self.buffer = Some(terminal.backend().buffer().clone());
     }
 
+    fn render_panel(&mut self, width: u16, height: u16) {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).expect("创建测试终端");
+        let app = &self.app;
+        terminal
+            .draw(|frame| crate::ui::draw_panel(frame, app))
+            .expect("绘制面板");
+        self.buffer = Some(terminal.backend().buffer().clone());
+    }
+
     fn action_rect(&self, action: MouseAction) -> Rect {
         self.state()
             .mouse_hits
@@ -1505,6 +1515,19 @@ fn hover_rect_matches_click_targets() {
     assert!(
         harness.state().hover_rect(0, 0).is_none(),
         "空白区域不应有悬停高亮"
+    );
+}
+
+#[test]
+fn panel_mode_hides_header_bar() {
+    let mut harness = Harness::new();
+    harness.render_panel(100, 30);
+    let row = buffer_line(harness.buffer.as_ref().expect("buffer"), 0);
+    let compact: String = row.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(compact.contains("今日"), "首行应为导航标签: {compact}");
+    assert!(
+        !compact.contains("位成员"),
+        "面板模式不应渲染标题栏: {compact}"
     );
 }
 

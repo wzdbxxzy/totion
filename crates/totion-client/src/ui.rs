@@ -27,7 +27,16 @@ pub(crate) fn selection_style() -> Style {
 pub fn draw(frame: &mut Frame, app: &App) {
     match &app.screen {
         Screen::Setup(form) => draw_setup(frame, form),
-        Screen::Main(main) => draw_main(frame, main),
+        Screen::Main(main) => draw_main(frame, main, false),
+    }
+}
+
+/// 桌面面板模式：去掉顶部高亮的标题条，只保留导航和内容，减少大面积色块。
+#[allow(dead_code)]
+pub fn draw_panel(frame: &mut Frame, app: &App) {
+    match &app.screen {
+        Screen::Setup(form) => draw_setup(frame, form),
+        Screen::Main(main) => draw_main(frame, main, true),
     }
 }
 
@@ -88,7 +97,7 @@ fn draw_setup(frame: &mut Frame, form: &SetupForm) {
     frame.render_widget(Paragraph::new(lines).block(Block::default()), inner);
 }
 
-fn draw_main(frame: &mut Frame, main: &MainState) {
+fn draw_main(frame: &mut Frame, main: &MainState, panel: bool) {
     let area = frame.area();
     main.clear_mouse_hits();
     let editing_height = match main.editing() {
@@ -99,7 +108,7 @@ fn draw_main(frame: &mut Frame, main: &MainState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),
+            Constraint::Length(if panel { 0 } else { 1 }),
             Constraint::Length(1),
             Constraint::Min(3),
             Constraint::Length(editing_height),
@@ -107,7 +116,9 @@ fn draw_main(frame: &mut Frame, main: &MainState) {
         ])
         .split(area);
 
-    draw_header(frame, chunks[0], main);
+    if !panel {
+        draw_header(frame, chunks[0], main);
+    }
     draw_nav(frame, chunks[1], main);
 
     match main.view() {

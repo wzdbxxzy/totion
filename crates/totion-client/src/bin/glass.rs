@@ -736,7 +736,9 @@ mod imp {
             let app = borrowed.as_ref()?;
             let backend = TestBackend::new(content_cols as u16, content_rows as u16);
             let mut terminal = Terminal::new(backend).ok()?;
-            terminal.draw(|frame| crate::ui::draw(frame, app)).ok()?;
+            terminal
+                .draw(|frame| crate::ui::draw_panel(frame, app))
+                .ok()?;
             Some(terminal.backend().buffer().clone())
         });
         let Some(buffer) = buffer else {
