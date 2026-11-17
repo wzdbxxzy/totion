@@ -53,7 +53,7 @@ jobs:
       # 桌面版（Glasswing）目前只支持 Windows：它要把窗口钉在 Win32 桌面层。
       - name: Build desktop client (windows only)
         if: runner.os == 'Windows'
-        run: cargo build --release --target ${{ matrix.target }} --manifest-path crates/glasswing/Cargo.toml
+        run: cargo build --release --target ${{ matrix.target }} --target-dir target --manifest-path crates/glasswing/Cargo.toml
 
       - name: Build server (linux only)
         if: matrix.server
