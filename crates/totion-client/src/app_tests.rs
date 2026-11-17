@@ -1414,6 +1414,33 @@ fn comments_panel_goes_fullscreen_on_narrow_terminal() {
 }
 
 #[test]
+fn midnight_rolls_today_view_forward() {
+    let mut harness = Harness::new();
+    let today = harness.state().today();
+    let yesterday = today - ChronoDuration::days(1);
+    {
+        let state = harness.state_mut();
+        state.today = yesterday;
+        state.view_date = yesterday;
+        state.roll_day(today);
+    }
+    assert_eq!(harness.state().today(), today);
+    assert_eq!(harness.state().view_date(), today, "停在今天时应跟到新一天");
+
+    {
+        let state = harness.state_mut();
+        state.today = yesterday;
+        state.view_date = yesterday - ChronoDuration::days(3);
+        state.roll_day(today);
+    }
+    assert_eq!(
+        harness.state().view_date(),
+        yesterday - ChronoDuration::days(3),
+        "用户主动看历史日期时不应被拉走"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

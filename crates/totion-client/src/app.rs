@@ -1463,13 +1463,7 @@ impl MainState {
             self.status_since = Instant::now();
         }
         let now = Local::now().date_naive();
-        if now != self.today {
-            self.today = now;
-            self.calendar_month = now.with_day(1).unwrap_or(now);
-            self.selected_day = now;
-            self.ensured_date = None;
-            self.refresh_daily_page();
-        }
+        self.roll_day(now);
         if self.caps.supports_v2() && self.ensured_date.as_deref() != Some(&self.today_key()) {
             self.ensure_today_page();
         }
@@ -1531,6 +1525,22 @@ impl MainState {
                 None
             }
         }
+    }
+
+    /// 跨天处理：如果正停在「今天」，自动跟到新的一天。
+    fn roll_day(&mut self, now: NaiveDate) {
+        if now == self.today {
+            return;
+        }
+        let was_today = self.view_date == self.today;
+        self.today = now;
+        self.calendar_month = now.with_day(1).unwrap_or(now);
+        self.selected_day = now;
+        if was_today {
+            self.view_date = now;
+        }
+        self.ensured_date = None;
+        self.refresh_daily_page();
     }
 
     fn sync_now(&mut self, manual: bool) {
