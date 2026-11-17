@@ -1438,6 +1438,16 @@ fn midnight_rolls_today_view_forward() {
         yesterday - ChronoDuration::days(3),
         "用户主动看历史日期时不应被拉走"
     );
+
+    {
+        let state = harness.state_mut();
+        state.today = yesterday;
+        state.view_date = yesterday;
+        state.open_week_view();
+        state.roll_day(today);
+    }
+    assert_eq!(harness.state().week_end(), today, "周视图窗口应跟到新一天");
+    assert_eq!(harness.state().week_selected(), 6);
 }
 
 #[test]

@@ -1538,6 +1538,10 @@ impl MainState {
         self.selected_day = now;
         if was_today {
             self.view_date = now;
+            if self.week_mode {
+                self.week_end = now;
+                self.week_selected = 6;
+            }
         }
         self.ensured_date = None;
         self.refresh_daily_page();
