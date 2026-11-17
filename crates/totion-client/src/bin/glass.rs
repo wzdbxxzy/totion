@@ -142,11 +142,11 @@ mod imp {
     use totion_core::{Snapshot, VerifyRequest, WorkspaceInfo};
     use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
     use windows_sys::Win32::Graphics::Gdi::{
-        CreateCompatibleDC, CreateDIBSection, CreateFontW, GetDC, GetTextExtentPoint32W, ReleaseDC,
-        ScreenToClient, SelectObject, SetBkMode, SetTextColor, TextOutW, AC_SRC_ALPHA, AC_SRC_OVER,
-        BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET,
-        DEFAULT_PITCH, DIB_RGB_COLORS, FF_DONTCARE, FW_BOLD, FW_NORMAL, HBITMAP, HDC, HFONT,
-        OUT_DEFAULT_PRECIS,
+        CreateCompatibleDC, CreateDIBSection, CreateFontW, DeleteObject, GetDC,
+        GetTextExtentPoint32W, ReleaseDC, ScreenToClient, SelectObject, SetBkMode, SetTextColor,
+        TextOutW, AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION,
+        CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET, DEFAULT_PITCH, DIB_RGB_COLORS, FF_DONTCARE, FW_BOLD,
+        FW_NORMAL, HBITMAP, HDC, HFONT, OUT_DEFAULT_PRECIS,
     };
     use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -168,7 +168,7 @@ mod imp {
     const BG_RGB: u32 = 0x001D_1612; // #12161D
     const TIMER_REFRESH: usize = 1;
     const PANEL_RADIUS: f64 = 22.0;
-    const CONTENT_MARGIN: i32 = 2; // 单元格内边距
+    const CONTENT_MARGIN: i32 = 3; // 单元格内边距
     const WM_MOUSELEAVE_MSG: u32 = 0x02A3;
 
     thread_local! {
@@ -379,17 +379,27 @@ mod imp {
         let mem = CreateCompatibleDC(screen);
         ReleaseDC(ptr::null_mut(), screen);
 
-        let normal = create_font(-15, FW_NORMAL, "NSimSun");
-        let bold = create_font(-15, FW_BOLD, "NSimSun");
-        FONT_NORMAL.with(|value| value.set(normal as isize));
-        FONT_BOLD.with(|value| value.set(bold as isize));
-
-        SelectObject(mem, normal);
-        let mut metrics = SIZE { cx: 0, cy: 0 };
-        let sample = wide("M");
-        GetTextExtentPoint32W(mem, sample.as_ptr(), 1, &mut metrics);
-        let cell_w = metrics.cx.max(6);
-        let cell_h = metrics.cy.max(12);
+        // 优先使用终端向等宽字体，按 CJK 宽度的一半确定单元格宽度。
+        let mut chosen: Option<(isize, isize, i32, i32)> = None;
+        for face in ["Sarasa Mono SC", "NSimSun", "Consolas"] {
+            let normal = create_font(-18, FW_NORMAL, face);
+            SelectObject(mem, normal);
+            let (ascii, cjk, line) = measure_font(mem);
+            if cjk.cx >= ascii.cx * 3 / 2 && cjk.cx <= ascii.cx * 5 / 2 {
+                let bold = create_font(-18, FW_BOLD, face);
+                let (cell_w, cell_h) = cell_metrics(ascii.cx, cjk.cx, line.cy);
+                chosen = Some((normal as isize, bold as isize, cell_w, cell_h));
+                break;
+            }
+            DeleteObject(normal);
+        }
+        let (normal, bold, cell_w, cell_h) = chosen.unwrap_or_else(|| {
+            let normal = create_font(-18, FW_NORMAL, "NSimSun");
+            let bold = create_font(-18, FW_BOLD, "NSimSun");
+            (normal as isize, bold as isize, 9, 18)
+        });
+        FONT_NORMAL.with(|value| value.set(normal));
+        FONT_BOLD.with(|value| value.set(bold));
 
         let mut work = RECT {
             left: 0,
@@ -435,6 +445,28 @@ mod imp {
         CANVAS.with(|value| {
             value.set((mem as isize, bitmap as isize, bits as isize, cell_w, cell_h))
         });
+    }
+
+    unsafe fn measure_font(mem: HDC) -> (SIZE, SIZE, SIZE) {
+        let mut ascii = SIZE { cx: 0, cy: 0 };
+        let mut cjk = SIZE { cx: 0, cy: 0 };
+        let mut line = SIZE { cx: 0, cy: 0 };
+        let sample = wide("M");
+        GetTextExtentPoint32W(mem, sample.as_ptr(), 1, &mut ascii);
+        let sample = wide("中");
+        GetTextExtentPoint32W(mem, sample.as_ptr(), 1, &mut cjk);
+        let sample = wide("Mg");
+        GetTextExtentPoint32W(mem, sample.as_ptr(), 2, &mut line);
+        (ascii, cjk, line)
+    }
+
+    fn cell_metrics(ascii_w: i32, cjk_w: i32, line_h: i32) -> (i32, i32) {
+        let cell_w = if cjk_w >= ascii_w * 3 / 2 {
+            cjk_w / 2
+        } else {
+            ascii_w
+        };
+        (cell_w.max(6), line_h.max(12))
     }
 
     unsafe fn create_font(height: i32, weight: u32, face: &str) -> HFONT {
@@ -930,12 +962,16 @@ mod imp {
             TuiColor::Red => (0xE8, 0x90, 0x90),
             TuiColor::Green => (0x9C, 0xCB, 0x8A),
             TuiColor::Yellow => (0xE8, 0xC8, 0x7A),
-            TuiColor::Blue => (0x9A, 0xB8, 0xD8),
-            TuiColor::Magenta => (0xE8, 0xA8, 0xC0),
-            TuiColor::Cyan => (0xE8, 0xD8, 0xC8),
+            TuiColor::Blue => (0x9C, 0xB4, 0xC8),
+            TuiColor::Magenta => (0xD8, 0xA8, 0xB8),
+            TuiColor::Cyan => (0xD8, 0xC4, 0xB0),
             TuiColor::Gray => (0xB6, 0xAD, 0xA6),
             TuiColor::DarkGray => (0x8E, 0x86, 0x80),
-            TuiColor::Rgb(r, g, b) => (r, g, b),
+            TuiColor::Rgb(r, g, b) => (
+                (r as f64 * 0.92 + 14.0).min(255.0) as u8,
+                (g as f64 * 0.90 + 12.0).min(255.0) as u8,
+                (b as f64 * 0.84 + 8.0).min(255.0) as u8,
+            ),
             TuiColor::Indexed(_) => (0xB6, 0xAD, 0xA6),
         }
     }
@@ -960,6 +996,19 @@ mod imp {
         }
 
         #[test]
+        fn cell_metrics_prefers_half_cjk_width() {
+            assert_eq!(cell_metrics(8, 16, 18), (8, 18));
+            assert_eq!(cell_metrics(9, 18, 18), (9, 18));
+            assert_eq!(cell_metrics(15, 15, 20), (15, 20));
+        }
+
+        #[test]
+        fn palette_warms_rgb() {
+            let (r, g, b) = tui_rgb(TuiColor::Rgb(38, 45, 56));
+            assert!(r > 38 && b < 56, "暗色应偏暖: {r},{g},{b}");
+        }
+
+        #[test]
         fn pixel_maps_to_cell() {
             assert_eq!(cell_at(0, 0, 7, 16), (0, 0));
             assert_eq!(cell_at(13, 31, 7, 16), (1, 1));
@@ -968,8 +1017,9 @@ mod imp {
 
         #[test]
         fn palette_maps_named_colors() {
-            assert_eq!(tui_rgb(TuiColor::Cyan), (0xE8, 0xD8, 0xC8));
-            assert_eq!(tui_rgb(TuiColor::Rgb(1, 2, 3)), (1, 2, 3));
+            assert_eq!(tui_rgb(TuiColor::Cyan), (0xD8, 0xC4, 0xB0));
+            let (r, g, b) = tui_rgb(TuiColor::Rgb(1, 2, 3));
+            assert!(r >= 14 && g >= 13 && b >= 10, "RGB 应被暖化: {r},{g},{b}");
         }
     }
 }
