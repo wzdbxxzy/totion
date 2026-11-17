@@ -97,7 +97,7 @@ fn comment_card(app: &mut App, ui: &mut egui::Ui, comment: &Comment) {
                 if action_button(ui, "回复", text_dim()) {
                     reply = true;
                 }
-                if action_button(ui, "删除", danger()) {
+                if action_button(ui, "删除", text_muted()) {
                     delete = true;
                 }
                 let label = if comment.resolved { "取消解决" } else { "解决" };

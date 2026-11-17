@@ -16,6 +16,7 @@ pub enum View {
     Habits,
     Stats,
     Inbox,
+    Settings,
 }
 
 impl View {
@@ -27,6 +28,7 @@ impl View {
             View::Habits => "习惯",
             View::Stats => "统计",
             View::Inbox => "留言",
+            View::Settings => "设置",
         }
     }
     pub fn hint(self) -> &'static str {
@@ -37,6 +39,7 @@ impl View {
             View::Habits => "连续天数与打卡",
             View::Stats => "完成率与趋势",
             View::Inbox => "所有未解决的留言",
+            View::Settings => "配色、账号与邀请码",
         }
     }
 }
@@ -68,6 +71,16 @@ pub enum Editor {
     },
 }
 
+pub struct InlineEdit {
+    /// None 表示新建
+    pub id: Option<String>,
+    pub version: i64,
+    pub date: String,
+    pub text: String,
+    pub multiline: bool,
+    pub focus: bool,
+}
+
 pub enum Dialog {
     None,
     Comments {
@@ -84,7 +97,6 @@ pub enum Dialog {
     Search {
         query: String,
     },
-    Settings,
 }
 
 pub struct App {
@@ -110,12 +122,15 @@ pub struct App {
     pub member_name: String,
     pub editor: Editor,
     pub dialog: Dialog,
+    /// 就地编辑：待办/总结直接在原位改，不弹窗。
+    pub inline: Option<InlineEdit>,
     toast: Option<(String, Instant, bool)>,
     started: Instant,
     logged: bool,
     hwnd: Option<isize>,
     backdrop: Option<crate::wallpaper::Backdrop>,
     desktop_ready: bool,
+    last_anchor: Instant,
 }
 
 impl App {
@@ -154,12 +169,14 @@ impl App {
             member_name: String::new(),
             editor: Editor::None,
             dialog: Dialog::None,
+            inline: None,
             toast: None,
             started: Instant::now(),
             logged: false,
             hwnd: None,
             backdrop: None,
             desktop_ready: false,
+            last_anchor: Instant::now(),
         };
         if let Some(identity) = saved {
             app.connect(identity, None);
@@ -296,8 +313,8 @@ impl App {
             ui.add_space(8.0);
             ui.label(muted(self.store.workspace_name.clone()));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button("⋯").clicked() {
-                    self.dialog = Dialog::Settings;
+                if ui.button("设置").clicked() {
+                    self.view = View::Settings;
                 }
                 if ui.button("同步").clicked() {
                     self.send(Command::SyncNow);
@@ -385,6 +402,7 @@ impl App {
             View::Habits => crate::views::habits::draw(self, ui),
             View::Stats => crate::views::stats::draw(self, ui),
             View::Inbox => crate::views::inbox::draw(self, ui),
+            View::Settings => crate::views::settings::draw(self, ui),
         }
     }
 
@@ -508,9 +526,10 @@ impl App {
             crate::desktop::anchor_bottom(hwnd);
             false
         } else {
-            // 交给 winit 的 AlwaysOnBottom：贴在桌面之上、普通窗口之下。
+            // 钉在桌面之上、普通窗口之下。
             crate::desktop::clear_appwindow(hwnd);
-            false
+            crate::desktop::anchor_above_desktop(hwnd);
+            true
         };
         crate::desktop::log_line(&format!(
             "hwnd={hwnd} rect={rect:?} backdrop={} attached={attached} class={} {}",
@@ -521,10 +540,13 @@ impl App {
         self.desktop_ready = true;
     }
 
-    /// 半透明底：留出页边距，画一块圆角磨砂面板。
+    /// 底色：默认完全透明，只有用户主动调高「玻璃浓度」时才铺一层底。
     fn paint_backdrop(&self, ctx: &egui::Context) {
-        let rect = ctx.screen_rect();
-        let panel = rect.shrink(MARGIN);
+        let alpha = crate::theme::glass_alpha();
+        if alpha == 0 {
+            return;
+        }
+        let panel = ctx.screen_rect().shrink(MARGIN);
         let painter = ctx.layer_painter(egui::LayerId::background());
         if let Some(backdrop) = &self.backdrop {
             painter.image(
@@ -537,31 +559,7 @@ impl App {
         painter.rect_filled(
             panel,
             egui::CornerRadius::same(26),
-            egui::Color32::from_rgba_unmultiplied(226, 240, 252, crate::theme::glass_alpha()),
-        );
-        // 顶部一层极淡的白色渐变 + 一抹强调色光晕，让面板有点"发光"。
-        let top = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 26);
-        let bottom = egui::Color32::TRANSPARENT;
-        let mut mesh = egui::Mesh::default();
-        let idx = mesh.vertices.len() as u32;
-        mesh.colored_vertex(panel.left_top(), top);
-        mesh.colored_vertex(panel.right_top(), top);
-        mesh.colored_vertex(panel.right_bottom(), bottom);
-        mesh.colored_vertex(panel.left_bottom(), bottom);
-        mesh.add_triangle(idx, idx + 1, idx + 2);
-        mesh.add_triangle(idx, idx + 2, idx + 3);
-        painter.add(egui::Shape::mesh(mesh));
-        let glow = crate::theme::accent();
-        painter.circle_filled(
-            panel.left_top() + egui::vec2(40.0, -60.0),
-            220.0,
-            egui::Color32::from_rgba_unmultiplied(glow.r(), glow.g(), glow.b(), 10),
-        );
-        painter.rect_stroke(
-            panel,
-            egui::CornerRadius::same(26),
-            egui::Stroke::new(1.0_f32, crate::theme::line()),
-            egui::StrokeKind::Inside,
+            egui::Color32::from_rgba_unmultiplied(226, 240, 252, alpha),
         );
     }
 }
@@ -579,6 +577,12 @@ impl eframe::App for App {
             if let Some(hwnd) = self.hwnd {
                 crate::desktop::log_line(&format!("later: {}", crate::desktop::describe(hwnd)));
                 crate::desktop::log_line(&format!("windows: {}", crate::desktop::list_own_windows()));
+            }
+        }
+        if self.desktop_ready && self.last_anchor.elapsed().as_secs() >= 2 {
+            self.last_anchor = Instant::now();
+            if let Some(hwnd) = self.hwnd {
+                crate::desktop::anchor_above_desktop(hwnd);
             }
         }
         self.poll();

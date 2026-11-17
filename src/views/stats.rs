@@ -173,7 +173,7 @@ fn chart_card(ui: &mut egui::Ui, series: &[(String, DayStat)]) {
                     egui::vec2(bar_w, height),
                 );
                 let color = if stat.total > 0 && stat.done == stat.total {
-                    ok()
+                    accent()
                 } else {
                     accent()
                 };

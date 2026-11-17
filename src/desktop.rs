@@ -106,6 +106,10 @@ pub fn attach_to_desktop(hwnd: isize) -> bool {
             let mut result: usize = 0;
             SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, &mut result);
         }
+        // 跨进程 SetParent 要求 DPI 感知上下文一致，否则会失败（返回 NULL）。
+        let previous = windows_sys::Win32::UI::HiDpi::SetThreadDpiAwarenessContext(
+            windows_sys::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+        );
         if let Some(worker) = find_wallpaper_worker() {
             SetParent(window, worker);
             SetWindowPos(
@@ -121,6 +125,7 @@ pub fn attach_to_desktop(hwnd: isize) -> bool {
                 "parent=worker {}",
                 class_name(worker as isize)
             ));
+            windows_sys::Win32::UI::HiDpi::SetThreadDpiAwarenessContext(previous);
             return true;
         }
         // Win11 上常常没有独立的壁纸 WorkerW，直接挂到 Progman。
@@ -140,8 +145,10 @@ pub fn attach_to_desktop(hwnd: isize) -> bool {
                 "parent=progman {}",
                 class_name(progman as isize)
             ));
+            windows_sys::Win32::UI::HiDpi::SetThreadDpiAwarenessContext(previous);
             return true;
         }
+        windows_sys::Win32::UI::HiDpi::SetThreadDpiAwarenessContext(previous);
         // 退路：留在桌面底层。
         SetWindowPos(
             window,
@@ -412,14 +419,44 @@ pub fn work_area() -> (i32, i32, i32, i32) {
 pub fn place_right_half_workarea(hwnd: isize) {
     let (ax, ay, aw, ah) = work_area();
     unsafe {
+        // SWP_NOZORDER：只改位置和大小，绝不动层级，避免把面板顶到别的窗口上面。
         SetWindowPos(
             hwnd as HWND,
-            HWND_TOP,
+            HWND_BOTTOM,
             ax + aw / 2,
             ay,
             aw - aw / 2,
             ah,
-            0,
+            0x0004,
         );
+    }
+}
+
+/// 把窗口钉在桌面之上、所有普通窗口之下：
+/// 先把自己降到底，再把桌面（Progman）压到自己下面。
+pub fn anchor_above_desktop(hwnd: isize) {
+    unsafe {
+        let window = hwnd as HWND;
+        let progman = FindWindowW(wide("Progman").as_ptr(), std::ptr::null());
+        SetWindowPos(
+            window,
+            HWND_BOTTOM,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+        if !progman.is_null() && progman != window {
+            SetWindowPos(
+                progman,
+                HWND_BOTTOM,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
     }
 }

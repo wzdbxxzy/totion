@@ -27,7 +27,7 @@ pub struct Palette {
 impl Default for Palette {
     fn default() -> Self {
         Self {
-            glass_alpha: 96,
+            glass_alpha: 0,
             card_alpha: 132,
             line_alpha: 70,
             accent: [38, 104, 152],

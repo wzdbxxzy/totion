@@ -1,10 +1,10 @@
-//! 今日：一列到底的极简仪表盘 —— 待办、习惯、当日总结，不再套卡片框。
+//! 今日：一列到底的极简仪表盘 —— 待办、习惯、当日总结，全部就地编辑。
 
 use chrono::{Duration as ChronoDuration, Local};
 use eframe::egui::{self, Align, Layout, RichText};
 use totion_core::{CommentTargetKind, JournalTarget};
 
-use crate::app::{weekday_cn, App, Editor};
+use crate::app::{weekday_cn, App, InlineEdit};
 use crate::net::Command;
 use crate::theme::*;
 
@@ -22,12 +22,12 @@ pub fn draw(app: &mut App, ui: &mut egui::Ui) {
     summary_section(app, ui, &date_key);
 }
 
-fn header(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
+fn header(app: &mut App, ui: &mut egui::Ui, _date_key: &str) {
     ui.horizontal(|ui| {
         ui.horizontal(|ui| {
             ui.label(title(
                 format!("{} {}", app.date.format("%m-%d"), weekday_cn(app.date)),
-                27.0,
+                26.0,
             ));
             if app.date == Local::now().date_naive() {
                 pill(ui, "今天", accent());
@@ -37,19 +37,11 @@ fn header(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
             }
         });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if ui.button("＋ 待办").clicked() {
-                app.editor = Editor::Block {
-                    block: None,
-                    text: String::new(),
-                    time: String::new(),
-                    date: date_key.to_string(),
-                };
+            if ui.button("›").clicked() {
+                app.date += ChronoDuration::days(1);
             }
             if ui.button("‹").clicked() {
                 app.date -= ChronoDuration::days(1);
-            }
-            if ui.button("›").clicked() {
-                app.date += ChronoDuration::days(1);
             }
         });
     });
@@ -74,10 +66,10 @@ fn stats_strip(app: &App, ui: &mut egui::Ui, date_key: &str) {
 
 fn stat(ui: &mut egui::Ui, label: &str, value: &str) {
     ui.horizontal(|ui| {
-        ui.label(metric(value, 16.0));
+        ui.label(metric(value, 15.0));
         ui.label(muted(label));
     });
-    ui.add_space(20.0);
+    ui.add_space(18.0);
 }
 
 fn todo_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
@@ -86,19 +78,82 @@ fn todo_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
     ui.horizontal(|ui| {
         section(ui, "待办");
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if items.is_empty() {
-                ui.label(muted("用右上角「＋ 待办」加一条"));
+            if ui
+                .add(egui::Button::new(muted("＋ 新增")).frame(false))
+                .clicked()
+            {
+                app.inline = Some(InlineEdit {
+                    id: None,
+                    version: 0,
+                    date: date_key.to_string(),
+                    text: String::new(),
+                    multiline: false,
+                    focus: true,
+                });
             }
         });
     });
-    ui.add_space(4.0);
-    if items.is_empty() {
-        empty_state(ui, "今天还没有待办", "空着也是一种安排");
-        return;
+    ui.add_space(3.0);
+
+    // 新建行：在列表顶部直接输入
+    if matches!(&app.inline, Some(edit) if edit.id.is_none() && !edit.multiline) {
+        if let Some(mut edit) = app.inline.take() {
+            let response = ui.add(
+                egui::TextEdit::singleline(&mut edit.text)
+                    .hint_text("回车创建 · Esc 取消")
+                    .desired_width(f32::INFINITY),
+            );
+            if edit.focus {
+                response.request_focus();
+                edit.focus = false;
+            }
+            let entered = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            let escaped = ui.input(|i| i.key_pressed(egui::Key::Escape));
+            if entered {
+                let text = edit.text.trim().to_string();
+                if !text.is_empty() {
+                    app.send(Command::CreateBlockOnDate {
+                        date: edit.date.clone(),
+                        text,
+                        start_time: None,
+                    });
+                }
+            } else if !escaped {
+                app.inline = Some(edit);
+            }
+        }
     }
+
+    if items.is_empty() && app.inline.is_none() {
+        empty_state(ui, "今天还没有待办", "点「＋ 新增」写一条");
+    }
+
     let mut toggle: Option<(String, i64, bool)> = None;
-    let mut edit: Option<totion_core::Block> = None;
+    let mut start_edit: Option<totion_core::Block> = None;
+    let mut finish_edit: Option<Option<String>> = None;
+
     for block in &items {
+        let editing = matches!(&app.inline, Some(edit) if edit.id.as_deref() == Some(block.id.as_str()));
+        if editing {
+            if let Some(edit) = &mut app.inline {
+                let response =
+                    ui.add(egui::TextEdit::singleline(&mut edit.text).desired_width(f32::INFINITY));
+                if edit.focus {
+                    response.request_focus();
+                    edit.focus = false;
+                }
+                let entered = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                let escaped = ui.input(|i| i.key_pressed(egui::Key::Escape));
+                if entered {
+                    finish_edit = Some(Some(edit.text.trim().to_string()));
+                } else if escaped {
+                    finish_edit = Some(None);
+                }
+            }
+            ui.add_space(7.0);
+            continue;
+        }
+
         ui.horizontal(|ui| {
             let (rect, response) =
                 ui.allocate_exact_size(egui::Vec2::new(18.0, 18.0), egui::Sense::click());
@@ -115,16 +170,16 @@ fn todo_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
                 toggle = Some((block.id.clone(), block.version, !block.checked));
             }
 
-            let text = if block.checked {
+            let style = if block.checked {
                 RichText::new(block.text.clone())
                     .color(text_muted())
                     .strikethrough()
             } else {
                 RichText::new(block.text.clone()).color(text())
             };
-            let label = ui.add(egui::Label::new(text).truncate());
+            let label = ui.add(egui::Label::new(style).truncate());
             if label.clicked() {
-                edit = Some(block.clone());
+                start_edit = Some(block.clone());
             }
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -147,6 +202,7 @@ fn todo_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
         });
         ui.add_space(7.0);
     }
+
     if let Some((id, version, checked)) = toggle {
         if app.is_writable() {
             app.send(Command::UpdateBlock {
@@ -160,17 +216,35 @@ fn todo_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
             app.toast("他人视角只读，可留言", true);
         }
     }
-    if let Some(block) = edit {
+    if let Some(block) = start_edit {
         if app.is_writable() {
-            app.editor = Editor::Block {
-                block: Some(block),
-                text: String::new(),
-                time: String::new(),
+            app.inline = Some(InlineEdit {
+                id: Some(block.id.clone()),
+                version: block.version,
                 date: date_key.to_string(),
-            };
+                text: block.text.clone(),
+                multiline: false,
+                focus: true,
+            });
         } else {
             open_comments(app, CommentTargetKind::Block, &block.id, &block.text);
         }
+    }
+    if let Some(result) = finish_edit {
+        if let Some(edit) = app.inline.as_ref() {
+            if let Some(text) = result {
+                if !text.is_empty() {
+                    app.send(Command::UpdateBlock {
+                        id: edit.id.clone().unwrap_or_default(),
+                        version: edit.version,
+                        text: Some(text),
+                        checked: None,
+                        deleted: false,
+                    });
+                }
+            }
+        }
+        app.inline = None;
     }
 }
 
@@ -195,10 +269,13 @@ fn habit_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
             };
             ui.add(egui::Label::new(label).truncate());
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let text = if checkin.is_some() { "撤销" } else { "打卡" };
+                let text_value = if checkin.is_some() { "撤销" } else { "打卡" };
                 let color = if checkin.is_some() { text_muted() } else { ok() };
                 if ui
-                    .add(egui::Button::new(RichText::new(text).size(12.0).color(color)).frame(false))
+                    .add(
+                        egui::Button::new(RichText::new(text_value).size(12.0).color(color))
+                            .frame(false),
+                    )
                     .clicked()
                 {
                     pending = Some((habit.id.clone(), checkin.map(|c| c.id.clone())));
@@ -237,18 +314,75 @@ fn habit_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
 
 fn summary_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
     ui.add_space(10.0);
+    let editing = matches!(&app.inline, Some(edit) if edit.multiline);
     ui.horizontal(|ui| {
         section(ui, "当日总结");
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if ui
-                .add(egui::Button::new(muted("编辑")).frame(false))
-                .clicked()
-            {
-                open_daily_summary(app, date_key);
+            if !editing && ui.add(egui::Button::new(muted("编辑")).frame(false)).clicked() {
+                let existing = app.store.daily_summary(date_key);
+                app.inline = Some(InlineEdit {
+                    id: existing.as_ref().map(|journal| journal.id.clone()),
+                    version: existing.as_ref().map(|journal| journal.version).unwrap_or(0),
+                    date: date_key.to_string(),
+                    text: existing.map(|journal| journal.body).unwrap_or_default(),
+                    multiline: true,
+                    focus: true,
+                });
             }
         });
     });
-    ui.add_space(4.0);
+    ui.add_space(3.0);
+
+    if editing {
+        if let Some(mut edit) = app.inline.take() {
+            let response = ui.add(
+                egui::TextEdit::multiline(&mut edit.text)
+                    .desired_rows(3)
+                    .hint_text("今天发生了什么？")
+                    .desired_width(f32::INFINITY),
+            );
+            if edit.focus {
+                response.request_focus();
+                edit.focus = false;
+            }
+            if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                return;
+            }
+            let mut action: Option<bool> = None;
+            ui.horizontal(|ui| {
+                if ui.button("保存").clicked() {
+                    action = Some(true);
+                }
+                if ui.button("取消").clicked() {
+                    action = Some(false);
+                }
+            });
+            match action {
+                Some(true) => {
+                    let body_text = edit.text.trim().to_string();
+                    if !body_text.is_empty() {
+                        match &edit.id {
+                            Some(id) => app.send(Command::UpdateJournal {
+                                id: id.clone(),
+                                version: edit.version,
+                                body: Some(body_text),
+                                deleted: false,
+                            }),
+                            None => app.send(Command::CreateJournal {
+                                target_kind: JournalTarget::Daily,
+                                target_id: date_key.to_string(),
+                                body: body_text,
+                            }),
+                        }
+                    }
+                }
+                Some(false) => {}
+                None => app.inline = Some(edit),
+            }
+        }
+        return;
+    }
+
     match app.store.daily_summary(date_key) {
         Some(journal) => {
             ui.label(body(journal.body.clone()));
@@ -260,24 +394,6 @@ fn summary_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
         }
         None => empty_state(ui, "还没写今天的总结", "一句话也算"),
     }
-}
-
-fn open_daily_summary(app: &mut App, date_key: &str) {
-    let target = date_key.to_string();
-    let existing = app
-        .store
-        .daily_summary(date_key)
-        .map(|journal| (journal.body.clone(), journal.version));
-    app.editor = Editor::Journal {
-        target_kind: JournalTarget::Daily,
-        target_id: target,
-        label: format!("{} 的总结", date_key),
-        text: existing
-            .as_ref()
-            .map(|(body, _)| body.clone())
-            .unwrap_or_default(),
-        existing,
-    };
 }
 
 pub fn open_comments(app: &mut App, kind: CommentTargetKind, id: &str, label: &str) {

@@ -14,7 +14,6 @@ pub fn draw(app: &mut App, ctx: &egui::Context) {
     members_window(app, ctx);
     invites_window(app, ctx);
     search_window(app, ctx);
-    settings_window(app, ctx);
 }
 
 fn window_frame() -> egui::Frame {
@@ -564,122 +563,6 @@ fn search_window(app: &mut App, ctx: &egui::Context) {
         app.view = crate::app::View::Habits;
         app.dialog = Dialog::None;
     }
-    if close {
-        app.dialog = Dialog::None;
-    }
-}
-
-fn settings_window(app: &mut App, ctx: &egui::Context) {
-    if !matches!(app.dialog, Dialog::Settings) {
-        return;
-    }
-    let mut close = false;
-    egui::Window::new("设置")
-        .default_width(380.0)
-        .resizable(false)
-        .collapsible(false)
-        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-        .frame(window_frame())
-        .show(ctx, |ui| {
-            let mut palette = crate::theme::palette();
-            let mut changed = false;
-            section(ui, "玻璃");
-            changed |= ui
-                .add(egui::Slider::new(&mut palette.glass_alpha, 0..=200).text("浓度"))
-                .changed();
-            changed |= ui
-                .add(egui::Slider::new(&mut palette.card_alpha, 0..=255).text("卡片"))
-                .changed();
-            changed |= ui
-                .add(egui::Slider::new(&mut palette.line_alpha, 0..=255).text("描边"))
-                .changed();
-            ui.add_space(10.0);
-            section(ui, "颜色");
-            ui.horizontal(|ui| {
-                let mut accent = egui::Color32::from_rgb(
-                    palette.accent[0],
-                    palette.accent[1],
-                    palette.accent[2],
-                );
-                if ui.color_edit_button_srgba(&mut accent).changed() {
-                    palette.accent = [accent.r(), accent.g(), accent.b()];
-                    changed = true;
-                }
-                ui.label(muted("强调色"));
-            });
-            ui.horizontal(|ui| {
-                let mut color = egui::Color32::from_rgb(
-                    palette.text[0],
-                    palette.text[1],
-                    palette.text[2],
-                );
-                if ui.color_edit_button_srgba(&mut color).changed() {
-                    palette.text = [color.r(), color.g(), color.b()];
-                    changed = true;
-                }
-                ui.label(muted("正文"));
-            });
-            ui.horizontal(|ui| {
-                let mut color = egui::Color32::from_rgb(
-                    palette.text_dim[0],
-                    palette.text_dim[1],
-                    palette.text_dim[2],
-                );
-                if ui.color_edit_button_srgba(&mut color).changed() {
-                    palette.text_dim = [color.r(), color.g(), color.b()];
-                    changed = true;
-                }
-                ui.label(muted("次级文字"));
-            });
-            ui.horizontal(|ui| {
-                let mut color = egui::Color32::from_rgb(
-                    palette.text_muted[0],
-                    palette.text_muted[1],
-                    palette.text_muted[2],
-                );
-                if ui.color_edit_button_srgba(&mut color).changed() {
-                    palette.text_muted = [color.r(), color.g(), color.b()];
-                    changed = true;
-                }
-                ui.label(muted("弱化文字"));
-            });
-            if ui.button("恢复默认配色").clicked() {
-                palette = crate::theme::Palette::default();
-                changed = true;
-            }
-            if changed {
-                crate::theme::set_palette(palette);
-                crate::theme::refresh(ui.ctx());
-            }
-            ui.add_space(12.0);
-            kv(ui, "账号", app.me.clone());
-            kv(ui, "空间", app.store.workspace_name.clone());
-            kv(ui, "成员", format!("{} 人", app.store.users.len()));
-            kv(ui, "协议", "v5");
-            ui.add_space(10.0);
-            ui.horizontal(|ui| {
-                if ui.button("立即同步").clicked() {
-                    app.send(Command::SyncNow);
-                }
-                if ui.button("成员列表").clicked() {
-                    app.send(Command::Members);
-                    app.dialog = Dialog::Members;
-                }
-                if ui.button("邀请码").clicked() {
-                    app.send(Command::ListInvites);
-                    app.dialog = Dialog::Invites {
-                        list: Vec::new(),
-                        loading: true,
-                    };
-                }
-            });
-            ui.add_space(12.0);
-            ui.label(muted("所有数据与 totion 服务端共用，可在手机或终端里继续看。"));
-            ui.add_space(8.0);
-            if ui.button("关闭").clicked() {
-                close = true;
-            }
-        });
     if close {
         app.dialog = Dialog::None;
     }
