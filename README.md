@@ -286,6 +286,20 @@ cat data/invite_code
 
 编辑和输入状态下，`Esc` 取消，`Enter` 保存（多行内容用 `Ctrl+S`）。
 
+## 桌面卡片（实验）
+
+Windows 上可以把今日概览固定成一张半透明卡片，像桌面小组件：
+
+```powershell
+cargo run --release -p totion-client --bin totion-glass
+```
+
+- 复用客户端已经保存的身份（`%APPDATA%\totion\identity.json`），第一次需要先运行 `totion` 连接服务器。
+- 默认出现在桌面右下角，不抢焦点；左键拖动移动，双击刷新，右键退出，每 60 秒自动刷新一次。
+- 卡片用分层窗口的 32 位 ARGB 画布绘制，桌面会透过半透明背景显示；真正的 Acrylic 模糊需要 DWM composition，这一版先用半透明深色模拟，效果稳定后再考虑升级。
+- 仅 Windows 可用；macOS / Linux 上运行会提示不支持。
+- 本机没有 MSVC 时，把命令开头的 `cargo` 换成 README「开发」一节里的 GNU 工具链写法。
+
 ## 邀请码
 
 邀请码只决定“谁能注册进来”。注册后所有成员共享同一份数据，没有独立空间。
@@ -462,6 +476,7 @@ TOTION_INVITE_CODE=你的邀请码
 - [x] v0.9：可点击的顶部导航栏、列表/日期/面板鼠标选中、周视图内容与翻页
 - [x] v0.10：滚轮与双击、勾选框点击、`g`/`G` 跳转、长列表滚动、状态栏淡出、弹窗统一、搜索结果可读化
 - [x] v0.11：页面/总结/成员/邀请码滚动、sticky 分组、相邻月份、多行编辑光标与横向滚动、离线状态、草稿保留、`r`/`Esc` 按键冲突修复
+- [ ] 桌面卡片：Acrylic 真模糊、位置与内容可配置（已有实验版 `totion-glass`）
 - [ ] 一键 HTTPS 部署（Caddy 自动证书）
 - [ ] 提醒与桌面通知
 - [ ] Markdown / CSV 导出
