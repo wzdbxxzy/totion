@@ -324,17 +324,6 @@ impl App {
                         query: String::new(),
                     };
                 }
-                let (dot, text) = if self.status.starts_with("已连接") {
-                    (ok(), "在线")
-                } else {
-                    (warn(), "连接中")
-                };
-                ui.horizontal(|ui| {
-                    let (rect, _) =
-                        ui.allocate_exact_size(egui::Vec2::new(6.0, 6.0), egui::Sense::hover());
-                    ui.painter().circle_filled(rect.center(), 3.0, dot);
-                    ui.label(RichText::new(text).size(12.0).color(dot));
-                });
             });
         });
     }
