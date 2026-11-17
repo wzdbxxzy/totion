@@ -878,6 +878,52 @@ fn calendar_shows_adjacent_month_days_and_click_navigates() {
     );
 }
 
+fn buffer_line(buffer: &ratatui::buffer::Buffer, row: u16) -> String {
+    let area = buffer.area;
+    let mut output = String::new();
+    for x in 0..area.width {
+        if let Some(cell) = buffer.cell((x, row)) {
+            output.push_str(cell.symbol());
+        }
+    }
+    output
+}
+
+#[test]
+fn scrolled_page_list_keeps_group_header_sticky() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        for index in 0..40 {
+            state.pages.push(Page {
+                id: format!("d{index}"),
+                title: format!("文档 {index}"),
+                icon: "📄".to_string(),
+                kind: PageKind::Doc,
+                position: index as i64 + 1,
+                version: 1,
+                updated_at: chrono::Utc::now(),
+                updated_by: "Guan".to_string(),
+                deleted: false,
+                date: None,
+            });
+        }
+        state.set_view(View::Workspace);
+        state.selected_page_index = 40;
+        state.clamp();
+    }
+    harness.render(120, 24);
+    let first_content_row = buffer_line(harness.buffer.as_ref().expect("buffer"), 3);
+    let compact: String = first_content_row
+        .chars()
+        .filter(|ch| !ch.is_whitespace())
+        .collect();
+    assert!(
+        compact.contains("文档"),
+        "滚动后第一行应是固定的分组标题，实际: {compact}"
+    );
+}
+
 #[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();

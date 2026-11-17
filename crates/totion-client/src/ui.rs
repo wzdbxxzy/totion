@@ -617,9 +617,11 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
     let pages = main.visible_pages();
     let budget = area.height.saturating_sub(3) as usize;
     let mut blocks: Vec<Vec<Line>> = Vec::new();
+    let mut has_header: Vec<bool> = Vec::new();
     let mut last_kind = None;
     for (index, page) in pages.iter().enumerate() {
         let mut block: Vec<Line> = Vec::new();
+        let mut header = false;
         if last_kind != Some(page.kind) {
             if !blocks.is_empty() {
                 block.push(Line::from(""));
@@ -630,6 +632,7 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
                     .fg(Color::DarkGray)
                     .add_modifier(Modifier::BOLD),
             )));
+            header = true;
             last_kind = Some(page.kind);
         }
         let marker = if index == main.selected_page_index() {
@@ -659,19 +662,44 @@ fn draw_pages(frame: &mut Frame, area: Rect, main: &MainState) {
             ),
         ]));
         blocks.push(block);
+        has_header.push(header);
     }
 
     let heights: Vec<usize> = blocks.iter().map(|block| block.len()).collect();
-    let start = scroll_start(&heights, main.selected_page_index(), budget);
+    let first_start = scroll_start(&heights, main.selected_page_index(), budget);
+    let start = if first_start > 0 && budget > 1 {
+        scroll_start(&heights, main.selected_page_index(), budget - 1)
+    } else {
+        first_start
+    };
+    // 滚动后把当前分组标题固定在顶部，避免看不出页面属于哪一类。
+    let sticky = start > 0 && budget > 1;
+
     let mut lines: Vec<Line> = Vec::new();
+    if sticky {
+        if let Some(page) = pages.get(start) {
+            lines.push(Line::from(Span::styled(
+                format!("{} {}", page.kind.icon(), page.kind.label()),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            )));
+        }
+    }
+    let sticky_rows = if sticky { 1 } else { 0 };
+    let content_budget = budget.saturating_sub(sticky_rows);
     let mut rendered_end = start;
     for (index, block) in blocks.iter().enumerate().skip(start) {
-        if lines.len() >= budget && index != main.selected_page_index() {
+        if lines.len().saturating_sub(sticky_rows) >= content_budget
+            && index != main.selected_page_index()
+        {
             break;
         }
+        let skip_header = sticky && index == start && has_header[index];
+        let skip_rows = if skip_header { 1 } else { 0 };
         let first_row = lines.len();
-        lines.extend(block.iter().cloned());
-        let page_row = first_row + block.len().saturating_sub(1);
+        lines.extend(block.iter().skip(skip_rows).cloned());
+        let page_row = first_row + block.len().saturating_sub(1).saturating_sub(skip_rows);
         if let Some(rect) = list_row_rect(area, page_row) {
             main.push_mouse_hit(rect, MouseAction::SelectPage(index));
         }
