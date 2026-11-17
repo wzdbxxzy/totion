@@ -19,7 +19,7 @@ pub fn draw(app: &mut App, ctx: &egui::Context) {
 
 fn window_frame() -> egui::Frame {
     egui::Frame::new()
-        .fill(Color32::from_rgb(15, 21, 31))
+        .fill(Color32::from_rgba_unmultiplied(236, 244, 252, 236))
         .stroke(egui::Stroke::new(1.0, LINE))
         .corner_radius(egui::CornerRadius::same(16))
         .inner_margin(egui::Margin::same(20))
@@ -591,6 +591,16 @@ fn settings_window(app: &mut App, ctx: &egui::Context) {
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .frame(window_frame())
         .show(ctx, |ui| {
+            let mut alpha = app.glass_alpha;
+            section(ui, "玻璃透明度");
+            if ui
+                .add(egui::Slider::new(&mut alpha, 20..=180).text("浓度"))
+                .changed()
+            {
+                app.glass_alpha = alpha;
+                crate::app::save_glass_alpha(alpha);
+            }
+            ui.add_space(8.0);
             kv(ui, "账号", app.me.clone());
             kv(ui, "空间", app.store.workspace_name.clone());
             kv(ui, "成员", format!("{} 人", app.store.users.len()));

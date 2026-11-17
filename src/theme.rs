@@ -9,23 +9,23 @@ use eframe::egui::{
 };
 
 pub const BG: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 0);
-pub const SIDEBAR: Color32 = Color32::from_rgba_premultiplied(3, 2, 3, 70);
-pub const CARD: Color32 = Color32::from_rgba_premultiplied(19, 17, 16, 184);
-pub const CARD_HI: Color32 = Color32::from_rgba_premultiplied(31, 28, 26, 208);
-pub const FIELD: Color32 = Color32::from_rgba_premultiplied(11, 10, 10, 176);
+pub const SIDEBAR: Color32 = Color32::from_rgba_premultiplied(42, 42, 42, 42);
+pub const CARD: Color32 = Color32::from_rgba_premultiplied(132, 132, 132, 132);
+pub const CARD_HI: Color32 = Color32::from_rgba_premultiplied(168, 168, 168, 168);
+pub const FIELD: Color32 = Color32::from_rgba_premultiplied(120, 120, 120, 120);
 
-pub const LINE: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 18);
-pub const LINE_SOFT: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 10);
+pub const LINE: Color32 = Color32::from_rgba_premultiplied(58, 96, 132, 70);
+pub const LINE_SOFT: Color32 = Color32::from_rgba_premultiplied(58, 96, 132, 40);
 
-pub const TEXT: Color32 = Color32::from_rgb(246, 242, 236);
-pub const TEXT_DIM: Color32 = Color32::from_rgb(206, 198, 190);
-pub const TEXT_MUTED: Color32 = Color32::from_rgb(150, 141, 133);
+pub const TEXT: Color32 = Color32::from_rgb(22, 33, 45);
+pub const TEXT_DIM: Color32 = Color32::from_rgb(56, 74, 92);
+pub const TEXT_MUTED: Color32 = Color32::from_rgb(92, 110, 128);
 
-pub const ACCENT: Color32 = Color32::from_rgb(216, 181, 140);
-pub const ACCENT_SOFT: Color32 = Color32::from_rgba_premultiplied(31, 26, 20, 44);
-pub const OK: Color32 = Color32::from_rgb(111, 194, 154);
-pub const WARN: Color32 = Color32::from_rgb(224, 168, 99);
-pub const DANGER: Color32 = Color32::from_rgb(217, 122, 112);
+pub const ACCENT: Color32 = Color32::from_rgb(38, 104, 152);
+pub const ACCENT_SOFT: Color32 = Color32::from_rgba_premultiplied(7, 19, 29, 44);
+pub const OK: Color32 = Color32::from_rgb(38, 122, 92);
+pub const WARN: Color32 = Color32::from_rgb(160, 108, 28);
+pub const DANGER: Color32 = Color32::from_rgb(172, 62, 56);
 
 pub const RADIUS: u8 = 14;
 

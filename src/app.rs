@@ -111,6 +111,7 @@ pub struct App {
     pub editor: Editor,
     pub dialog: Dialog,
     toast: Option<(String, Instant, bool)>,
+    pub glass_alpha: u8,
     started: Instant,
     logged: bool,
     hwnd: Option<isize>,
@@ -157,6 +158,7 @@ impl App {
             editor: Editor::None,
             dialog: Dialog::None,
             toast: None,
+            glass_alpha: load_glass_alpha(),
             started: Instant::now(),
             logged: false,
             hwnd: None,
@@ -534,7 +536,7 @@ impl App {
         painter.rect_filled(
             rect,
             0.0,
-            Color32::from_rgba_unmultiplied(12, 10, 10, 120),
+            Color32::from_rgba_unmultiplied(226, 240, 252, self.glass_alpha),
         );
         // 左边缘一条细线，给面板一个边界。
         painter.vline(
@@ -609,6 +611,31 @@ impl eframe::App for App {
         crate::views::overlays::draw(self, ctx);
         self.toast_layer(ctx);
     }
+}
+
+fn prefs_path() -> std::path::PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("glasswing")
+        .join("glass.json")
+}
+
+fn load_glass_alpha() -> u8 {
+    std::fs::read_to_string(prefs_path())
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|value| value.get("glass_alpha").and_then(|v| v.as_u64()))
+        .map(|v| v.clamp(20, 200) as u8)
+        .unwrap_or(104)
+}
+
+pub fn save_glass_alpha(alpha: u8) {
+    let path = prefs_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let raw = serde_json::json!({ "glass_alpha": alpha }).to_string();
+    let _ = std::fs::write(path, raw);
 }
 
 pub fn weekday_cn(date: NaiveDate) -> &'static str {
