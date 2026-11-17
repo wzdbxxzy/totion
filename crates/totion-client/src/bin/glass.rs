@@ -377,11 +377,12 @@ mod imp {
                 rate,
             );
 
+            // 最多显示 5 条：5 * 26px 不会压到底部的习惯/提示行。
             let mut y = PADDING + 96;
             if todos.is_empty() {
                 text(mem, "今天没有待办", PADDING, y, 0x00B0_A8A0, &FONT_BODY);
             } else {
-                for block in todos.iter().take(8) {
+                for block in todos.iter().take(5) {
                     let mark = if block.checked { "✓" } else { "○" };
                     let color = if block.checked {
                         0x0050_B93F
@@ -411,7 +412,7 @@ mod imp {
                 if todos.len() > 8 {
                     text(
                         mem,
-                        &format!("还有 {} 条…", todos.len() - 8),
+                        &format!("还有 {} 条…", todos.len() - 5),
                         PADDING + 22,
                         y,
                         0x00B0_A8A0,
