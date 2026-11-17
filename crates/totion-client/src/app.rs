@@ -615,6 +615,8 @@ pub struct MainState {
     status_since: Instant,
     notice: Option<String>,
     last_sync: Option<Instant>,
+    /// 最近一次自动/手动同步的错误；成功后清空，用于状态栏显示离线。
+    sync_error: Option<String>,
     calendar_month: NaiveDate,
     selected_day: NaiveDate,
     today: NaiveDate,
@@ -673,6 +675,7 @@ impl MainState {
             status_since: Instant::now(),
             notice: None,
             last_sync: Some(Instant::now()),
+            sync_error: None,
             calendar_month: today.with_day(1).unwrap_or(today),
             selected_day: today,
             today,
@@ -794,6 +797,9 @@ impl MainState {
         };
         if self.status_since.elapsed() < ttl {
             return self.status.clone();
+        }
+        if self.sync_error.is_some() {
+            return "同步失败 · 将自动重试".to_string();
         }
         match self.last_sync {
             Some(at) if at.elapsed().as_secs() >= 2 => {
@@ -1524,12 +1530,16 @@ impl MainState {
                 }
                 Err(err) => {
                     failed = true;
+                    self.sync_error = Some(err.to_string());
                     if manual {
                         self.status = format!("同步失败: {err}");
                     }
                     break;
                 }
             }
+        }
+        if !failed {
+            self.sync_error = None;
         }
         self.refresh_daily_page();
         self.clamp();

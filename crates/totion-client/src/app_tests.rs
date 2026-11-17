@@ -1089,6 +1089,22 @@ fn failed_manual_sync_reports_failure_not_success() {
 }
 
 #[test]
+fn auto_sync_failure_keeps_offline_status() {
+    let mut harness = Harness::new();
+    harness.state_mut().sync_now(false);
+    assert!(
+        harness.state().sync_error.is_some(),
+        "自动同步失败应记录错误"
+    );
+    harness.state_mut().status_since = Instant::now() - Duration::from_secs(10);
+    let status = harness.state().status();
+    assert!(
+        status.contains("同步失败"),
+        "提示淡出后应显示离线状态，实际: {status}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
