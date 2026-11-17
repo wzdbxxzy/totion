@@ -1261,11 +1261,22 @@ fn draw_calendar(frame: &mut Frame, area: Rect, main: &MainState) {
     }
 
     let mark = month_mark(month.month());
-    let banner = format!(
-        "{mark}    {} 年 {} 月    {mark}",
-        month.year(),
-        month.month()
-    );
+    let month_stat = main.month_block_stats(month);
+    let banner = if month_stat.total == 0 {
+        format!(
+            "{mark}    {} 年 {} 月    {mark}",
+            month.year(),
+            month.month()
+        )
+    } else {
+        format!(
+            "{mark}   {} 年 {} 月   ·   待办 {} · 完成 {}",
+            month.year(),
+            month.month(),
+            month_stat.total,
+            month_stat.done
+        )
+    };
     frame.render_widget(
         Paragraph::new(Line::from(Span::styled(
             banner,

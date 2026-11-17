@@ -1232,6 +1232,29 @@ impl MainState {
         completion_series(&self.scoped_blocks(), days, self.today)
     }
 
+    /// 某个自然月的待办数量与完成数（日历横幅用）。
+    pub fn month_block_stats(&self, month: NaiveDate) -> DayStat {
+        let prefix = month.format("%Y-%m").to_string();
+        let mut stat = DayStat { total: 0, done: 0 };
+        for block in self.scoped_blocks() {
+            if !matches!(block.kind, BlockKind::Todo | BlockKind::CalendarEvent) {
+                continue;
+            }
+            let in_month = block
+                .due_date
+                .as_deref()
+                .map(|date| date.starts_with(&prefix))
+                .unwrap_or(false);
+            if in_month {
+                stat.total += 1;
+                if block.checked {
+                    stat.done += 1;
+                }
+            }
+        }
+        stat
+    }
+
     pub fn heatmap_grid(&self, habit: &Habit, weeks: u32) -> Vec<Vec<bool>> {
         totion_core::heatmap_grid(&self.scoped_checkins(), &habit.id, weeks, self.today)
     }

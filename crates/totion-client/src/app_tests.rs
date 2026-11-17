@@ -564,6 +564,23 @@ fn checkbox_click_is_blocked_in_member_view() {
 }
 
 #[test]
+fn calendar_banner_shows_month_totals() {
+    let mut harness = Harness::new();
+    let today = harness.state().today();
+    let stat = harness.state().month_block_stats(today);
+    assert_eq!((stat.total, stat.done), (2, 0));
+
+    harness.state_mut().set_view(View::Calendar);
+    harness.render(120, 40);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("待办2·完成0"),
+        "日历横幅缺少统计: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
