@@ -419,7 +419,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
                 " Tab 页面/内容 · j/k 移动 · Enter 编辑 · n 文本 · t 待办 · N 新页面 · a 每日页 · d 删除 · J 全部总结 · C 评论"
             }
             View::Calendar => {
-                " h/l 选日 · j/k 前后周 · [ ] 换月 · Enter 议程 · v 框选 · t 新建/批量待办 · q 退出"
+                " h/l 选日 · j/k 前后周 · [ ] 换月 · Enter/双击 议程 · v 框选 · t 新建/批量待办"
             }
             View::Habits => {
                 " n 新建习惯 · j/k 选择 · Space 打卡 · u 撤销 · e 改名称 · d 删除 · C 评论 · q 退出"

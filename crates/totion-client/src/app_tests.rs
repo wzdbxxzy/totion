@@ -150,6 +150,15 @@ impl Harness {
         self.app.handle_mouse(event);
     }
 
+    fn click_at(&mut self, column: u16, row: u16) {
+        self.app.handle_mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            modifiers: KeyModifiers::empty(),
+        });
+    }
+
     fn wheel(&mut self, down: bool) {
         let kind = if down {
             MouseEventKind::ScrollDown
@@ -458,6 +467,26 @@ fn stats_shows_heatmap_range_and_empty_hint() {
     let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
     assert!(compact.contains("最近52周打卡热力图"), "缺少热力图标题");
     assert!(compact.contains("还没有打卡记录"), "缺少空状态提示");
+}
+
+#[test]
+fn double_click_calendar_opens_agenda() {
+    let mut harness = Harness::new();
+    harness.state_mut().set_view(View::Calendar);
+    harness.render(120, 40);
+    let cell = {
+        let cells = harness.state().calendar_cells.borrow();
+        cells.first().map(|(rect, _)| *rect).expect("日历格子")
+    };
+    let column = cell.x + cell.width / 2;
+    let row = cell.y + cell.height / 2;
+    harness.click_at(column, row);
+    assert!(harness.state().modal().is_none(), "单击只应选日");
+    harness.click_at(column, row);
+    assert!(
+        matches!(harness.state().modal(), Some(Modal::Agenda(_))),
+        "双击应打开议程"
+    );
 }
 
 #[test]

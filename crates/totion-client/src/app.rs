@@ -577,6 +577,8 @@ pub struct MainState {
     range_focus: Option<NaiveDate>,
     pub calendar_cells: RefCell<Vec<(Rect, NaiveDate)>>,
     mouse_hits: RefCell<Vec<(Rect, MouseAction)>>,
+    /// 上一次左键点击的时间与坐标，用于识别双击。
+    last_click: Option<(Instant, u16, u16)>,
     caps: ServerCaps,
     stats_days: u32,
 }
@@ -632,6 +634,7 @@ impl MainState {
             range_focus: None,
             calendar_cells: RefCell::new(Vec::new()),
             mouse_hits: RefCell::new(Vec::new()),
+            last_click: None,
             caps: ServerCaps {
                 api_version: snapshot.api_version,
             },
@@ -2984,9 +2987,20 @@ impl MainState {
             let shift = mouse.modifiers.contains(KeyModifiers::SHIFT);
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
+                    let double_click = matches!(
+                        self.last_click,
+                        Some((at, column, row))
+                            if at.elapsed() < Duration::from_millis(400)
+                                && column == mouse.column
+                                && row == mouse.row
+                    );
+                    self.last_click = Some((Instant::now(), mouse.column, mouse.row));
                     self.selected_day = date;
                     self.calendar_month = date.with_day(1).unwrap_or(date);
                     self.selected_agenda_index = 0;
+                    if double_click {
+                        self.open_agenda();
+                    }
                 }
                 MouseEventKind::Down(MouseButton::Right) if shift => {
                     self.range_anchor = Some(date);
