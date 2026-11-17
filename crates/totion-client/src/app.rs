@@ -1695,7 +1695,8 @@ impl MainState {
             KeyCode::Char('C') => self.open_comments(),
             KeyCode::Char('i') => self.open_invites(),
             KeyCode::Char('m') => self.open_members(),
-            KeyCode::Char('r') => {
+            // 留言视图里 `r` 是「标记解决」，不能被全局同步键抢走。
+            KeyCode::Char('r') if self.view != View::Inbox => {
                 self.ensured_date = None;
                 self.ensure_today_page();
                 self.sync_now(true);

@@ -772,6 +772,35 @@ fn long_journal_list_scrolls_to_selected_entry() {
 }
 
 #[test]
+fn inbox_r_resolves_instead_of_triggering_sync() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        state.comments.push(Comment {
+            id: "c-r".to_string(),
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+            body: "内容".to_string(),
+            resolved: false,
+            author_id: "u1".to_string(),
+            author_name: "Guan".to_string(),
+            version: 1,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            deleted: false,
+        });
+        state.set_view(View::Inbox);
+        state.clamp();
+    }
+    let before = *harness.state().last_sync.as_ref().expect("last_sync");
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
+    let after = *harness.state().last_sync.as_ref().expect("last_sync");
+    assert_eq!(before, after, "留言视图的 r 不应触发全局同步");
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
