@@ -1237,6 +1237,19 @@ fn space_on_checked_habit_attempts_undo() {
 }
 
 #[test]
+fn week_view_footer_shows_week_totals() {
+    let mut harness = Harness::new();
+    harness.state_mut().open_week_view();
+    harness.render(120, 40);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("本周0/2"),
+        "周视图底部应有本周统计: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

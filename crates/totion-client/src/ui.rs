@@ -1317,8 +1317,17 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
         lines.push(Line::from(""));
         rendered_end = index + 1;
     }
+    let week_done: u32 = overview.iter().map(|(_, stat, _)| stat.done).sum();
+    let week_total: u32 = overview.iter().map(|(_, stat, _)| stat.total).sum();
+    let week_rate = if week_total == 0 {
+        0.0
+    } else {
+        week_done as f64 / week_total as f64 * 100.0
+    };
     lines.push(Line::from(Span::styled(
-        " j/k 或点击 选日 · h/l 前后一天 · Enter 查看该天 · w/Esc 返回",
+        format!(
+            " 本周 {week_done}/{week_total} {week_rate:.0}%   ·   j/k 或点击 选日 · h/l 前后一天 · Enter 查看该天 · w/Esc 返回"
+        ),
         Style::default().fg(Color::DarkGray),
     )));
     let start = main.week_end() - chrono::Duration::days(6);
