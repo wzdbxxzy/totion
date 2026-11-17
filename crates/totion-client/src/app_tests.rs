@@ -1493,6 +1493,22 @@ fn agenda_modal_shows_item_count() {
 }
 
 #[test]
+fn hover_rect_matches_click_targets() {
+    let mut harness = Harness::new();
+    harness.render(120, 30);
+    let rect = harness.action_rect(MouseAction::SelectTodayItem(0));
+    assert_eq!(
+        harness.state().hover_rect(rect.x + 1, rect.y),
+        Some(rect),
+        "悬停区域应与点击区域一致"
+    );
+    assert!(
+        harness.state().hover_rect(0, 0).is_none(),
+        "空白区域不应有悬停高亮"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

@@ -1031,6 +1031,22 @@ impl MainState {
         }
     }
 
+    /// 当前坐标下的可点击区域（桌面面板用来做悬停高亮）。
+    #[allow(dead_code)]
+    pub fn hover_rect(&self, column: u16, row: u16) -> Option<Rect> {
+        self.mouse_hits
+            .borrow()
+            .iter()
+            .rev()
+            .find(|(rect, _)| {
+                column >= rect.x
+                    && column < rect.x.saturating_add(rect.width)
+                    && row >= rect.y
+                    && row < rect.y.saturating_add(rect.height)
+            })
+            .map(|(rect, _)| *rect)
+    }
+
     fn mouse_hit_at(&self, column: u16, row: u16) -> Option<MouseAction> {
         self.mouse_hits
             .borrow()

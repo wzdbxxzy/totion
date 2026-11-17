@@ -74,20 +74,25 @@ mod imp {
     use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW,
-        GetWindowRect, LoadCursorW, PostQuitMessage, RegisterClassW, SetForegroundWindow, SetTimer,
-        ShowWindow, SystemParametersInfoW, TranslateMessage, UpdateLayeredWindow, CS_DBLCLKS,
-        IDC_ARROW, SW_SHOW, ULW_ALPHA, WM_CHAR, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_KEYDOWN,
-        WM_LBUTTONDOWN, WM_MOUSEWHEEL, WM_RBUTTONUP, WM_TIMER, WNDCLASSW, WS_EX_LAYERED,
-        WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE,
+        GetWindowRect, LoadCursorW, PostQuitMessage, RegisterClassW, SetCursor,
+        SetForegroundWindow, SetTimer, ShowWindow, SystemParametersInfoW, TranslateMessage,
+        UpdateLayeredWindow, CS_DBLCLKS, IDC_ARROW, SW_SHOW, ULW_ALPHA, WM_CHAR, WM_CLOSE,
+        WM_CREATE, WM_DESTROY, WM_KEYDOWN, WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_MOUSEWHEEL,
+        WM_RBUTTONUP, WM_SETCURSOR, WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_POPUP,
+        WS_VISIBLE,
     };
 
     use crate::app::{App, Screen};
-    use windows_sys::Win32::UI::Input::KeyboardAndMouse::SetFocus;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+        SetFocus, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT,
+    };
 
     const MARGIN: i32 = 16;
     const BG_RGB: u32 = 0x001D_1612; // #12161D
     const TIMER_REFRESH: usize = 1;
     const PANEL_RADIUS: f64 = 22.0;
+    const CONTENT_MARGIN: i32 = 2; // 单元格内边距
+    const WM_MOUSELEAVE_MSG: u32 = 0x02A3;
 
     thread_local! {
         static APP: RefCell<Option<App>> = const { RefCell::new(None) };
@@ -98,6 +103,10 @@ mod imp {
         static OPACITY: Cell<u32> = const { Cell::new(150) };
         static COLUMNS: Cell<i32> = const { Cell::new(0) };
         static ROWS: Cell<i32> = const { Cell::new(0) };
+        static CONTENT: Cell<(i32, i32)> = const { Cell::new((1, 1)) };
+        static HOVER: Cell<Option<(i32, i32, i32, i32)>> = const { Cell::new(None) };
+        static CURSOR_ARROW: Cell<isize> = const { Cell::new(0) };
+        static CURSOR_HAND: Cell<isize> = const { Cell::new(0) };
     }
 
     #[link(name = "user32")]
@@ -149,6 +158,11 @@ mod imp {
                 lpszClassName: class_name.as_ptr(),
             };
             RegisterClassW(&class);
+
+            let arrow_cursor = LoadCursorW(ptr::null_mut(), IDC_ARROW);
+            let hand_cursor = LoadCursorW(ptr::null_mut(), 32649 as *const u16); // IDC_HAND
+            CURSOR_ARROW.with(|value| value.set(arrow_cursor as isize));
+            CURSOR_HAND.with(|value| value.set(hand_cursor as isize));
 
             build_app();
             create_canvas(width_percent);
@@ -304,6 +318,12 @@ mod imp {
         let rows = ((work_h - MARGIN * 2) / cell_h).max(20);
         COLUMNS.with(|value| value.set(cols));
         ROWS.with(|value| value.set(rows));
+        CONTENT.with(|value| {
+            value.set((
+                (cols - CONTENT_MARGIN * 2).max(10),
+                (rows - CONTENT_MARGIN * 2).max(6),
+            ))
+        });
 
         let info = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
@@ -383,6 +403,23 @@ mod imp {
                 dispatch(KeyEvent::new(key, modifiers), hwnd);
                 0
             }
+            WM_MOUSEMOVE => {
+                track_leave(hwnd);
+                let x = (lparam & 0xFFFF) as u16 as i32;
+                let y = ((lparam >> 16) & 0xFFFF) as u16 as i32;
+                update_hover(hwnd, x, y);
+                0
+            }
+            WM_MOUSELEAVE_MSG => {
+                HOVER.with(|value| value.set(None));
+                set_cursor(false);
+                render(hwnd);
+                0
+            }
+            WM_SETCURSOR => {
+                set_cursor(HOVER.with(|value| value.get().is_some()));
+                1
+            }
             WM_LBUTTONDOWN => {
                 SetForegroundWindow(hwnd);
                 SetFocus(hwnd);
@@ -428,6 +465,13 @@ mod imp {
             (cell_w, cell_h)
         });
         let (column, row) = cell_at(x, y, cell_w, cell_h);
+        let (content_cols, content_rows) = CONTENT.with(|value| value.get());
+        let column = column as i32 - CONTENT_MARGIN;
+        let row = row as i32 - CONTENT_MARGIN;
+        if column < 0 || row < 0 || column >= content_cols || row >= content_rows {
+            return;
+        }
+        let (column, row) = (column as u16, row as u16);
         let quit = APP.with(|value| {
             let mut app = value.borrow_mut();
             let Some(app) = app.as_mut() else {
@@ -444,6 +488,69 @@ mod imp {
         if quit {
             unsafe { DestroyWindow(hwnd) };
         } else {
+            unsafe { render(hwnd) };
+        }
+    }
+
+    fn set_cursor(hand: bool) {
+        let cursor = if hand {
+            CURSOR_HAND.with(|value| value.get())
+        } else {
+            CURSOR_ARROW.with(|value| value.get())
+        };
+        if cursor != 0 {
+            unsafe { SetCursor(cursor as *mut c_void) };
+        }
+    }
+
+    fn track_leave(hwnd: HWND) {
+        let mut event = TRACKMOUSEEVENT {
+            cbSize: size_of::<TRACKMOUSEEVENT>() as u32,
+            dwFlags: TME_LEAVE,
+            hwndTrack: hwnd,
+            dwHoverTime: 0,
+        };
+        unsafe { TrackMouseEvent(&mut event) };
+    }
+
+    fn update_hover(hwnd: HWND, x: i32, y: i32) {
+        let (cell_w, cell_h) = CANVAS.with(|value| {
+            let (_, _, _, cell_w, cell_h) = value.get();
+            (cell_w, cell_h)
+        });
+        let (content_cols, content_rows) = CONTENT.with(|value| value.get());
+        let column = x / cell_w - CONTENT_MARGIN;
+        let row = y / cell_h - CONTENT_MARGIN;
+        let hovered = if column >= 0 && row >= 0 && column < content_cols && row < content_rows {
+            APP.with(|value| {
+                let borrowed = value.borrow();
+                let app = borrowed.as_ref()?;
+                match &app.screen {
+                    Screen::Main(state) => state.hover_rect(column as u16, row as u16),
+                    Screen::Setup(_) => None,
+                }
+            })
+        } else {
+            None
+        };
+        let rect = hovered.map(|rect| {
+            (
+                rect.x as i32 + CONTENT_MARGIN,
+                rect.y as i32 + CONTENT_MARGIN,
+                rect.width as i32,
+                rect.height as i32,
+            )
+        });
+        let changed = HOVER.with(|value| {
+            if value.get() == rect {
+                false
+            } else {
+                value.set(rect);
+                true
+            }
+        });
+        set_cursor(rect.is_some());
+        if changed {
             unsafe { render(hwnd) };
         }
     }
@@ -501,11 +608,14 @@ mod imp {
         let rows = ROWS.with(|value| value.get()).max(1);
         let width = (cols * cell_w) as usize;
         let height = (rows * cell_h) as usize;
+        let (content_cols, content_rows) = CONTENT.with(|value| value.get());
+        let offset_x = CONTENT_MARGIN * cell_w;
+        let offset_y = CONTENT_MARGIN * cell_h;
 
         let buffer = APP.with(|value| {
             let borrowed = value.borrow();
             let app = borrowed.as_ref()?;
-            let backend = TestBackend::new(cols as u16, rows as u16);
+            let backend = TestBackend::new(content_cols as u16, content_rows as u16);
             let mut terminal = Terminal::new(backend).ok()?;
             terminal.draw(|frame| crate::ui::draw(frame, app)).ok()?;
             Some(terminal.backend().buffer().clone())
@@ -517,9 +627,14 @@ mod imp {
         let bits = bits as *mut u32;
         let opacity = OPACITY.with(|value| value.get());
         fill_background(bits, width, height, opacity);
-        paint_cell_backgrounds(bits, width, height, cell_w, cell_h, &buffer);
+        paint_cell_backgrounds(
+            bits, width, height, cell_w, cell_h, offset_x, offset_y, &buffer,
+        );
+        if let Some((x, y, w, h)) = HOVER.with(|value| value.get()) {
+            paint_hover(bits, width, height, cell_w, cell_h, x, y, w, h);
+        }
         let pre: Vec<u32> = std::slice::from_raw_parts(bits, width * height).to_vec();
-        paint_text(mem as HDC, &buffer, cell_w, cell_h);
+        paint_text(mem as HDC, &buffer, cell_w, cell_h, offset_x, offset_y);
         mark_text_pixels(bits, &pre);
         present(hwnd, mem as HDC, width as i32, height as i32);
     }
@@ -536,20 +651,30 @@ mod imp {
                 let outside = (qx.max(0.0).powi(2) + qy.max(0.0).powi(2)).sqrt();
                 let distance = outside + qx.max(qy).min(0.0) - PANEL_RADIUS;
                 let coverage = (0.5 - distance).clamp(0.0, 1.0);
-                let alpha = (opacity as f64 * coverage).round() as u32;
+                let depth = 0.88 + 0.12 * (1.0 - y as f64 / height as f64);
+                let alpha = (opacity as f64 * coverage * depth).round() as u32;
+                let pixel = if coverage > 0.0 && distance > -2.0 {
+                    // 内侧一像素细边，低透明度。
+                    ((70.0 * coverage) as u32) << 24 | 0x005A_4A3E
+                } else {
+                    (alpha << 24) | BG_RGB
+                };
                 unsafe {
-                    *bits.add(y * width + x) = (alpha << 24) | BG_RGB;
+                    *bits.add(y * width + x) = pixel;
                 }
             }
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn paint_cell_backgrounds(
         bits: *mut u32,
         width: usize,
         height: usize,
         cell_w: i32,
         cell_h: i32,
+        offset_x: i32,
+        offset_y: i32,
         buffer: &Buffer,
     ) {
         for y in 0..buffer.area.height {
@@ -561,8 +686,8 @@ mod imp {
                     continue;
                 }
                 let (r, g, b) = tui_rgb(cell.bg);
-                let left = x as i32 * cell_w;
-                let top = y as i32 * cell_h;
+                let left = offset_x + x as i32 * cell_w;
+                let top = offset_y + y as i32 * cell_h;
                 for py in top..(top + cell_h).min(height as i32) {
                     for px in left..(left + cell_w).min(width as i32) {
                         let index = py as usize * width + px as usize;
@@ -582,7 +707,46 @@ mod imp {
         }
     }
 
-    unsafe fn paint_text(hdc: HDC, buffer: &Buffer, cell_w: i32, cell_h: i32) {
+    #[allow(clippy::too_many_arguments)]
+    fn paint_hover(
+        bits: *mut u32,
+        width: usize,
+        height: usize,
+        cell_w: i32,
+        cell_h: i32,
+        x: i32,
+        y: i32,
+        w: i32,
+        h: i32,
+    ) {
+        let left = (x * cell_w).max(0) as usize;
+        let top = (y * cell_h).max(0) as usize;
+        let right = ((x + w) * cell_w).min(width as i32).max(0) as usize;
+        let bottom = ((y + h) * cell_h).min(height as i32).max(0) as usize;
+        for py in top..bottom {
+            for px in left..right {
+                let index = py * width + px;
+                unsafe {
+                    let pixel = *bits.add(index);
+                    let (dr, dg, db) = ((pixel >> 16) & 0xFF, (pixel >> 8) & 0xFF, pixel & 0xFF);
+                    let blend = 0.12;
+                    let nr = (255.0 * blend + dr as f64 * (1.0 - blend)) as u32;
+                    let ng = (245.0 * blend + dg as f64 * (1.0 - blend)) as u32;
+                    let nb = (230.0 * blend + db as f64 * (1.0 - blend)) as u32;
+                    *bits.add(index) = (pixel & 0xFF00_0000) | (nr << 16) | (ng << 8) | nb;
+                }
+            }
+        }
+    }
+
+    unsafe fn paint_text(
+        hdc: HDC,
+        buffer: &Buffer,
+        cell_w: i32,
+        cell_h: i32,
+        offset_x: i32,
+        offset_y: i32,
+    ) {
         SetBkMode(hdc, 1); // TRANSPARENT
         for y in 0..buffer.area.height {
             for x in 0..buffer.area.width {
@@ -608,8 +772,8 @@ mod imp {
                 let text = wide(symbol);
                 TextOutW(
                     hdc,
-                    x as i32 * cell_w,
-                    y as i32 * cell_h,
+                    offset_x + x as i32 * cell_w,
+                    offset_y + y as i32 * cell_h,
                     text.as_ptr(),
                     text.len() as i32 - 1,
                 );
