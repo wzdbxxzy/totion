@@ -286,27 +286,24 @@ cat data/invite_code
 
 编辑和输入状态下，`Esc` 取消，`Enter` 保存（多行内容用 `Ctrl+S`）。
 
-## 桌面面板（实验）
+## 桌面版 Glasswing（Windows）
 
-Windows 上可以把整套 TUI 放进屏幕右侧的毛玻璃侧栏，固定在桌面：
+桌面版是第二个前端：固定在你桌面右侧的半透明玻璃挂件，卡片式布局，不再是终端字符界面，但和终端版共用同一个服务端与身份。
 
 ```powershell
-cargo run --release -p totion-client --bin totion-glass
-# 或者下载 Release 里的 totion-glass.exe
+cargo run --release --manifest-path crates/glasswing/Cargo.toml
+# 或下载 Release 里的 glasswing-windows-x86_64.zip（和终端版分开打包）
 ```
 
-- 面板占据屏幕右侧约 38% 宽度（可用 `--width 38` 调，范围 33–50），高度铺满工作区。
-- 整块面板是分层窗口的半透明画布，壁纸会透出来；配色统一映射成暖白极简风，和浅色/动漫壁纸更搭。
-- 内部就是完整的 TUI：`1`–`6` 切换界面、`j/k` 移动、`Space` 勾选、`C` 评论、`i` 邀请码、`/` 搜索、`?` 帮助、`q` 退出，和终端版一致。
-- 点击面板获得焦点后即可用键盘；面板内的点击（标签、列表、日期、勾选框）和滚轮都会转发给 TUI；右键退出。
-- 鼠标悬停在可点击区域时会轻微提亮并变成手型光标；内容四周留出内边距，顶部略深、底部略透。
-- 字体优先 Sarasa Mono SC 20px，其次 NSimSun / Consolas；按中文半宽计算单元格，字距和行高更接近终端。
-- 面板模式会隐藏顶部的全宽标题条，只保留导航标签和内容，视觉上更安静。
-- `--opacity 150` 调整不透明度（60–235，越小越透）；`--topmost` / `--no-topmost` 切换是否置顶。
-- 这些偏好会记在 `%APPDATA%	otion\glass.json`，下次启动自动沿用；传参时覆盖并写回。
-- 复用客户端已经保存的身份（`%APPDATA%	otion\identity.json`），第一次需要先运行 `totion` 连接服务器。
-- 内置壁纸命令：`totion-glass --wallpaper "D:\壁纸\wallpaper.jpg"`。
-- 仅 Windows 可用；macOS / Linux 上运行会提示不支持。
+- 占据屏幕右半，吸附在工作区（自动避开任务栏）；钉在桌面之上、普通窗口之下，不占任务栏、没有控制台窗口。
+- 壁纸从后面透出来；玻璃浓度、玻璃底色、卡片底色、描边、文字与强调色都能在「设置」里调，保存在 `%APPDATA%\glasswing	heme.json`。
+- 导航支持**左侧**或**顶部**两种布局（设置里切换），顶部布局下内容更宽，日历格子更大。
+- 界面：今日 / 工作区 / 日历 / 习惯 / 统计 / 留言。待办与总结都是就地编辑（点文字直接改，回车保存），不弹窗。
+- 日历用圆点表示当天事项数量：实心绿点=已完成，空心灰点=未完成。
+- 成员视角只读、评论、邀请码、搜索都保留。
+- 演示数据：`GLASSWING_DEMO=1` 启动，用一套完整的假数据把每个界面填满。
+- 仅 Windows 可用（依赖 Win32 桌面层）；macOS / Linux 继续用终端版。
+- 旧的 `totion-glass`（把 TUI 塞进玻璃侧栏的实验）已废弃，请使用 `glasswing`。
 
 ## 邀请码
 

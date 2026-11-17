@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 eframe = { version = "0.31", default-features = false, features = ["glow", "default_fonts"] }
 egui = "0.31"
-totion-core = { path = "../totion/crates/totion-core" }
+totion-core = { path = "../totion-core" }
 anyhow = "1"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 raw-window-handle = "0.6"
@@ -28,3 +28,6 @@ windows-sys = { version = "0.59", features = [
   "Win32_UI_HiDpi",
   "Win32_System_LibraryLoader",
 ] }
+
+# 独立 workspace：Linux CI 不需要构建桌面版（它依赖 Win32 桌面层）。
+[workspace]

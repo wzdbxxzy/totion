@@ -50,6 +50,11 @@ jobs:
       - name: Build client
         run: cargo build --release --locked --target ${{ matrix.target }} -p totion-client
 
+      # 桌面版（Glasswing）目前只支持 Windows：它要把窗口钉在 Win32 桌面层。
+      - name: Build desktop client (windows only)
+        if: runner.os == 'Windows'
+        run: cargo build --release --target ${{ matrix.target }} --manifest-path crates/glasswing/Cargo.toml
+
       - name: Build server (linux only)
         if: matrix.server
         run: cargo build --release --locked --target ${{ matrix.target }} -p totion-server
@@ -71,7 +76,9 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path "target/${{ matrix.target }}/release/totion.exe","target/${{ matrix.target }}/release/totion-glass.exe" -DestinationPath "dist/totion-${{ matrix.target }}.zip"
+          # 终端版和桌面版分开打包，各下各的。
+          Compress-Archive -Path "target/${{ matrix.target }}/release/totion.exe" -DestinationPath "dist/totion-${{ matrix.target }}.zip"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/glasswing.exe" -DestinationPath "dist/glasswing-${{ matrix.target }}.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -1,4 +1,5 @@
 /target
+crates/glasswing/target
 .old-node/
 test-data/
 dev-data/
