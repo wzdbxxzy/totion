@@ -612,6 +612,8 @@ impl eframe::App for App {
         if self.desktop_ready && self.last_anchor.elapsed().as_secs() >= 2 {
             self.last_anchor = Instant::now();
             if let Some(hwnd) = self.hwnd {
+                // 每两秒校正一次尺寸和层级，防止被系统或其他程序改掉。
+                crate::desktop::place_right_half_workarea(hwnd);
                 crate::desktop::anchor_above_desktop(hwnd);
             }
         }
