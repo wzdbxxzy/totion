@@ -1074,6 +1074,21 @@ fn members_modal_scrolls_to_selected_member() {
 }
 
 #[test]
+fn failed_manual_sync_reports_failure_not_success() {
+    let mut harness = Harness::new();
+    harness.state_mut().sync_now(true);
+    let status = &harness.state().status;
+    assert!(
+        status.contains("同步失败"),
+        "手动同步失败时应显示失败，实际: {status}"
+    );
+    assert!(
+        !status.contains("已同步"),
+        "失败时不应覆盖成成功提示，实际: {status}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

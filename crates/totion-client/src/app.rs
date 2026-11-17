@@ -1506,6 +1506,7 @@ impl MainState {
         self.last_sync = Some(Instant::now());
         let mut total = 0;
         let mut rounds = 0;
+        let mut failed = false;
         loop {
             match self.api.sync(self.last_seq) {
                 Ok(response) => {
@@ -1522,6 +1523,7 @@ impl MainState {
                     }
                 }
                 Err(err) => {
+                    failed = true;
                     if manual {
                         self.status = format!("同步失败: {err}");
                     }
@@ -1531,7 +1533,7 @@ impl MainState {
         }
         self.refresh_daily_page();
         self.clamp();
-        if manual {
+        if manual && !failed {
             self.status = format!("已同步（{total} 条变更）");
         }
     }
