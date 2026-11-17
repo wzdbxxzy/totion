@@ -338,7 +338,7 @@ impl App {
             let (rect, response) =
                 ui.allocate_exact_size(egui::Vec2::new(width, 38.0), egui::Sense::click());
             let fill = if active {
-                Color32::from_rgba_premultiplied(ACCENT.r(), ACCENT.g(), ACCENT.b(), 26)
+                Color32::from_rgba_unmultiplied(ACCENT.r(), ACCENT.g(), ACCENT.b(), 36)
             } else if response.hovered() {
                 CARD_HI
             } else {
