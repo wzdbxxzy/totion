@@ -55,7 +55,9 @@ mod imp {
     use std::mem::size_of;
     use std::ptr;
 
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use crossterm::event::{
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
     use ratatui::style::{Color as TuiColor, Modifier as TuiModifier};
@@ -64,8 +66,8 @@ mod imp {
     use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
     use windows_sys::Win32::Graphics::Gdi::{
         CreateCompatibleDC, CreateDIBSection, CreateFontW, GetDC, GetTextExtentPoint32W, ReleaseDC,
-        SelectObject, SetBkMode, SetTextColor, TextOutW, AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO,
-        BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET,
+        ScreenToClient, SelectObject, SetBkMode, SetTextColor, TextOutW, AC_SRC_ALPHA, AC_SRC_OVER,
+        BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET,
         DEFAULT_PITCH, DIB_RGB_COLORS, FF_DONTCARE, FW_BOLD, FW_NORMAL, HBITMAP, HDC, HFONT,
         OUT_DEFAULT_PRECIS,
     };
@@ -75,8 +77,8 @@ mod imp {
         GetWindowRect, LoadCursorW, PostQuitMessage, RegisterClassW, SetForegroundWindow, SetTimer,
         ShowWindow, SystemParametersInfoW, TranslateMessage, UpdateLayeredWindow, CS_DBLCLKS,
         IDC_ARROW, SW_SHOW, ULW_ALPHA, WM_CHAR, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_KEYDOWN,
-        WM_LBUTTONDOWN, WM_RBUTTONUP, WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOOLWINDOW,
-        WS_POPUP, WS_VISIBLE,
+        WM_LBUTTONDOWN, WM_MOUSEWHEEL, WM_RBUTTONUP, WM_TIMER, WNDCLASSW, WS_EX_LAYERED,
+        WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE,
     };
 
     use crate::app::{App, Screen};
@@ -384,6 +386,24 @@ mod imp {
             WM_LBUTTONDOWN => {
                 SetForegroundWindow(hwnd);
                 SetFocus(hwnd);
+                let x = (lparam & 0xFFFF) as u16 as i32;
+                let y = ((lparam >> 16) & 0xFFFF) as u16 as i32;
+                forward_mouse(hwnd, MouseEventKind::Down(MouseButton::Left), x, y);
+                0
+            }
+            WM_MOUSEWHEEL => {
+                let delta = ((wparam >> 16) & 0xFFFF) as u16 as i16;
+                let mut point = POINT {
+                    x: (lparam & 0xFFFF) as u16 as i32,
+                    y: ((lparam >> 16) & 0xFFFF) as u16 as i32,
+                };
+                ScreenToClient(hwnd, &mut point);
+                let kind = if delta > 0 {
+                    MouseEventKind::ScrollUp
+                } else {
+                    MouseEventKind::ScrollDown
+                };
+                forward_mouse(hwnd, kind, point.x, point.y);
                 0
             }
             WM_RBUTTONUP | WM_CLOSE => {
@@ -395,6 +415,36 @@ mod imp {
                 0
             }
             _ => DefWindowProcW(hwnd, message, wparam, lparam),
+        }
+    }
+
+    fn cell_at(x: i32, y: i32, cell_w: i32, cell_h: i32) -> (u16, u16) {
+        ((x / cell_w).max(0) as u16, (y / cell_h).max(0) as u16)
+    }
+
+    fn forward_mouse(hwnd: HWND, kind: MouseEventKind, x: i32, y: i32) {
+        let (cell_w, cell_h) = CANVAS.with(|value| {
+            let (_, _, _, cell_w, cell_h) = value.get();
+            (cell_w, cell_h)
+        });
+        let (column, row) = cell_at(x, y, cell_w, cell_h);
+        let quit = APP.with(|value| {
+            let mut app = value.borrow_mut();
+            let Some(app) = app.as_mut() else {
+                return false;
+            };
+            app.handle_mouse(MouseEvent {
+                kind,
+                column,
+                row,
+                modifiers: KeyModifiers::NONE,
+            });
+            app.should_quit
+        });
+        if quit {
+            unsafe { DestroyWindow(hwnd) };
+        } else {
+            unsafe { render(hwnd) };
         }
     }
 
@@ -642,6 +692,13 @@ mod imp {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn pixel_maps_to_cell() {
+            assert_eq!(cell_at(0, 0, 7, 16), (0, 0));
+            assert_eq!(cell_at(13, 31, 7, 16), (1, 1));
+            assert_eq!(cell_at(-5, -5, 7, 16), (0, 0));
+        }
 
         #[test]
         fn palette_maps_named_colors() {
