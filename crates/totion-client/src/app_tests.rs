@@ -1149,6 +1149,21 @@ fn failed_edit_commit_keeps_draft() {
 }
 
 #[test]
+fn failed_day_ensure_allows_retry() {
+    let mut harness = Harness::new();
+    harness.state_mut().ensure_today_page();
+    assert!(
+        harness.state().ensured_date.is_none(),
+        "创建今日页失败后应允许下一轮重试"
+    );
+    assert!(
+        harness.state().status.contains("创建今日页失败"),
+        "应提示创建失败，实际: {}",
+        harness.state().status
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

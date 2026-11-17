@@ -1479,6 +1479,8 @@ impl MainState {
                 self.daily_page_id = Some(page_id);
             }
             Err(err) => {
+                // 失败后清掉标记，下一轮 tick 会重试，而不是一直认为已经创建过。
+                self.ensured_date = None;
                 self.status = format!("创建今日页失败: {err}");
             }
         }
