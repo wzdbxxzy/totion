@@ -2118,8 +2118,14 @@ fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {
             end,
             blocks.len()
         )
-    } else {
+    } else if blocks.is_empty() {
         format!(" {} 议程 ", panel.date.format("%Y-%m-%d"))
+    } else {
+        format!(
+            " {} 议程 · {} 条 ",
+            panel.date.format("%Y-%m-%d"),
+            blocks.len()
+        )
     };
     frame.render_widget(
         Paragraph::new(lines)

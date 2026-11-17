@@ -1480,6 +1480,19 @@ fn midnight_rolls_today_view_forward() {
 }
 
 #[test]
+fn agenda_modal_shows_item_count() {
+    let mut harness = Harness::new();
+    harness.state_mut().open_agenda();
+    harness.render(120, 40);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("议程·2条"),
+        "议程标题应显示条数: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
