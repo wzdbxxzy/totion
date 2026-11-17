@@ -216,6 +216,11 @@ pub struct MemberPanel {
 }
 
 #[derive(Debug, Clone)]
+pub struct HelpPanel {
+    pub scroll: usize,
+}
+
+#[derive(Debug, Clone)]
 pub enum Modal {
     EventForm(EventForm),
     HabitForm(HabitForm),
@@ -225,7 +230,7 @@ pub enum Modal {
     Invites(InvitePanel),
     Members(MemberPanel),
     Confirm(ConfirmState),
-    Help,
+    Help(HelpPanel),
 }
 
 #[derive(Debug, Clone)]
@@ -1685,7 +1690,7 @@ impl MainState {
             KeyCode::Char('4') => self.set_view(View::Habits),
             KeyCode::Char('5') => self.set_view(View::Stats),
             KeyCode::Char('6') => self.set_view(View::Inbox),
-            KeyCode::Char('?') => self.modal = Some(Modal::Help),
+            KeyCode::Char('?') => self.modal = Some(Modal::Help(HelpPanel { scroll: 0 })),
             KeyCode::Char('/') => self.open_search(),
             KeyCode::Char('C') => self.open_comments(),
             KeyCode::Char('i') => self.open_invites(),
@@ -3203,7 +3208,7 @@ impl MainState {
             MouseAction::OpenMembers => self.open_members(),
             MouseAction::OpenInvites => self.open_invites(),
             MouseAction::OpenSearch => self.open_search(),
-            MouseAction::OpenHelp => self.modal = Some(Modal::Help),
+            MouseAction::OpenHelp => self.modal = Some(Modal::Help(HelpPanel { scroll: 0 })),
             MouseAction::SyncNow => {
                 self.ensured_date = None;
                 self.ensure_today_page();
@@ -3828,7 +3833,22 @@ impl MainState {
                 }
                 _ => {}
             },
-            Modal::Help => return,
+            Modal::Help(panel) => match key.code {
+                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?') => return,
+                KeyCode::Down | KeyCode::Char('j') => {
+                    panel.scroll = panel.scroll.saturating_add(1);
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    panel.scroll = panel.scroll.saturating_sub(1);
+                }
+                KeyCode::PageDown | KeyCode::Char(' ') => {
+                    panel.scroll = panel.scroll.saturating_add(10);
+                }
+                KeyCode::PageUp => {
+                    panel.scroll = panel.scroll.saturating_sub(10);
+                }
+                _ => {}
+            },
         }
         self.modal = Some(modal);
     }

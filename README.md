@@ -278,7 +278,7 @@ cat data/invite_code
 
 `j` / `k` 选择，`Enter` 跳转，`Esc` 关闭。
 
-`?` 打开快捷键帮助：
+`?` 打开快捷键帮助（`j` / `k` 或滚轮滚动，`Esc` 关闭）：
 
 <p align="center">
   <img src="docs/screenshots/help.svg" alt="帮助面板" width="100%">

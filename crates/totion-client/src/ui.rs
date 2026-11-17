@@ -9,8 +9,9 @@ use ratatui::{
 use totion_core::HabitStats;
 
 use crate::app::{
-    AgendaPanel, App, CommentPanel, Editing, EventForm, Focus, HabitForm, InvitePanel, MainState,
-    MemberPanel, Modal, MouseAction, Screen, SearchState, SetupForm, TodayFocus, TodayRow, View,
+    AgendaPanel, App, CommentPanel, Editing, EventForm, Focus, HabitForm, HelpPanel, InvitePanel,
+    MainState, MemberPanel, Modal, MouseAction, Screen, SearchState, SetupForm, TodayFocus,
+    TodayRow, View,
 };
 use crate::charts;
 
@@ -400,7 +401,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
             Modal::Invites(_) => " g 生成新码 · x 撤销/恢复 · j/k 选择 · Esc 关闭",
             Modal::Members(_) => " j/k 选择 · Enter 切换视角 · Esc 关闭",
             Modal::Confirm(_) => " 输入 delete 并回车确认 · Esc 取消",
-            Modal::Help => " 按 Esc 关闭帮助",
+            Modal::Help(_) => " j/k 滚动 · Esc 关闭",
         }
     } else {
         match main.view() {
@@ -1729,7 +1730,7 @@ fn draw_modal(frame: &mut Frame, main: &MainState, modal: &Modal) {
         Modal::Invites(panel) => draw_invites(frame, panel),
         Modal::Members(panel) => draw_members(frame, main, panel),
         Modal::Confirm(confirm) => draw_confirm(frame, confirm),
-        Modal::Help => draw_help(frame),
+        Modal::Help(panel) => draw_help(frame, panel),
     }
 }
 
@@ -2294,7 +2295,7 @@ fn draw_search(frame: &mut Frame, main: &MainState, state: &SearchState) {
     );
 }
 
-fn draw_help(frame: &mut Frame) {
+fn draw_help(frame: &mut Frame, panel: &HelpPanel) {
     let screen = frame.area();
     let width = screen
         .width
@@ -2368,16 +2369,28 @@ fn draw_help(frame: &mut Frame) {
         Line::from(" Enter 保存（多行内容用 Ctrl+S）   Esc 取消"),
         Line::from(""),
         Line::from(Span::styled(
-            " 按任意键关闭",
+            " Esc / q 关闭 · j/k 或滚轮滚动",
             Style::default().fg(Color::DarkGray),
         )),
     ];
+    let total = lines.len();
+    let content_height = area.height.saturating_sub(2) as usize;
+    let max_scroll = total.saturating_sub(content_height);
+    let scroll = panel.scroll.min(max_scroll);
+    let title = if max_scroll > 0 {
+        format!(
+            " 帮助 · v{} · {}-{}/{} ",
+            env!("CARGO_PKG_VERSION"),
+            scroll + 1,
+            (scroll + content_height).min(total),
+            total
+        )
+    } else {
+        format!(" 帮助 · v{} ", env!("CARGO_PKG_VERSION"))
+    };
     frame.render_widget(
-        Paragraph::new(lines)
-            .block(block_title(format!(
-                " 帮助 · v{} ",
-                env!("CARGO_PKG_VERSION")
-            )))
+        Paragraph::new(lines.into_iter().skip(scroll).collect::<Vec<_>>())
+            .block(block_title(title))
             .wrap(Wrap { trim: false }),
         area,
     );

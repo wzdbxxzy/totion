@@ -581,6 +581,26 @@ fn calendar_banner_shows_month_totals() {
 }
 
 #[test]
+fn help_modal_scrolls_and_closes() {
+    let mut harness = Harness::new();
+    harness.state_mut().modal = Some(Modal::Help(HelpPanel { scroll: 0 }));
+    harness.render(100, 24);
+    for _ in 0..5 {
+        harness
+            .app
+            .handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+    }
+    match harness.state().modal() {
+        Some(Modal::Help(panel)) => assert!(panel.scroll > 0, "j 应滚动帮助"),
+        _ => panic!("帮助弹窗应仍然打开"),
+    }
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(harness.state().modal().is_none());
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
