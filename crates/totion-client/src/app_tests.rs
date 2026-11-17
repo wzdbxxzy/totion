@@ -1345,6 +1345,19 @@ fn comments_work_when_summary_panel_focused() {
 }
 
 #[test]
+fn calendar_footer_shows_selected_day_and_count() {
+    let mut harness = Harness::new();
+    harness.state_mut().set_view(View::Calendar);
+    harness.render(120, 40);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("2条待办"),
+        "日历底部应显示选中日期的待办数: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

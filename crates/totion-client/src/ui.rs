@@ -427,6 +427,15 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
         ))
     };
 
+    let calendar_hint = {
+        let day = main.selected_day();
+        format!(
+            " {} {} · {} 条待办 · h/l 选日 · j/k 前后周 · [ ] 换月 · Enter/双击 议程 · v 框选 · t 新建",
+            day.format("%m-%d"),
+            weekday_label(day),
+            main.calendar_blocks(day).len()
+        )
+    };
     let help = if main.editing().is_some() {
         " Enter 保存 · Esc 取消 · 总结/评论等多行内容用 Ctrl+S 保存"
     } else if let Some(modal) = main.modal() {
@@ -460,7 +469,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
                 " Tab 页面/内容 · j/k 移动 · Enter 编辑 · n 文本 · t 待办 · N 新页面 · a 每日页 · d 删除 · J 全部总结 · C 评论"
             }
             View::Calendar => {
-                " h/l 选日 · j/k 前后周 · [ ] 换月 · Enter/双击 议程 · v 框选 · t 新建/批量待办"
+                calendar_hint.as_str()
             }
             View::Habits => {
                 " n 新建 · Space 打卡/取消 · u 撤销 · e 改名 · d 归档 · A 归档列表 · R 恢复 · C 评论"
