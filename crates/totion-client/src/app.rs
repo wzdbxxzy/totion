@@ -1678,7 +1678,7 @@ impl MainState {
         base_version: i64,
         title: Option<String>,
         deleted: Option<bool>,
-    ) {
+    ) -> bool {
         let request = UpdatePageRequest {
             expected_version: base_version,
             title,
@@ -1692,6 +1692,7 @@ impl MainState {
             Ok(response) => {
                 self.upsert_page(response.page);
                 self.clamp();
+                true
             }
             Err(ApiError::Conflict { message, current }) => {
                 if let Ok(page) = serde_json::from_value::<Page>(current) {
@@ -1699,12 +1700,16 @@ impl MainState {
                     self.clamp();
                 }
                 self.status = format!("页面冲突，已刷新：{message}");
+                false
             }
-            Err(ApiError::Other(message)) => self.status = message,
+            Err(ApiError::Other(message)) => {
+                self.status = message;
+                false
+            }
         }
     }
 
-    fn patch_block(&mut self, block_id: &str, base_version: i64, patch: BlockPatch) {
+    fn patch_block(&mut self, block_id: &str, base_version: i64, patch: BlockPatch) -> bool {
         let request = UpdateBlockRequest {
             expected_version: base_version,
             text: patch.text,
@@ -1720,6 +1725,7 @@ impl MainState {
             Ok(response) => {
                 self.upsert_block(response.block);
                 self.clamp();
+                true
             }
             Err(ApiError::Conflict { message, current }) => {
                 if let Ok(block) = serde_json::from_value::<Block>(current) {
@@ -1727,8 +1733,12 @@ impl MainState {
                     self.clamp();
                 }
                 self.status = format!("内容冲突，已刷新：{message}");
+                false
             }
-            Err(ApiError::Other(message)) => self.status = message,
+            Err(ApiError::Other(message)) => {
+                self.status = message;
+                false
+            }
         }
     }
 
@@ -2346,7 +2356,8 @@ impl MainState {
     }
 
     fn commit_edit(&mut self, editing: Editing) {
-        match editing.target {
+        let mut restore = editing.clone();
+        let ok = match editing.target {
             EditTarget::PageTitle {
                 page_id,
                 base_version,
@@ -2357,21 +2368,19 @@ impl MainState {
                 } else {
                     title
                 };
-                self.patch_page(&page_id, base_version, Some(title), None);
+                self.patch_page(&page_id, base_version, Some(title), None)
             }
             EditTarget::BlockText {
                 block_id,
                 base_version,
-            } => {
-                self.patch_block(
-                    &block_id,
-                    base_version,
-                    BlockPatch {
-                        text: Some(editing.buffer),
-                        ..Default::default()
-                    },
-                );
-            }
+            } => self.patch_block(
+                &block_id,
+                base_version,
+                BlockPatch {
+                    text: Some(editing.buffer),
+                    ..Default::default()
+                },
+            ),
             EditTarget::HabitTitle {
                 habit_id,
                 base_version,
@@ -2379,21 +2388,22 @@ impl MainState {
                 let title = editing.buffer.trim().to_string();
                 if title.is_empty() {
                     self.status = "习惯名称不能为空".to_string();
-                    return;
+                    false
+                } else {
+                    self.update_habit(
+                        &habit_id,
+                        UpdateHabitRequest {
+                            expected_version: base_version,
+                            title: Some(title),
+                            icon: None,
+                            note: None,
+                            frequency: None,
+                            position: None,
+                            archived: None,
+                            deleted: None,
+                        },
+                    )
                 }
-                self.update_habit(
-                    &habit_id,
-                    UpdateHabitRequest {
-                        expected_version: base_version,
-                        title: Some(title),
-                        icon: None,
-                        note: None,
-                        frequency: None,
-                        position: None,
-                        archived: None,
-                        deleted: None,
-                    },
-                );
             }
             EditTarget::NewComment {
                 target_kind,
@@ -2402,18 +2412,23 @@ impl MainState {
                 let body = editing.buffer.trim().to_string();
                 if body.is_empty() {
                     self.status = "评论内容不能为空".to_string();
-                    return;
-                }
-                match self.api.create_comment(&CreateCommentRequest {
-                    target_kind,
-                    target_id: target_id.clone(),
-                    body,
-                }) {
-                    Ok(response) => {
-                        self.upsert_comment(response.comment);
-                        self.status = "评论已发表".to_string();
+                    false
+                } else {
+                    match self.api.create_comment(&CreateCommentRequest {
+                        target_kind,
+                        target_id: target_id.clone(),
+                        body,
+                    }) {
+                        Ok(response) => {
+                            self.upsert_comment(response.comment);
+                            self.status = "评论已发表".to_string();
+                            true
+                        }
+                        Err(err) => {
+                            self.status = err.to_string();
+                            false
+                        }
                     }
-                    Err(err) => self.status = err.to_string(),
                 }
             }
             EditTarget::CommentBody {
@@ -2423,17 +2438,18 @@ impl MainState {
                 let body = editing.buffer.trim().to_string();
                 if body.is_empty() {
                     self.status = "评论内容不能为空".to_string();
-                    return;
+                    false
+                } else {
+                    self.update_comment(
+                        &comment_id,
+                        UpdateCommentRequest {
+                            expected_version: base_version,
+                            body: Some(body),
+                            resolved: None,
+                            deleted: None,
+                        },
+                    )
                 }
-                self.update_comment(
-                    &comment_id,
-                    UpdateCommentRequest {
-                        expected_version: base_version,
-                        body: Some(body),
-                        resolved: None,
-                        deleted: None,
-                    },
-                );
             }
             EditTarget::JournalBody {
                 journal_id,
@@ -2442,16 +2458,17 @@ impl MainState {
                 let body = editing.buffer.trim().to_string();
                 if body.is_empty() {
                     self.status = "总结内容不能为空".to_string();
-                    return;
+                    false
+                } else {
+                    self.update_journal(
+                        &journal_id,
+                        UpdateJournalRequest {
+                            expected_version: base_version,
+                            body: Some(body),
+                            deleted: None,
+                        },
+                    )
                 }
-                self.update_journal(
-                    &journal_id,
-                    UpdateJournalRequest {
-                        expected_version: base_version,
-                        body: Some(body),
-                        deleted: None,
-                    },
-                );
             }
             EditTarget::NewJournal {
                 target_kind,
@@ -2462,31 +2479,97 @@ impl MainState {
                 let body = editing.buffer.trim().to_string();
                 if body.is_empty() {
                     self.status = "总结内容不能为空".to_string();
-                    return;
-                }
-                match self.api.create_journal(&CreateJournalRequest {
-                    target_kind,
-                    target_id,
-                    date,
-                    time,
-                    body,
-                }) {
-                    Ok(response) => {
-                        self.upsert_journal(response.journal);
-                        self.status = "总结已保存".to_string();
-                        self.clamp();
+                    false
+                } else {
+                    match self.api.create_journal(&CreateJournalRequest {
+                        target_kind,
+                        target_id,
+                        date,
+                        time,
+                        body,
+                    }) {
+                        Ok(response) => {
+                            self.upsert_journal(response.journal);
+                            self.status = "总结已保存".to_string();
+                            self.clamp();
+                            true
+                        }
+                        Err(err) => {
+                            self.status = err.to_string();
+                            false
+                        }
                     }
-                    Err(err) => self.status = err.to_string(),
                 }
             }
+        };
+        if !ok {
+            self.status = format!("{}（内容已保留，可重试）", self.status);
+            self.sync_edit_versions(&mut restore.target);
+            self.editing = Some(restore);
         }
     }
 
-    fn update_habit(&mut self, id: &str, request: UpdateHabitRequest) {
+    /// 冲突刷新后让草稿的目标版本跟上服务器，避免重试一直 409。
+    fn sync_edit_versions(&self, target: &mut EditTarget) {
+        match target {
+            EditTarget::PageTitle {
+                page_id,
+                base_version,
+            } => {
+                if let Some(page) = self.pages.iter().find(|page| &page.id == page_id) {
+                    *base_version = page.version;
+                }
+            }
+            EditTarget::BlockText {
+                block_id,
+                base_version,
+            } => {
+                if let Some(block) = self.blocks.iter().find(|block| &block.id == block_id) {
+                    *base_version = block.version;
+                }
+            }
+            EditTarget::HabitTitle {
+                habit_id,
+                base_version,
+            } => {
+                if let Some(habit) = self.habits.iter().find(|habit| &habit.id == habit_id) {
+                    *base_version = habit.version;
+                }
+            }
+            EditTarget::CommentBody {
+                comment_id,
+                base_version,
+            } => {
+                if let Some(comment) = self
+                    .comments
+                    .iter()
+                    .find(|comment| &comment.id == comment_id)
+                {
+                    *base_version = comment.version;
+                }
+            }
+            EditTarget::JournalBody {
+                journal_id,
+                base_version,
+            } => {
+                if let Some(journal) = self
+                    .journals
+                    .iter()
+                    .find(|journal| &journal.id == journal_id)
+                {
+                    *base_version = journal.version;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn update_habit(&mut self, id: &str, request: UpdateHabitRequest) -> bool {
         match self.api.update_habit(id, &request) {
             Ok(response) => {
                 self.upsert_habit(response.habit);
                 self.clamp();
+                true
             }
             Err(ApiError::Conflict { message, current }) => {
                 if let Ok(habit) = serde_json::from_value::<Habit>(current) {
@@ -2494,23 +2577,32 @@ impl MainState {
                     self.clamp();
                 }
                 self.status = format!("习惯冲突，已刷新：{message}");
+                false
             }
-            Err(ApiError::Other(message)) => self.status = message,
+            Err(ApiError::Other(message)) => {
+                self.status = message;
+                false
+            }
         }
     }
 
-    fn update_comment(&mut self, id: &str, request: UpdateCommentRequest) {
+    fn update_comment(&mut self, id: &str, request: UpdateCommentRequest) -> bool {
         match self.api.update_comment(id, &request) {
             Ok(response) => {
                 self.upsert_comment(response.comment);
+                true
             }
             Err(ApiError::Conflict { message, current }) => {
                 if let Ok(comment) = serde_json::from_value::<Comment>(current) {
                     self.upsert_comment(comment);
                 }
                 self.status = format!("评论冲突，已刷新：{message}");
+                false
             }
-            Err(ApiError::Other(message)) => self.status = message,
+            Err(ApiError::Other(message)) => {
+                self.status = message;
+                false
+            }
         }
     }
 
@@ -2779,47 +2871,55 @@ impl MainState {
 
     fn confirm_delete(&mut self, action: PendingDelete) {
         match action {
-            PendingDelete::Block { id, version, .. } => self.patch_block(
-                &id,
-                version,
-                BlockPatch {
-                    deleted: Some(true),
-                    ..Default::default()
-                },
-            ),
-            PendingDelete::Page { id, version, .. } => {
-                self.patch_page(&id, version, None, Some(true))
+            PendingDelete::Block { id, version, .. } => {
+                self.patch_block(
+                    &id,
+                    version,
+                    BlockPatch {
+                        deleted: Some(true),
+                        ..Default::default()
+                    },
+                );
             }
-            PendingDelete::Habit { id, version, .. } => self.update_habit(
-                &id,
-                UpdateHabitRequest {
-                    expected_version: version,
-                    title: None,
-                    icon: None,
-                    note: None,
-                    frequency: None,
-                    position: None,
-                    archived: Some(true),
-                    deleted: None,
-                },
-            ),
-            PendingDelete::Comment { id, version } => self.update_comment(
-                &id,
-                UpdateCommentRequest {
-                    expected_version: version,
-                    body: None,
-                    resolved: None,
-                    deleted: Some(true),
-                },
-            ),
-            PendingDelete::Summary { id, version } => self.update_journal(
-                &id,
-                UpdateJournalRequest {
-                    expected_version: version,
-                    body: None,
-                    deleted: Some(true),
-                },
-            ),
+            PendingDelete::Page { id, version, .. } => {
+                self.patch_page(&id, version, None, Some(true));
+            }
+            PendingDelete::Habit { id, version, .. } => {
+                self.update_habit(
+                    &id,
+                    UpdateHabitRequest {
+                        expected_version: version,
+                        title: None,
+                        icon: None,
+                        note: None,
+                        frequency: None,
+                        position: None,
+                        archived: Some(true),
+                        deleted: None,
+                    },
+                );
+            }
+            PendingDelete::Comment { id, version } => {
+                self.update_comment(
+                    &id,
+                    UpdateCommentRequest {
+                        expected_version: version,
+                        body: None,
+                        resolved: None,
+                        deleted: Some(true),
+                    },
+                );
+            }
+            PendingDelete::Summary { id, version } => {
+                self.update_journal(
+                    &id,
+                    UpdateJournalRequest {
+                        expected_version: version,
+                        body: None,
+                        deleted: Some(true),
+                    },
+                );
+            }
         }
         self.status = "已删除".to_string();
     }
@@ -3028,19 +3128,24 @@ impl MainState {
         self.status = "写总结，Ctrl+S 保存，Esc 取消".to_string();
     }
 
-    fn update_journal(&mut self, id: &str, request: UpdateJournalRequest) {
+    fn update_journal(&mut self, id: &str, request: UpdateJournalRequest) -> bool {
         match self.api.update_journal(id, &request) {
             Ok(response) => {
                 self.upsert_journal(response.journal);
                 self.clamp();
+                true
             }
             Err(ApiError::Conflict { message, current }) => {
                 if let Ok(journal) = serde_json::from_value::<JournalEntry>(current) {
                     self.upsert_journal(journal);
                 }
                 self.status = format!("总结冲突，已刷新：{message}");
+                false
             }
-            Err(ApiError::Other(message)) => self.status = message,
+            Err(ApiError::Other(message)) => {
+                self.status = message;
+                false
+            }
         }
     }
 

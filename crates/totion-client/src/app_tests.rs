@@ -1105,6 +1105,50 @@ fn auto_sync_failure_keeps_offline_status() {
 }
 
 #[test]
+fn failed_edit_commit_keeps_draft() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        state.comments.push(Comment {
+            id: "c1".to_string(),
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+            body: "原内容".to_string(),
+            resolved: false,
+            author_id: "u1".to_string(),
+            author_name: "Guan".to_string(),
+            version: 1,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            deleted: false,
+        });
+        state.editing = Some(Editing {
+            target: EditTarget::CommentBody {
+                comment_id: "c1".to_string(),
+                base_version: 1,
+            },
+            buffer: "我的草稿".to_string(),
+            cursor: 12,
+            multiline: true,
+        });
+    }
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL));
+    let editing = harness
+        .state()
+        .editing
+        .as_ref()
+        .expect("保存失败后应保留编辑状态");
+    assert_eq!(editing.buffer, "我的草稿", "草稿内容不应丢失");
+    assert!(
+        harness.state().status.contains("内容已保留"),
+        "应提示草稿已保留，实际: {}",
+        harness.state().status
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
