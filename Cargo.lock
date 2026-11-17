@@ -1660,7 +1660,7 @@ dependencies = [
 
 [[package]]
 name = "totion-client"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1675,11 +1675,12 @@ dependencies = [
  "serde_json",
  "totion-core",
  "uuid",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
 name = "totion-core"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "chrono",
  "serde",
@@ -1688,7 +1689,7 @@ dependencies = [
 
 [[package]]
 name = "totion-server"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "axum",

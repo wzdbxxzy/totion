@@ -882,7 +882,7 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
     let overview = main.week_overview();
     let selected = main.week_selected();
     let mut lines: Vec<Line> = Vec::new();
-    for (index, (date, stat, summaries)) in overview.iter().enumerate() {
+    for (index, (date, stat, blocks)) in overview.iter().enumerate() {
         let is_selected = index == selected;
         let mut style = Style::default();
         if is_selected {
@@ -901,27 +901,60 @@ fn draw_week(frame: &mut Frame, area: Rect, main: &MainState) {
                 Style::default().fg(Color::Cyan),
             ),
             Span::styled(
-                format!("{} {}", date.format("%m-%d"), weekday_label(*date)),
+                format!("{} {}  ", date.format("%m-%d"), weekday_label(*date)),
                 style,
             ),
             Span::styled(
-                format!("   完成 {}/{}  {rate:.0}%", stat.done, stat.total),
+                format!("完成 {}/{}  {rate:.0}%", stat.done, stat.total),
                 Style::default().fg(Color::Green),
             ),
-            Span::styled(
-                format!("   总结 {summaries} 条"),
-                Style::default().fg(Color::DarkGray),
-            ),
         ]));
+        for block in blocks {
+            let time = match block.start_time.as_deref() {
+                Some(value) if !value.is_empty() => format!("{value} "),
+                _ => "      ".to_string(),
+            };
+            lines.push(Line::from(vec![
+                Span::styled("    ", Style::default()),
+                Span::styled(time, Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    if block.checked { "✓ " } else { "○ " },
+                    Style::default().fg(if block.checked {
+                        Color::Green
+                    } else {
+                        Color::Gray
+                    }),
+                ),
+                Span::styled(
+                    block.text.clone(),
+                    if block.checked {
+                        Style::default().fg(Color::DarkGray)
+                    } else {
+                        Style::default()
+                    },
+                ),
+            ]));
+        }
+        if blocks.is_empty() {
+            lines.push(Line::from(Span::styled(
+                "      （这一天没有待办）",
+                Style::default().fg(Color::DarkGray),
+            )));
+        }
+        lines.push(Line::from(""));
     }
-    lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
-        " j/k 选择 · Enter 查看该天 · w/Esc 返回",
+        " j/k 选日 · h/l 前后一天 · Enter 查看该天 · w/Esc 返回",
         Style::default().fg(Color::DarkGray),
     )));
+    let start = main.week_end() - chrono::Duration::days(6);
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(" 近一周 "))
+            .block(block_title(format!(
+                " 周视图 {} ~ {} ",
+                start.format("%m-%d"),
+                main.week_end().format("%m-%d")
+            )))
             .wrap(Wrap { trim: false }),
         area,
     );
@@ -1846,7 +1879,8 @@ fn draw_help(frame: &mut Frame) {
         )),
         Line::from(" Tab 待办/习惯/总结   j/k 移动   Enter 编辑"),
         Line::from(" Space 勾选或打卡   a 写总结   t 新建待办"),
-        Line::from(" h/l 或 [ ] 前一天/后一天   w 近一周   d 删除"),
+        Line::from(" h/l 或 [ ] 前一天/后一天   w 周视图   d 删除"),
+        Line::from(" 周视图：j/k 选日 · h/l 平移一天 · Enter 查看该天"),
         Line::from(""),
         Line::from(Span::styled(
             " 工作区",

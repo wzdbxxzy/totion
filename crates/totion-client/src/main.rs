@@ -2,6 +2,7 @@ mod api;
 mod app;
 mod charts;
 mod config;
+mod ime;
 mod ui;
 
 use std::io;
@@ -45,11 +46,14 @@ fn main() -> Result<()> {
         LeaveAlternateScreen
     )?;
     terminal.show_cursor()?;
+    ime::set_enabled(true);
 
     result
 }
 
 fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut app::App) -> Result<()> {
+    let mut ime_enabled = app.needs_ime();
+    ime::set_enabled(ime_enabled);
     loop {
         terminal.draw(|frame| ui::draw(frame, app))?;
         if event::poll(Duration::from_millis(200))? {
@@ -57,6 +61,11 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut app::App
                 Event::Key(key) => app.handle_key(key),
                 Event::Mouse(mouse) => app.handle_mouse(mouse),
                 _ => {}
+            }
+            let needs_ime = app.needs_ime();
+            if needs_ime != ime_enabled {
+                ime_enabled = needs_ime;
+                ime::set_enabled(ime_enabled);
             }
         }
         app.tick();

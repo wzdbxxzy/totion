@@ -398,6 +398,14 @@ pub struct App {
 }
 
 impl App {
+    /// 是否需要输入法（编辑文本或首次连接界面）。
+    pub fn needs_ime(&self) -> bool {
+        match &self.screen {
+            Screen::Setup(_) => true,
+            Screen::Main(main) => main.editing().is_some(),
+        }
+    }
+
     pub fn boot() -> Self {
         let screen = match config::load_identity() {
             Ok(Some(identity)) => {
@@ -519,6 +527,8 @@ pub struct MainState {
     today: NaiveDate,
     view_date: NaiveDate,
     week_mode: bool,
+    /// 周视图窗口的最后一天（含）
+    week_end: NaiveDate,
     week_selected: usize,
     ensured_date: Option<String>,
     daily_page_id: Option<String>,
@@ -570,6 +580,7 @@ impl MainState {
             today,
             view_date: today,
             week_mode: false,
+            week_end: today,
             week_selected: 6,
             ensured_date: None,
             daily_page_id: None,
@@ -853,23 +864,36 @@ impl MainState {
         self.week_selected
     }
 
-    pub fn week_overview(&self) -> Vec<(NaiveDate, DayStat, usize)> {
+    pub fn week_end(&self) -> NaiveDate {
+        self.week_end
+    }
+
+    /// 周视图：每天返回完成统计和当天的待办列表（不包含总结/评论）。
+    pub fn week_overview(&self) -> Vec<(NaiveDate, DayStat, Vec<Block>)> {
         let blocks = self.scoped_blocks();
         (0..7)
             .map(|index| {
-                let date = self.view_date - ChronoDuration::days(6 - index);
+                let date = self.week_end - ChronoDuration::days(6 - index);
                 let key = date.format("%Y-%m-%d").to_string();
                 let stat = block_day_stats(&blocks, &key);
-                let summaries = self
-                    .journals
+                let mut day_blocks: Vec<Block> = blocks
                     .iter()
-                    .filter(|journal| {
-                        !journal.deleted
-                            && journal.date == key
-                            && self.author_visible(&journal.author_id)
+                    .filter(|block| {
+                        block.due_date.as_deref() == Some(key.as_str())
+                            && matches!(block.kind, BlockKind::Todo | BlockKind::CalendarEvent)
                     })
-                    .count();
-                (date, stat, summaries)
+                    .cloned()
+                    .collect();
+                day_blocks.sort_by_key(|block| {
+                    (
+                        block
+                            .start_time
+                            .clone()
+                            .unwrap_or_else(|| "99:99".to_string()),
+                        block.position,
+                    )
+                });
+                (date, stat, day_blocks)
             })
             .collect()
     }
@@ -1662,6 +1686,13 @@ impl MainState {
                 KeyCode::Down | KeyCode::Char('j') => {
                     self.week_selected = (self.week_selected + 1).min(6);
                 }
+                // 整周前后平移，可以回到今天和未来。
+                KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('[') => {
+                    self.week_end -= ChronoDuration::days(1);
+                }
+                KeyCode::Right | KeyCode::Char('l') | KeyCode::Char(']') => {
+                    self.week_end += ChronoDuration::days(1);
+                }
                 KeyCode::Enter => {
                     let overview = self.week_overview();
                     if let Some((date, _, _)) = overview.get(self.week_selected) {
@@ -1686,7 +1717,11 @@ impl MainState {
             }
             KeyCode::Char('w') | KeyCode::Char('W') => {
                 self.week_mode = true;
-                self.week_selected = 6;
+                // 窗口最后一天取「当前查看日」和「今天」里较晚的那个，
+                // 这样从昨天进入周视图时也能看到今天和未来。
+                self.week_end = self.view_date.max(self.today);
+                let start = self.week_end - ChronoDuration::days(6);
+                self.week_selected = (self.view_date - start).num_days().clamp(0, 6) as usize;
             }
             KeyCode::Tab => match self.today_focus {
                 TodayFocus::Items => {
