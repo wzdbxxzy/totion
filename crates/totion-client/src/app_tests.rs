@@ -1329,6 +1329,22 @@ fn home_and_end_jump_lists() {
 }
 
 #[test]
+fn comments_work_when_summary_panel_focused() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        state.today_focus = TodayFocus::Journal;
+        state.journal_source = TodayFocus::Items;
+        state.selected_today_index = 0;
+        state.open_comments();
+    }
+    assert!(
+        matches!(harness.state().modal(), Some(Modal::Comments(_))),
+        "总结面板聚焦时应能评论当前待办"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

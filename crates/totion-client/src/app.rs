@@ -3571,7 +3571,37 @@ impl MainState {
                             format!("习惯「{}」", habit.title),
                         )
                     }),
-                TodayFocus::Journal => None,
+                TodayFocus::Journal => {
+                    if self.journal_source == TodayFocus::Habits {
+                        self.today_habits()
+                            .get(self.selected_today_habit_index)
+                            .map(|(habit, _)| {
+                                (
+                                    CommentTargetKind::Habit,
+                                    habit.id.clone(),
+                                    format!("习惯「{}」", habit.title),
+                                )
+                            })
+                    } else {
+                        self.today_items().get(self.selected_today_index).and_then(
+                            |row| match row {
+                                TodayRow::Todo(block) | TodayRow::Event(block) => Some((
+                                    CommentTargetKind::Block,
+                                    block.id.clone(),
+                                    format!(
+                                        "待办「{}」",
+                                        if block.text.is_empty() {
+                                            block.kind.icon()
+                                        } else {
+                                            block.text.as_str()
+                                        }
+                                    ),
+                                )),
+                                TodayRow::Habit(_, _) => None,
+                            },
+                        )
+                    }
+                }
             },
             View::Calendar => self
                 .agenda_blocks()
