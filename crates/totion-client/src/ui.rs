@@ -1844,7 +1844,7 @@ fn draw_members(frame: &mut Frame, main: &MainState, panel: &MemberPanel) {
 fn draw_confirm(frame: &mut Frame, confirm: &crate::app::ConfirmState) {
     let area = centered_rect(62, 28, frame.area());
     frame.render_widget(Clear, area);
-    let lines = vec![
+    let mut lines = vec![
         Line::from(Span::styled(
             format!(" 确定要删除 {} 吗？", confirm.label),
             Style::default()
@@ -1861,12 +1861,18 @@ fn draw_confirm(frame: &mut Frame, confirm: &crate::app::ConfirmState) {
             format!(" > {}█", confirm.input),
             Style::default().fg(Color::Cyan),
         )),
-        Line::from(""),
-        Line::from(Span::styled(
-            " Esc 取消",
-            Style::default().fg(Color::DarkGray),
-        )),
     ];
+    match &confirm.hint {
+        Some(hint) => lines.push(Line::from(Span::styled(
+            format!(" {hint}"),
+            Style::default().fg(Color::Red),
+        ))),
+        None => lines.push(Line::from("")),
+    }
+    lines.push(Line::from(Span::styled(
+        " Esc 取消",
+        Style::default().fg(Color::DarkGray),
+    )));
     frame.render_widget(Paragraph::new(lines).block(modal_block(" 删除确认 ")), area);
 }
 

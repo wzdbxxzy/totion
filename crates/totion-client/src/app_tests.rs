@@ -830,6 +830,31 @@ fn esc_cancels_transient_view_modes() {
 }
 
 #[test]
+fn confirm_shows_hint_on_wrong_input() {
+    let mut harness = Harness::new();
+    harness.state_mut().modal = Some(Modal::Confirm(ConfirmState {
+        action: PendingDelete::Block {
+            id: "b1".to_string(),
+            version: 1,
+            label: "待办「写周报」".to_string(),
+        },
+        input: "del".to_string(),
+        label: "待办「写周报」".to_string(),
+        hint: None,
+    }));
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    match harness.state().modal() {
+        Some(Modal::Confirm(confirm)) => {
+            assert!(confirm.hint.is_some(), "错误输入应给出提示");
+            assert!(confirm.input.is_empty(), "错误输入后应清空输入框");
+        }
+        _ => panic!("确认框应仍然打开"),
+    }
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

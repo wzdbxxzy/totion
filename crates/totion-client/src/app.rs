@@ -195,6 +195,7 @@ pub struct ConfirmState {
     pub action: PendingDelete,
     pub input: String,
     pub label: String,
+    pub hint: Option<String>,
 }
 
 impl PendingDelete {
@@ -2707,6 +2708,7 @@ impl MainState {
             action,
             input: String::new(),
             label,
+            hint: None,
         }));
     }
 
@@ -3867,8 +3869,12 @@ impl MainState {
                 KeyCode::Esc => return,
                 KeyCode::Backspace => {
                     confirm.input.pop();
+                    confirm.hint = None;
                 }
-                KeyCode::Char(c) => confirm.input.push(c),
+                KeyCode::Char(c) => {
+                    confirm.input.push(c);
+                    confirm.hint = None;
+                }
                 KeyCode::Enter => {
                     if confirm.input.trim() == "delete" {
                         let action = confirm.action.clone();
@@ -3876,6 +3882,7 @@ impl MainState {
                         return;
                     }
                     confirm.input.clear();
+                    confirm.hint = Some("输入不匹配，请完整输入 delete 后回车".to_string());
                 }
                 _ => {}
             },
