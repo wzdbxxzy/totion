@@ -1769,6 +1769,8 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
 
 fn draw_stats(frame: &mut Frame, area: Rect, main: &MainState) {
     let series = main.completion_series(main.stats_days());
+    let has_data = series.iter().any(|(_, stat)| stat.total > 0);
+    let empty_suffix = if has_data { "" } else { "（暂无数据）" };
     let done_values = charts::done_values(&series);
     let rate_values = charts::rate_values(&series);
     let stat = main.today_completion();
@@ -1806,7 +1808,7 @@ fn draw_stats(frame: &mut Frame, area: Rect, main: &MainState) {
     frame.render_widget(
         Sparkline::default()
             .block(block_title(format!(
-                " 最近 {} 天完成数 ",
+                " 最近 {} 天完成数{empty_suffix} ",
                 main.stats_days()
             )))
             .data(done_values)
@@ -1817,7 +1819,7 @@ fn draw_stats(frame: &mut Frame, area: Rect, main: &MainState) {
     frame.render_widget(
         Sparkline::default()
             .block(block_title(format!(
-                " 最近 {} 天完成率（%） ",
+                " 最近 {} 天完成率（%）{empty_suffix} ",
                 main.stats_days()
             )))
             .data(rate_values)

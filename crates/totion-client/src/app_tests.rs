@@ -1358,6 +1358,20 @@ fn calendar_footer_shows_selected_day_and_count() {
 }
 
 #[test]
+fn stats_shows_empty_data_hint() {
+    let mut harness = Harness::new();
+    harness.state_mut().blocks.clear();
+    harness.state_mut().set_view(View::Stats);
+    harness.render(120, 40);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    let compact: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(
+        compact.contains("暂无数据"),
+        "没有待办时统计图应提示暂无数据: {compact}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
