@@ -2759,8 +2759,9 @@ impl MainState {
             TodayFocus::Habits => {
                 let habits = self.today_habits();
                 if let Some((habit, stats)) = habits.get(self.selected_today_habit_index) {
+                    // 勾选框语义：已打卡再按一次就是撤销。
                     if stats.checked_today {
-                        self.status = "今天已经打过卡了".to_string();
+                        self.undo_checkin(habit);
                     } else {
                         self.check_in(habit);
                     }

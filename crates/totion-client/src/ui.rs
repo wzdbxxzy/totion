@@ -450,7 +450,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
                     " j/k 移动 · Space 勾选 · Enter 编辑 · d 删除 · a 总结 · t 新建 · h/l 切天 · w 周 · Tab 面板"
                 }
                 TodayFocus::Habits => {
-                    " j/k 移动 · Space 打卡 · u 撤销 · a 总结 · d 删除 · h/l 切天 · w 周 · Tab 面板"
+                    " j/k 移动 · Space 打卡/取消 · u 撤销 · a 总结 · d 删除 · h/l 切天 · w 周 · Tab 面板"
                 }
                 TodayFocus::Journal => {
                     " Enter/a 编辑总结 · d 删除 · h/l 切天 · w 周 · Tab 面板"
@@ -463,7 +463,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, main: &MainState) {
                 " h/l 选日 · j/k 前后周 · [ ] 换月 · Enter/双击 议程 · v 框选 · t 新建/批量待办"
             }
             View::Habits => {
-                " n 新建习惯 · j/k 选择 · Space 打卡 · u 撤销 · e 改名称 · d 删除 · C 评论 · q 退出"
+                " n 新建习惯 · j/k 选择 · Space 打卡/取消 · u 撤销 · e 改名称 · d 删除 · C 评论 · q 退出"
             }
             View::Stats => " h/l 切换 7/14/30/90 天窗口 · q 退出",
             View::Inbox => {
@@ -2526,7 +2526,7 @@ fn draw_help(frame: &mut Frame, panel: &HelpPanel) {
             " 习惯",
             Style::default().add_modifier(Modifier::BOLD),
         )),
-        Line::from(" n 新建   Space 今天打卡   u 撤销   e 改名称   d 删除"),
+        Line::from(" n 新建   Space 打卡/取消   u 撤销   e 改名称   d 删除"),
         Line::from(""),
         Line::from(Span::styled(
             " 留言 / 评论",

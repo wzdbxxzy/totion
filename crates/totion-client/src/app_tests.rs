@@ -1208,6 +1208,35 @@ fn batch_forms_report_failure_without_fake_success() {
 }
 
 #[test]
+fn space_on_checked_habit_attempts_undo() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        let date = state.today_key();
+        state.checkins.push(totion_core::HabitCheckin {
+            id: "c1".to_string(),
+            habit_id: "h1".to_string(),
+            date,
+            note: String::new(),
+            version: 1,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            updated_by: "Guan".to_string(),
+            deleted: false,
+        });
+        state.today_focus = TodayFocus::Habits;
+        state.selected_today_habit_index = 0;
+        state.clamp();
+    }
+    harness.state_mut().toggle_today_item();
+    let status = &harness.state().status;
+    assert!(
+        !status.contains("已经打过卡"),
+        "已打卡时再按一次应尝试撤销，实际: {status}"
+    );
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
