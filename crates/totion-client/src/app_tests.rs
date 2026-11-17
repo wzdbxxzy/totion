@@ -1296,6 +1296,14 @@ fn habits_view_can_show_archived_and_block_checkin() {
 }
 
 #[test]
+fn opening_members_works_offline_with_cached_users() {
+    let mut harness = Harness::new();
+    harness.state_mut().open_members();
+    assert!(matches!(harness.state().modal(), Some(Modal::Members(_))));
+    assert_eq!(harness.state().users().len(), 2);
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

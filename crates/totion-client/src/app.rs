@@ -3624,6 +3624,10 @@ impl MainState {
             self.status = "服务器版本过旧，需要升级后才能使用成员视角".to_string();
             return;
         }
+        // 打开面板时顺便刷新成员列表，别人新加入不用重启客户端。
+        if let Ok(response) = self.api.members() {
+            self.users = response.users;
+        }
         let selected = match &self.view_user {
             None => 0,
             Some(id) => self

@@ -61,6 +61,11 @@ pub struct WorkspaceInfo {
     pub users: Vec<User>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemberListResponse {
+    pub users: Vec<User>,
+}
+
 pub const API_VERSION: u32 = 5;
 
 fn default_api_version() -> u32 {

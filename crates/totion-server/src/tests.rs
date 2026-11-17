@@ -113,6 +113,31 @@ fn migrates_v1_database_in_place() {
 }
 
 #[tokio::test]
+async fn members_endpoint_lists_all_users() {
+    let (db, token) = setup();
+    {
+        let conn = db.lock().unwrap();
+        conn.execute(
+            "INSERT INTO users(id, name, public_key, created_at)
+             VALUES ('user-2', 'Bob', 'key-bob', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .unwrap();
+    }
+    let (status, body) = call(
+        db.clone(),
+        Some(&token),
+        Some("5"),
+        Method::GET,
+        "/api/members",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["users"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
 async fn sync_uses_cursor_and_does_not_lose_changes() {
     let (db, token) = setup();
     {

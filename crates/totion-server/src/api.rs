@@ -17,11 +17,12 @@ use totion_core::{
     ChallengeRequest, ChallengeResponse, Change, CheckinRequest, Comment, CommentTargetKind,
     CreateBlockRequest, CreateCommentRequest, CreateHabitRequest, CreateInviteRequest,
     CreateJournalRequest, CreatePageRequest, EnsureDayResponse, EntityKind, Habit, HabitCheckin,
-    Invite, InviteListResponse, JournalEntry, JournalTarget, Page, PageKind, RegisterRequest,
-    Snapshot, SyncResponse, UpdateBlockRequest, UpdateCheckinRequest, UpdateCommentRequest,
-    UpdateHabitRequest, UpdateInviteRequest, UpdateJournalRequest, UpdatePageRequest, User,
-    VerifyRequest, WorkspaceInfo, WriteBlockResponse, WriteCheckinResponse, WriteCommentResponse,
-    WriteHabitResponse, WriteInviteResponse, WriteJournalResponse, WritePageResponse, API_VERSION,
+    Invite, InviteListResponse, JournalEntry, JournalTarget, MemberListResponse, Page, PageKind,
+    RegisterRequest, Snapshot, SyncResponse, UpdateBlockRequest, UpdateCheckinRequest,
+    UpdateCommentRequest, UpdateHabitRequest, UpdateInviteRequest, UpdateJournalRequest,
+    UpdatePageRequest, User, VerifyRequest, WorkspaceInfo, WriteBlockResponse,
+    WriteCheckinResponse, WriteCommentResponse, WriteHabitResponse, WriteInviteResponse,
+    WriteJournalResponse, WritePageResponse, API_VERSION,
 };
 
 use crate::{auth, db};
@@ -31,6 +32,7 @@ pub type Db = Arc<Mutex<Connection>>;
 pub fn router(db: Db) -> Router {
     let protected = Router::new()
         .route("/api/snapshot", get(snapshot))
+        .route("/api/members", get(list_members))
         .route("/api/sync", get(sync))
         .route("/api/pages", post(create_page))
         .route("/api/pages/{id}", patch(update_page))
@@ -166,7 +168,7 @@ async fn health() -> Json<serde_json::Value> {
         "status": "ok",
         "service": "totion-server",
         "api_version": API_VERSION,
-        "features": ["calendar_time", "habits", "checkins", "daily", "comments", "sync_cursor", "member_view"]
+        "features": ["calendar_time", "habits", "checkins", "daily", "comments", "sync_cursor", "member_view", "members"]
     }))
 }
 
@@ -296,6 +298,13 @@ async fn verify(
         token,
         user,
         workspace_name,
+    }))
+}
+
+async fn list_members(State(db): State<Db>) -> Result<Json<MemberListResponse>, AppError> {
+    let conn = db.lock().unwrap();
+    Ok(Json(MemberListResponse {
+        users: db::list_users(&conn)?,
     }))
 }
 

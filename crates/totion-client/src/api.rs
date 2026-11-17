@@ -7,8 +7,8 @@ use serde::Deserialize;
 use totion_core::{
     AuthResponse, ChallengeRequest, ChallengeResponse, CheckinRequest, CreateBlockRequest,
     CreateCommentRequest, CreateHabitRequest, CreateInviteRequest, CreateJournalRequest,
-    CreatePageRequest, EnsureDayResponse, InviteListResponse, RegisterRequest, Snapshot,
-    SyncResponse, UpdateBlockRequest, UpdateCheckinRequest, UpdateCommentRequest,
+    CreatePageRequest, EnsureDayResponse, InviteListResponse, MemberListResponse, RegisterRequest,
+    Snapshot, SyncResponse, UpdateBlockRequest, UpdateCheckinRequest, UpdateCommentRequest,
     UpdateHabitRequest, UpdateInviteRequest, UpdateJournalRequest, UpdatePageRequest,
     VerifyRequest, WriteBlockResponse, WriteCheckinResponse, WriteCommentResponse,
     WriteHabitResponse, WriteInviteResponse, WriteJournalResponse, WritePageResponse,
@@ -134,6 +134,10 @@ impl Api {
 
     pub fn snapshot(&self) -> Result<Snapshot, ApiError> {
         self.send(self.authed(Method::GET, "/api/snapshot"))
+    }
+
+    pub fn members(&self) -> Result<MemberListResponse, ApiError> {
+        self.send(self.authed(Method::GET, "/api/members"))
     }
 
     pub fn sync(&self, since: i64) -> Result<SyncResponse, ApiError> {
