@@ -1,7 +1,7 @@
 //! 弹层：编辑框、评论、成员、邀请码、搜索、设置。
 
 use eframe::egui::{self, Align, Color32, Layout, RichText};
-use totion_core::{BlockKind, CommentTargetKind, JournalTarget};
+use totion_core::{CommentTargetKind, JournalTarget};
 
 use crate::app::{App, Dialog, Editor};
 use crate::net::Command;
@@ -39,7 +39,6 @@ fn editor_window(app: &mut App, ctx: &egui::Context) {
     let mut close = false;
     let mut save: Option<Command> = None;
     let mut title_text = String::new();
-    let mut body_text = String::new();
     match &app.editor {
         Editor::Block { block, .. } => {
             title_text = if block.is_some() {

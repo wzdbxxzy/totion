@@ -11,7 +11,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     EnumWindows, FindWindowExW, FindWindowW, GetClassNameW, GetWindowRect, IsWindowVisible,
     SendMessageTimeoutW, SetParent, SetWindowLongW, SetWindowPos, ShowWindow, GWL_EXSTYLE,
     HWND_BOTTOM, HWND_TOP, SMTO_NORMAL, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOW,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_TOOLWINDOW,
 };
 
 fn wide(text: &str) -> Vec<u16> {
@@ -70,6 +70,25 @@ pub fn capture(x: i32, y: i32, w: i32, h: i32) -> Option<Vec<u8>> {
 }
 
 /// 把窗口贴到桌面层（壁纸之上、普通窗口之下），并避免抢焦点。
+pub fn anchor_bottom(hwnd: isize) {
+    unsafe {
+        let window = hwnd as HWND;
+        let current = windows_sys::Win32::UI::WindowsAndMessaging::GetWindowLongW(window, GWL_EXSTYLE) as u32;
+        // 去掉 WS_EX_APPWINDOW，否则任务栏会留一个按钮。
+        let ex = (current & !0x0004_0000) | WS_EX_TOOLWINDOW;
+        SetWindowLongW(window, GWL_EXSTYLE, ex as i32);
+        SetWindowPos(
+            window,
+            HWND_BOTTOM,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+    }
+}
+
 pub fn attach_to_desktop(hwnd: isize) -> bool {
     unsafe {
         let window = hwnd as HWND;
@@ -107,10 +126,10 @@ pub fn attach_to_desktop(hwnd: isize) -> bool {
         // Win11 上常常没有独立的壁纸 WorkerW，直接挂到 Progman。
         if !progman.is_null() {
             SetParent(window, progman);
-            // 放到 Progman 子窗口的最底层：壁纸之上、桌面图标之下，像贴在墙上。
+            // 放到 Progman 子窗口的顶层：壁纸之上，像贴在墙上。
             SetWindowPos(
                 window,
-                HWND_BOTTOM,
+                HWND_TOP,
                 0,
                 0,
                 0,
@@ -189,6 +208,43 @@ pub fn window_rect(hwnd: isize) -> Option<(i32, i32, i32, i32)> {
     }
 }
 
+/// 找到本进程真正可见的主窗口（raw handle 有时拿到的是隐藏的内部窗口）。
+pub fn main_window() -> Option<isize> {
+    use windows_sys::Win32::Foundation::RECT as R;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetWindowThreadProcessId, IsWindowVisible as Visible,
+    };
+    struct State {
+        pid: u32,
+        best: Option<(isize, i64)>,
+    }
+    unsafe extern "system" fn callback(top: HWND, param: LPARAM) -> BOOL {
+        let state = &mut *(param as *mut State);
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(top, &mut pid);
+        if pid != state.pid || Visible(top) == 0 {
+            return 1;
+        }
+        let mut rect: R = std::mem::zeroed();
+        if GetWindowRect(top, &mut rect) == 0 {
+            return 1;
+        }
+        let area = (rect.right - rect.left) as i64 * (rect.bottom - rect.top) as i64;
+        if area > 100_000 && state.best.map(|(_, a)| area > a).unwrap_or(true) {
+            state.best = Some((top as isize, area));
+        }
+        1
+    }
+    let mut state = State {
+        pid: std::process::id(),
+        best: None,
+    };
+    unsafe {
+        EnumWindows(Some(callback), &mut state as *mut State as LPARAM);
+    }
+    state.best.map(|(hwnd, _)| hwnd)
+}
+
 /// eframe 的窗口句柄转成 Win32 句柄。
 pub fn hwnd_of(frame: &eframe::Frame) -> Option<isize> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -227,6 +283,9 @@ pub fn place_right_half(hwnd: isize) {
 /// 临时诊断：把一行写进临时目录的日志。
 pub fn log_line(text: &str) {
     use std::io::Write;
+    if std::env::var_os("GLASSWING_DEBUG").is_none() {
+        return;
+    }
     let path = std::env::temp_dir().join("glasswing.log");
     if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
         let _ = writeln!(file, "{text}");
@@ -254,5 +313,73 @@ pub fn wallpaper_path() -> Option<String> {
         None
     } else {
         Some(text)
+    }
+}
+
+/// 诊断：父窗口、可见性、矩形、扩展样式。
+pub fn describe(hwnd: isize) -> String {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetParent, GetWindowLongW, IsWindowVisible};
+    unsafe {
+        let window = hwnd as HWND;
+        let parent = GetParent(window);
+        let ex = GetWindowLongW(window, GWL_EXSTYLE) as u32;
+        let rect = window_rect(hwnd).map(|(x, y, w, h)| format!("{x},{y} {w}x{h}"));
+        format!(
+            "visible={} parent={:?} rect={:?} exstyle=0x{ex:08X} layered={} toolwindow={}",
+            IsWindowVisible(window),
+            if parent.is_null() {
+                "none".to_string()
+            } else {
+                class_name(parent as isize)
+            },
+            rect,
+            ex & 0x80000 != 0,
+            ex & 0x80 != 0
+        )
+    }
+}
+
+/// 诊断：列出本进程所有顶层窗口。
+pub fn list_own_windows() -> String {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetWindowThreadProcessId, IsWindowVisible as Visible,
+    };
+    struct State {
+        pid: u32,
+        out: Vec<String>,
+    }
+    unsafe extern "system" fn callback(top: HWND, param: LPARAM) -> BOOL {
+        let state = &mut *(param as *mut State);
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(top, &mut pid);
+        if pid == state.pid {
+            let rect = window_rect(top as isize)
+                .map(|(x, y, w, h)| format!("{x},{y},{w}x{h}"))
+                .unwrap_or_default();
+            state.out.push(format!(
+                "{top:?} {} visible={} rect={rect}",
+                class_name(top as isize),
+                Visible(top)
+            ));
+        }
+        1
+    }
+    let mut state = State {
+        pid: std::process::id(),
+        out: Vec::new(),
+    };
+    unsafe {
+        EnumWindows(Some(callback), &mut state as *mut State as LPARAM);
+    }
+    state.out.join(" | ")
+}
+
+/// 去掉任务栏按钮（WS_EX_APPWINDOW）。
+pub fn clear_appwindow(hwnd: isize) {
+    unsafe {
+        let window = hwnd as HWND;
+        let current = windows_sys::Win32::UI::WindowsAndMessaging::GetWindowLongW(window, GWL_EXSTYLE) as u32;
+        let ex = (current & !0x0004_0000) | WS_EX_TOOLWINDOW;
+        SetWindowLongW(window, GWL_EXSTYLE, ex as i32);
     }
 }

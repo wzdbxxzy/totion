@@ -21,6 +21,8 @@ fn main() -> eframe::Result<()> {
             .with_transparent(true)
             .with_decorations(false)
             .with_resizable(false)
+            .with_taskbar(false)
+            .with_window_level(eframe::egui::WindowLevel::AlwaysOnBottom)
             .with_title("Glasswing"),
         ..Default::default()
     };

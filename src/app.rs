@@ -111,6 +111,8 @@ pub struct App {
     pub editor: Editor,
     pub dialog: Dialog,
     toast: Option<(String, Instant, bool)>,
+    started: Instant,
+    logged: bool,
     hwnd: Option<isize>,
     backdrop: Option<crate::wallpaper::Backdrop>,
     desktop_ready: bool,
@@ -121,7 +123,7 @@ impl App {
         install_fonts(&cc.egui_ctx);
         apply(&cc.egui_ctx);
         // 这块面板是贴在桌面上的，按 1.2 倍整体放大，远处也能看清。
-        cc.egui_ctx.set_zoom_factor(1.2);
+        cc.egui_ctx.set_zoom_factor(1.3);
         let saved = crate::identity::load_identity().ok().flatten();
         let (server_url, name) = match &saved {
             Some(identity) => (identity.server_url.clone(), identity.name.clone()),
@@ -155,6 +157,8 @@ impl App {
             editor: Editor::None,
             dialog: Dialog::None,
             toast: None,
+            started: Instant::now(),
+            logged: false,
             hwnd: None,
             backdrop: None,
             desktop_ready: false,
@@ -289,56 +293,32 @@ impl App {
 
     fn top_bar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.add_space(4.0);
-            ui.label(title("Glasswing", 19.0));
-            ui.add_space(6.0);
-            ui.label(muted("·"));
-            ui.label(dim(self.store.workspace_name.clone()));
+            ui.label(title("Glasswing", 18.0));
+            ui.add_space(8.0);
+            ui.label(muted(self.store.workspace_name.clone()));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button("设置").clicked() {
+                if ui.button("⋯").clicked() {
                     self.dialog = Dialog::Settings;
                 }
-                if ui.button("邀请").clicked() {
-                    self.send(Command::ListInvites);
-                    self.dialog = Dialog::Invites {
-                        list: Vec::new(),
-                        loading: true,
-                    };
-                }
-                if ui.button("成员").clicked() {
-                    self.send(Command::Members);
-                    self.dialog = Dialog::Members;
+                if ui.button("同步").clicked() {
+                    self.send(Command::SyncNow);
                 }
                 if ui.button("搜索").clicked() {
                     self.dialog = Dialog::Search {
                         query: String::new(),
                     };
                 }
-                ui.add_space(4.0);
                 let (dot, text) = if self.status.starts_with("已连接") {
-                    (OK, self.status.clone())
+                    (OK, "在线")
                 } else {
-                    (WARN, self.status.clone())
+                    (WARN, "连接中")
                 };
-                // 状态胶囊
-                egui::Frame::new()
-                    .fill(Color32::from_rgba_premultiplied(dot.r(), dot.g(), dot.b(), 24))
-                    .corner_radius(egui::CornerRadius::same(9))
-                    .inner_margin(egui::Margin::symmetric(10, 5))
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            let (rect, _) = ui.allocate_exact_size(
-                                egui::Vec2::new(6.0, 6.0),
-                                egui::Sense::hover(),
-                            );
-                            ui.painter().circle_filled(rect.center(), 3.0, dot);
-                            ui.label(RichText::new(text).size(12.0).color(dot));
-                        });
-                    });
-                ui.add_space(6.0);
-                if ui.button("同步").clicked() {
-                    self.send(Command::SyncNow);
-                }
+                ui.horizontal(|ui| {
+                    let (rect, _) =
+                        ui.allocate_exact_size(egui::Vec2::new(6.0, 6.0), egui::Sense::hover());
+                    ui.painter().circle_filled(rect.center(), 3.0, dot);
+                    ui.label(RichText::new(text).size(12.0).color(dot));
+                });
             });
         });
     }
@@ -398,62 +378,6 @@ impl App {
             now.format("%Y-%m-%d"),
             weekday_cn(now.date_naive())
         )));
-        ui.add_space(12.0);
-
-        let (done, total) = self.store.day_completion(&self.date.format("%Y-%m-%d").to_string());
-        section(ui, "今日进度");
-        ui.horizontal(|ui| {
-            ui.label(metric(format!("{done}/{total}"), 18.0));
-            ui.label(muted(if total == 0 {
-                "还没有待办".to_string()
-            } else {
-                format!("{}%", done * 100 / total.max(1))
-            }));
-        });
-        progress(
-            ui,
-            if total == 0 { 0.0 } else { done as f32 / total as f32 },
-            ACCENT,
-        );
-
-        ui.add_space(14.0);
-        section(ui, "成员视角");
-        let mut changed = None;
-        egui::ComboBox::from_id_salt("member")
-            .width(ui.available_width() - 8.0)
-            .selected_text(if self.member_filter.is_some() {
-                format!("{}（只读）", self.member_name)
-            } else {
-                "共享空间".to_string()
-            })
-            .show_ui(ui, |ui| {
-                if ui.selectable_label(self.member_filter.is_none(), "共享空间").clicked() {
-                    changed = Some(None);
-                }
-                for user in self.store.users.clone() {
-                    let selected = self.member_filter.as_deref() == Some(user.id.as_str());
-                    let label = if user.id == self.me_id {
-                        format!("{}（我）", user.name)
-                    } else {
-                        user.name.clone()
-                    };
-                    if ui.selectable_label(selected, label).clicked() {
-                        changed = Some(Some((user.id.clone(), user.name.clone())));
-                    }
-                }
-            });
-        if let Some(change) = changed {
-            match change {
-                Some((id, name)) => {
-                    self.member_filter = Some(id);
-                    self.member_name = name;
-                }
-                None => {
-                    self.member_filter = None;
-                    self.member_name.clear();
-                }
-            }
-        }
     }
 
     fn content(&mut self, ui: &mut egui::Ui) {
@@ -554,13 +478,18 @@ impl App {
         if self.desktop_ready {
             return;
         }
-        let Some(hwnd) = crate::desktop::hwnd_of(frame) else {
+        crate::desktop::log_line("setup: begin");
+        let Some(hwnd) = crate::desktop::main_window().or_else(|| crate::desktop::hwnd_of(frame)) else {
+            crate::desktop::log_line("setup: no hwnd");
             self.desktop_ready = true;
             return;
         };
         self.hwnd = Some(hwnd);
+        crate::desktop::log_line(&format!("setup: hwnd={hwnd}"));
         crate::desktop::place_right_half(hwnd);
+        crate::desktop::log_line("setup: placed");
         let rect = crate::desktop::window_rect(hwnd);
+        crate::desktop::log_line("setup: loading wallpaper");
         self.backdrop = crate::desktop::wallpaper_path().and_then(|path| {
             let rect = crate::desktop::window_rect(hwnd)?;
             crate::wallpaper::Backdrop::from_wallpaper(
@@ -570,16 +499,24 @@ impl App {
                 rect,
             )
         });
+        crate::desktop::log_line("setup: backdrop done");
+        let mode = std::env::var("GLASSWING_ATTACH").unwrap_or_default();
         let window_mode = std::env::var_os("GLASSWING_WINDOW").is_some();
-        let attached = if window_mode {
+        let attached = if window_mode || mode == "none" {
+            false
+        } else if mode == "bottom" {
+            crate::desktop::anchor_bottom(hwnd);
             false
         } else {
-            crate::desktop::attach_to_desktop(hwnd)
+            // 交给 winit 的 AlwaysOnBottom：贴在桌面之上、普通窗口之下。
+            crate::desktop::clear_appwindow(hwnd);
+            false
         };
         crate::desktop::log_line(&format!(
-            "hwnd={hwnd} rect={rect:?} backdrop={} attached={attached} class={}",
+            "hwnd={hwnd} rect={rect:?} backdrop={} attached={attached} class={} {}",
             self.backdrop.is_some(),
-            crate::desktop::class_name(hwnd)
+            crate::desktop::class_name(hwnd),
+            crate::desktop::describe(hwnd)
         ));
         self.desktop_ready = true;
     }
@@ -599,7 +536,7 @@ impl App {
         painter.rect_filled(
             rect,
             0.0,
-            Color32::from_rgba_unmultiplied(6, 10, 17, 70),
+            Color32::from_rgba_unmultiplied(12, 10, 10, 120),
         );
         // 左边缘一条细线，给面板一个边界。
         painter.vline(
@@ -613,6 +550,13 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.setup_desktop(ctx, frame);
+        if !self.logged && self.started.elapsed().as_secs() >= 3 {
+            self.logged = true;
+            if let Some(hwnd) = self.hwnd {
+                crate::desktop::log_line(&format!("later: {}", crate::desktop::describe(hwnd)));
+                crate::desktop::log_line(&format!("windows: {}", crate::desktop::list_own_windows()));
+            }
+        }
         self.poll();
         self.paint_backdrop(ctx);
         // 每秒刷新时钟与同步状态

@@ -9,20 +9,20 @@ use eframe::egui::{
 };
 
 pub const BG: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 0);
-pub const SIDEBAR: Color32 = Color32::from_rgba_premultiplied(2, 3, 5, 64);
-pub const CARD: Color32 = Color32::from_rgba_premultiplied(10, 13, 19, 150);
-pub const CARD_HI: Color32 = Color32::from_rgba_premultiplied(15, 19, 27, 178);
-pub const FIELD: Color32 = Color32::from_rgba_premultiplied(8, 10, 15, 150);
+pub const SIDEBAR: Color32 = Color32::from_rgba_premultiplied(3, 2, 3, 70);
+pub const CARD: Color32 = Color32::from_rgba_premultiplied(19, 17, 16, 184);
+pub const CARD_HI: Color32 = Color32::from_rgba_premultiplied(31, 28, 26, 208);
+pub const FIELD: Color32 = Color32::from_rgba_premultiplied(11, 10, 10, 176);
 
 pub const LINE: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 18);
 pub const LINE_SOFT: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 10);
 
-pub const TEXT: Color32 = Color32::from_rgb(232, 237, 245);
-pub const TEXT_DIM: Color32 = Color32::from_rgb(154, 165, 184);
-pub const TEXT_MUTED: Color32 = Color32::from_rgb(104, 114, 136);
+pub const TEXT: Color32 = Color32::from_rgb(246, 242, 236);
+pub const TEXT_DIM: Color32 = Color32::from_rgb(206, 198, 190);
+pub const TEXT_MUTED: Color32 = Color32::from_rgb(150, 141, 133);
 
-pub const ACCENT: Color32 = Color32::from_rgb(94, 170, 198);
-pub const ACCENT_SOFT: Color32 = Color32::from_rgba_premultiplied(94, 170, 198, 36);
+pub const ACCENT: Color32 = Color32::from_rgb(216, 181, 140);
+pub const ACCENT_SOFT: Color32 = Color32::from_rgba_premultiplied(31, 26, 20, 44);
 pub const OK: Color32 = Color32::from_rgb(111, 194, 154);
 pub const WARN: Color32 = Color32::from_rgb(224, 168, 99);
 pub const DANGER: Color32 = Color32::from_rgb(217, 122, 112);
