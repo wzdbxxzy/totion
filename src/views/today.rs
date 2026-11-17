@@ -13,13 +13,21 @@ pub fn draw(app: &mut App, ui: &mut egui::Ui) {
     header(app, ui, &date_key);
     ui.add_space(10.0);
     stats_strip(app, ui, &date_key);
-    ui.add_space(6.0);
-    hairline(ui);
-    todo_section(app, ui, &date_key);
-    hairline(ui);
-    habit_section(app, ui, &date_key);
-    hairline(ui);
-    summary_section(app, ui, &date_key);
+    ui.add_space(10.0);
+    card_frame().show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        todo_section(app, ui, &date_key);
+    });
+    ui.add_space(10.0);
+    card_frame().show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        habit_section(app, ui, &date_key);
+    });
+    ui.add_space(10.0);
+    card_frame().show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        summary_section(app, ui, &date_key);
+    });
 }
 
 fn header(app: &mut App, ui: &mut egui::Ui, _date_key: &str) {

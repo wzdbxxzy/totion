@@ -310,7 +310,49 @@ impl App {
             ui.add_space(8.0);
             ui.label(muted(self.store.workspace_name.clone()));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button("设置").clicked() {
+            });
+        });
+    }
+
+    /// 顶部导航模式：一条横排导航，内容区占满整宽。
+    fn top_nav(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label(title("Glasswing", 17.0));
+            ui.add_space(16.0);
+            for view in [
+                View::Today,
+                View::Workspace,
+                View::Calendar,
+                View::Habits,
+                View::Stats,
+                View::Inbox,
+            ] {
+                let active = self.view == view;
+                let color = if active { accent() } else { text_dim() };
+                let response = ui.add(
+                    egui::Button::new(RichText::new(view.label()).size(13.0).color(color))
+                        .frame(false),
+                );
+                if active {
+                    let rect = response.rect;
+                    ui.painter().hline(
+                        rect.x_range(),
+                        rect.bottom() + 2.0,
+                        egui::Stroke::new(1.6_f32, accent()),
+                    );
+                }
+                if response.clicked() {
+                    self.view = view;
+                    self.inline = None;
+                }
+            }
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let active = self.view == View::Settings;
+                let color = if active { accent() } else { text_dim() };
+                if ui
+                    .add(egui::Button::new(RichText::new("设置").size(13.0).color(color)).frame(false))
+                    .clicked()
+                {
                     self.view = View::Settings;
                 }
             });
@@ -326,6 +368,7 @@ impl App {
             View::Habits,
             View::Stats,
             View::Inbox,
+            View::Settings,
         ] {
             let active = self.view == view;
             let width = ui.available_width();
@@ -584,37 +627,46 @@ impl eframe::App for App {
             return;
         }
 
+        let nav_top = crate::theme::palette().nav_top;
         let top = egui::TopBottomPanel::top("top")
             .show_separator_line(false)
             .frame(
                 egui::Frame::new()
                     .fill(Color32::TRANSPARENT)
                     .inner_margin(egui::Margin {
-                        left: 34,
-                        right: 34,
-                        top: 22,
-                        bottom: 4,
+                        left: 28,
+                        right: 28,
+                        top: 18,
+                        bottom: 6,
                     }),
             )
-            .show(ctx, |ui| self.top_bar(ui));
+            .show(ctx, |ui| {
+                if nav_top {
+                    self.top_nav(ui);
+                } else {
+                    self.top_bar(ui);
+                }
+            });
         let _ = top;
 
-        let side = egui::SidePanel::left("side")
-            .show_separator_line(false)
-            .resizable(false)
-            .exact_width(172.0)
-            .frame(
-                egui::Frame::new()
-                    .fill(Color32::TRANSPARENT)
-                    .inner_margin(egui::Margin {
-                        left: 30,
-                        right: 14,
-                        top: 14,
-                        bottom: 20,
-                    }),
-            )
-            .show(ctx, |ui| self.sidebar(ui));
-        let _ = side;
+        if !nav_top {
+            let side = egui::SidePanel::left("side")
+                .show_separator_line(false)
+                .resizable(false)
+                .exact_width(172.0)
+                .frame(
+                    egui::Frame::new()
+                        .fill(Color32::TRANSPARENT)
+                        .inner_margin(egui::Margin {
+                            left: 24,
+                            right: 12,
+                            top: 10,
+                            bottom: 16,
+                        }),
+                )
+                .show(ctx, |ui| self.sidebar(ui));
+            let _ = side;
+        }
 
         egui::CentralPanel::default()
             .frame(

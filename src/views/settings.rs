@@ -28,6 +28,7 @@ pub fn draw(app: &mut App, ui: &mut egui::Ui) {
         changed |= ui
             .add(egui::Slider::new(&mut palette.line_alpha, 0..=255).text("描边不透明度"))
             .changed();
+        changed |= color_row(ui, "卡片底色", &mut palette.card_rgb);
     });
 
     ui.add_space(12.0);
@@ -40,6 +41,21 @@ pub fn draw(app: &mut App, ui: &mut egui::Ui) {
         changed |= color_row(ui, "弱化文字", &mut palette.text_muted);
         if ui.button("恢复默认配色").clicked() {
             palette = Palette::default();
+            changed = true;
+        }
+    });
+
+    ui.add_space(12.0);
+    card_frame().show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        section(ui, "布局");
+        let mut side = !palette.nav_top;
+        if ui.radio_value(&mut side, true, "左侧导航").clicked() {
+            palette.nav_top = false;
+            changed = true;
+        }
+        if ui.radio_value(&mut side, false, "顶部导航（内容更宽）").clicked() {
+            palette.nav_top = true;
             changed = true;
         }
     });

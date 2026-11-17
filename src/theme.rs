@@ -22,6 +22,10 @@ pub struct Palette {
     pub text: [u8; 3],
     pub text_dim: [u8; 3],
     pub text_muted: [u8; 3],
+    /// 卡片底色（默认近白），透明度由 `card_alpha` 控制。
+    pub card_rgb: [u8; 3],
+    /// 导航放顶部还是左侧。
+    pub nav_top: bool,
 }
 
 impl Default for Palette {
@@ -34,6 +38,8 @@ impl Default for Palette {
             text: [22, 33, 45],
             text_dim: [56, 74, 92],
             text_muted: [92, 110, 128],
+            card_rgb: [255, 255, 255],
+            nav_top: false,
         }
     }
 }
@@ -78,6 +84,7 @@ fn load_palette() -> Option<Palette> {
         ("text", &mut p.text),
         ("text_dim", &mut p.text_dim),
         ("text_muted", &mut p.text_muted),
+        ("card_rgb", &mut p.card_rgb),
     ] {
         if let Some(array) = value.get(key).and_then(|v| v.as_array()) {
             if array.len() == 3 {
@@ -88,6 +95,9 @@ fn load_palette() -> Option<Palette> {
                 }
             }
         }
+    }
+    if let Some(top) = value.get("nav_top").and_then(|v| v.as_bool()) {
+        p.nav_top = top;
     }
     Some(p)
 }
@@ -105,6 +115,8 @@ fn save_palette(p: Palette) {
         "text": p.text,
         "text_dim": p.text_dim,
         "text_muted": p.text_muted,
+        "card_rgb": p.card_rgb,
+        "nav_top": p.nav_top,
     })
     .to_string();
     let _ = std::fs::write(path, raw);
@@ -134,14 +146,17 @@ pub fn accent_soft() -> Color32 {
     Color32::from_rgba_unmultiplied(c[0], c[1], c[2], 40)
 }
 pub fn card() -> Color32 {
-    Color32::from_rgba_unmultiplied(255, 255, 255, palette().card_alpha)
+    let c = palette().card_rgb;
+    Color32::from_rgba_unmultiplied(c[0], c[1], c[2], palette().card_alpha)
 }
 pub fn card_hi() -> Color32 {
+    let c = palette().card_rgb;
     let alpha = (palette().card_alpha as u16 + 36).min(255) as u8;
-    Color32::from_rgba_unmultiplied(255, 255, 255, alpha)
+    Color32::from_rgba_unmultiplied(c[0], c[1], c[2], alpha)
 }
 pub fn field() -> Color32 {
-    Color32::from_rgba_unmultiplied(255, 255, 255, palette().card_alpha.saturating_sub(12))
+    let c = palette().card_rgb;
+    Color32::from_rgba_unmultiplied(c[0], c[1], c[2], palette().card_alpha.saturating_sub(12))
 }
 pub fn sidebar() -> Color32 {
     Color32::from_rgba_unmultiplied(255, 255, 255, palette().card_alpha / 3)
