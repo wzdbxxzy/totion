@@ -203,6 +203,20 @@ fn view_number(view: View) -> u8 {
     }
 }
 
+/// 可视窗口：让选中项始终留在高度为 `height` 的窗口内。
+pub(crate) fn window_range(total: usize, selected: usize, height: usize) -> (usize, usize) {
+    if height == 0 || total == 0 {
+        return (0, 0);
+    }
+    if total <= height {
+        return (0, total);
+    }
+    let selected = selected.min(total - 1);
+    let half = height / 2;
+    let start = selected.saturating_sub(half).min(total - height);
+    (start, start + height)
+}
+
 /// 逐段拼接一行文本，同时按显示宽度登记鼠标点击区域。
 struct HitLine<'a> {
     spans: Vec<Span<'static>>,
@@ -618,11 +632,23 @@ fn draw_blocks(frame: &mut Frame, area: Rect, main: &MainState) {
         .get(main.selected_page_index())
         .map(|page| page.title.clone())
         .unwrap_or_else(|| "内容".to_string());
-    let block = block_title(format!(" {page_title} "));
     let blocks = main.visible_blocks();
+    let list_height = area.height.saturating_sub(2) as usize;
+    let (block_start, block_end) =
+        window_range(blocks.len(), main.selected_block_index(), list_height);
+    let block = block_title(if list_height > 0 && blocks.len() > list_height {
+        format!(
+            " {page_title} {}-{}/{} ",
+            block_start + 1,
+            block_end,
+            blocks.len()
+        )
+    } else {
+        format!(" {page_title} ")
+    });
 
     let mut lines: Vec<Line> = Vec::new();
-    for (index, block_item) in blocks.iter().enumerate() {
+    for (index, block_item) in blocks.iter().enumerate().take(block_end).skip(block_start) {
         let is_selected = index == main.selected_block_index();
         let mut spans: Vec<Span> = Vec::new();
         spans.push(Span::raw(if is_selected { "▶ " } else { "  " }));
@@ -831,8 +857,11 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
     main.push_mouse_hit(columns[1], MouseAction::FocusToday(TodayFocus::Habits));
 
     let selected_bg = Color::Rgb(38, 45, 56);
+    let item_height = columns[0].height.saturating_sub(2) as usize;
+    let (item_start, item_end) =
+        window_range(items.len(), main.selected_today_index(), item_height);
     let mut item_lines: Vec<Line> = Vec::new();
-    for (index, row) in items.iter().enumerate() {
+    for (index, row) in items.iter().enumerate().take(item_end).skip(item_start) {
         if let TodayRow::Todo(block) | TodayRow::Event(block) = row {
             let time = block.start_time.as_deref().unwrap_or("--:--");
             let selected = focus == TodayFocus::Items && index == main.selected_today_index();
@@ -870,18 +899,31 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
             Style::default().fg(Color::DarkGray),
         )));
     }
+    let item_title = if item_height > 0 && items.len() > item_height {
+        format!(
+            " 今日待办 [Tab] {}-{}/{} ",
+            item_start + 1,
+            item_end,
+            items.len()
+        )
+    } else {
+        " 今日待办 [Tab] ".to_string()
+    };
     frame.render_widget(
         Paragraph::new(item_lines)
-            .block(block_title_focused(
-                " 今日待办 [Tab] ",
-                focus == TodayFocus::Items,
-            ))
+            .block(block_title_focused(item_title, focus == TodayFocus::Items))
             .wrap(Wrap { trim: false }),
         columns[0],
     );
 
+    let habit_height = columns[1].height.saturating_sub(2) as usize;
+    let (habit_start, habit_end) = window_range(
+        habits.len(),
+        main.selected_today_habit_index(),
+        habit_height,
+    );
     let mut habit_lines: Vec<Line> = Vec::new();
-    for (index, (habit, stats)) in habits.iter().enumerate() {
+    for (index, (habit, stats)) in habits.iter().enumerate().take(habit_end).skip(habit_start) {
         let selected = focus == TodayFocus::Habits && index == main.selected_today_habit_index();
         let mut style = Style::default();
         if selected {
@@ -922,10 +964,20 @@ fn draw_today(frame: &mut Frame, area: Rect, main: &MainState) {
             Style::default().fg(Color::DarkGray),
         )));
     }
+    let habit_title = if habit_height > 0 && habits.len() > habit_height {
+        format!(
+            " 今日习惯 [Tab] {}-{}/{} ",
+            habit_start + 1,
+            habit_end,
+            habits.len()
+        )
+    } else {
+        " 今日习惯 [Tab] ".to_string()
+    };
     frame.render_widget(
         Paragraph::new(habit_lines)
             .block(block_title_focused(
-                " 今日习惯 [Tab] ",
+                habit_title,
                 focus == TodayFocus::Habits,
             ))
             .wrap(Wrap { trim: false }),
@@ -1365,8 +1417,11 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
         .split(area);
 
     let habits = main.visible_habits();
+    let list_height = columns[0].height.saturating_sub(2) as usize;
+    let (habit_start, habit_end) =
+        window_range(habits.len(), main.selected_habit_index(), list_height);
     let mut lines: Vec<Line> = Vec::new();
-    for (index, habit) in habits.iter().enumerate() {
+    for (index, habit) in habits.iter().enumerate().take(habit_end).skip(habit_start) {
         let stats = main.habit_stats(habit);
         let style = if index == main.selected_habit_index() {
             Style::default().bg(Color::DarkGray)
@@ -1398,9 +1453,14 @@ fn draw_habits(frame: &mut Frame, area: Rect, main: &MainState) {
             Style::default().fg(Color::DarkGray),
         )));
     }
+    let list_title = if list_height > 0 && habits.len() > list_height {
+        format!(" 习惯 {}-{}/{} ", habit_start + 1, habit_end, habits.len())
+    } else {
+        " 习惯 ".to_string()
+    };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(" 习惯 "))
+            .block(block_title(list_title))
             .wrap(Wrap { trim: false }),
         columns[0],
     );

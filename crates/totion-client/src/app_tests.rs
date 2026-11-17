@@ -256,6 +256,45 @@ fn search_results_show_readable_labels() {
 }
 
 #[test]
+fn window_range_keeps_selection_visible() {
+    assert_eq!(crate::ui::window_range(0, 0, 5), (0, 0));
+    assert_eq!(crate::ui::window_range(3, 2, 5), (0, 3));
+    assert_eq!(crate::ui::window_range(20, 0, 5), (0, 5));
+    assert_eq!(crate::ui::window_range(20, 10, 5), (8, 13));
+    assert_eq!(crate::ui::window_range(20, 19, 5), (15, 20));
+}
+
+#[test]
+fn long_today_list_scrolls_to_selected_item() {
+    let mut harness = Harness::new();
+    {
+        let state = harness.state_mut();
+        let today = state.today().format("%Y-%m-%d").to_string();
+        for index in 0..25u32 {
+            state.blocks.push(sample_block(
+                &format!("extra-{index}"),
+                &format!("任务 {index}"),
+                "u1",
+                &today,
+                "12:00",
+            ));
+        }
+        state.selected_today_index = 24;
+        state.clamp();
+    }
+    harness.render(120, 24);
+    let actions: Vec<MouseAction> = harness
+        .state()
+        .mouse_hits
+        .borrow()
+        .iter()
+        .map(|(_, action)| *action)
+        .collect();
+    assert!(actions.contains(&MouseAction::SelectTodayItem(24)));
+    assert!(!actions.contains(&MouseAction::SelectTodayItem(0)));
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
