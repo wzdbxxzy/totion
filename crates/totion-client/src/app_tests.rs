@@ -653,6 +653,16 @@ fn modal_lists_support_g_and_shift_g() {
 }
 
 #[test]
+fn modals_use_unified_double_border() {
+    let mut harness = Harness::new();
+    harness.state_mut().modal = Some(Modal::Members(MemberPanel { selected: 0 }));
+    harness.render(120, 36);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    assert!(text.contains('╔'), "弹窗应使用双线边框");
+    assert!(text.contains('╭'), "普通面板应保持圆角边框");
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

@@ -301,6 +301,21 @@ fn list_row_rect(area: Rect, row: usize) -> Option<Rect> {
     })
 }
 
+/// 弹窗统一外观：双线边框 + 反色标题。
+fn modal_block(title: impl Into<String>) -> Block<'static> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(Span::styled(
+            title.into(),
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ))
+}
+
 fn block_title(title: impl Into<String>) -> Block<'static> {
     Block::default()
         .borders(Borders::ALL)
@@ -1774,7 +1789,7 @@ fn draw_members(frame: &mut Frame, main: &MainState, panel: &MemberPanel) {
     )));
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(" 成员视角 · m "))
+            .block(modal_block(" 成员视角 · m "))
             .wrap(Wrap { trim: false }),
         area,
     );
@@ -1806,7 +1821,7 @@ fn draw_confirm(frame: &mut Frame, confirm: &crate::app::ConfirmState) {
             Style::default().fg(Color::DarkGray),
         )),
     ];
-    frame.render_widget(Paragraph::new(lines).block(block_title(" 删除确认 ")), area);
+    frame.render_widget(Paragraph::new(lines).block(modal_block(" 删除确认 ")), area);
 }
 
 fn draw_invites(frame: &mut Frame, panel: &InvitePanel) {
@@ -1881,7 +1896,7 @@ fn draw_invites(frame: &mut Frame, panel: &InvitePanel) {
         " g 生成新码 · x 撤销/恢复 · j/k 选择 · Esc 关闭",
         Style::default().fg(Color::DarkGray),
     )));
-    frame.render_widget(Paragraph::new(lines).block(block_title(" 邀请码 ")), area);
+    frame.render_widget(Paragraph::new(lines).block(modal_block(" 邀请码 ")), area);
 }
 
 fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {
@@ -1940,7 +1955,7 @@ fn draw_agenda(frame: &mut Frame, main: &MainState, panel: &AgendaPanel) {
     };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(title))
+            .block(modal_block(title))
             .wrap(Wrap { trim: false }),
         area,
     );
@@ -2090,7 +2105,7 @@ fn draw_event_form(frame: &mut Frame, form: &EventForm) {
         )));
     }
     frame.render_widget(
-        Paragraph::new(lines).block(block_title(format!(
+        Paragraph::new(lines).block(modal_block(format!(
             " 新建{} ",
             if form.kind == totion_core::BlockKind::Todo {
                 "待办"
@@ -2143,7 +2158,7 @@ fn draw_habit_form(frame: &mut Frame, form: &HabitForm) {
             Style::default().fg(Color::Red),
         )));
     }
-    frame.render_widget(Paragraph::new(lines).block(block_title(" 新建习惯 ")), area);
+    frame.render_widget(Paragraph::new(lines).block(modal_block(" 新建习惯 ")), area);
 }
 
 fn draw_comments(frame: &mut Frame, main: &MainState, panel: &CommentPanel) {
@@ -2198,7 +2213,7 @@ fn draw_comments(frame: &mut Frame, main: &MainState, panel: &CommentPanel) {
     }
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(format!(" 评论 · {} ", panel.label)))
+            .block(modal_block(format!(" 评论 · {} ", panel.label)))
             .wrap(Wrap { trim: false }),
         area,
     );
@@ -2289,7 +2304,7 @@ fn draw_search(frame: &mut Frame, main: &MainState, state: &SearchState) {
     };
     frame.render_widget(
         Paragraph::new(lines)
-            .block(block_title(title))
+            .block(modal_block(title))
             .wrap(Wrap { trim: false }),
         area,
     );
@@ -2390,7 +2405,7 @@ fn draw_help(frame: &mut Frame, panel: &HelpPanel) {
     };
     frame.render_widget(
         Paragraph::new(lines.into_iter().skip(scroll).collect::<Vec<_>>())
-            .block(block_title(title))
+            .block(modal_block(title))
             .wrap(Wrap { trim: false }),
         area,
     );
