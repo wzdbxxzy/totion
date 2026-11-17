@@ -134,6 +134,8 @@ impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         install_fonts(&cc.egui_ctx);
         apply(&cc.egui_ctx);
+        // 整体放大一点点，远看也清楚，但不像 1.3 那样挤。
+        cc.egui_ctx.set_zoom_factor(1.12);
         let saved = crate::identity::load_identity().ok().flatten();
         let (server_url, name) = match &saved {
             Some(identity) => (identity.server_url.clone(), identity.name.clone()),
