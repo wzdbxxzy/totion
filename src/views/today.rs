@@ -30,10 +30,10 @@ fn header(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
                 27.0,
             ));
             if app.date == Local::now().date_naive() {
-                pill(ui, "今天", ACCENT);
+                pill(ui, "今天", accent());
             }
             if !app.is_writable() {
-                pill(ui, "只读", WARN);
+                pill(ui, "只读", warn());
             }
         });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -103,13 +103,13 @@ fn todo_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
             let (rect, response) =
                 ui.allocate_exact_size(egui::Vec2::new(18.0, 18.0), egui::Sense::click());
             let stroke = if block.checked {
-                egui::Stroke::new(1.5, OK)
+                egui::Stroke::new(1.5, ok())
             } else {
-                egui::Stroke::new(1.2, TEXT_MUTED)
+                egui::Stroke::new(1.2, text_muted())
             };
             ui.painter().circle_stroke(rect.center(), 7.0, stroke);
             if block.checked {
-                ui.painter().circle_filled(rect.center(), 4.0, OK);
+                ui.painter().circle_filled(rect.center(), 4.0, ok());
             }
             if response.clicked() {
                 toggle = Some((block.id.clone(), block.version, !block.checked));
@@ -117,10 +117,10 @@ fn todo_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
 
             let text = if block.checked {
                 RichText::new(block.text.clone())
-                    .color(TEXT_MUTED)
+                    .color(text_muted())
                     .strikethrough()
             } else {
-                RichText::new(block.text.clone()).color(TEXT)
+                RichText::new(block.text.clone()).color(text())
             };
             let label = ui.add(egui::Label::new(text).truncate());
             if label.clicked() {
@@ -189,14 +189,14 @@ fn habit_section(app: &mut App, ui: &mut egui::Ui, date_key: &str) {
         let checkin = app.store.checkin(&habit.id, date_key);
         ui.horizontal(|ui| {
             let label = if checkin.is_some() {
-                RichText::new(habit.title.clone()).color(TEXT)
+                RichText::new(habit.title.clone()).color(text())
             } else {
-                RichText::new(habit.title.clone()).color(TEXT_DIM)
+                RichText::new(habit.title.clone()).color(text_dim())
             };
             ui.add(egui::Label::new(label).truncate());
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 let text = if checkin.is_some() { "撤销" } else { "打卡" };
-                let color = if checkin.is_some() { TEXT_MUTED } else { OK };
+                let color = if checkin.is_some() { text_muted() } else { ok() };
                 if ui
                     .add(egui::Button::new(RichText::new(text).size(12.0).color(color)).frame(false))
                     .clicked()

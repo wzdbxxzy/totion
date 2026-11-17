@@ -77,9 +77,9 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.label(title("习惯", 26.0));
-                pill(ui, &format!("{active} 个进行中"), ACCENT);
+                pill(ui, &format!("{active} 个进行中"), accent());
                 if !app.is_writable() {
-                    pill(ui, "只读视角", WARN);
+                    pill(ui, "只读视角", warn());
                 }
             });
             ui.label(muted(format!(
@@ -90,7 +90,7 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
         });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let new_habit =
-                egui::Button::new(RichText::new("＋ 新建习惯").color(TEXT)).fill(ACCENT_SOFT);
+                egui::Button::new(RichText::new("＋ 新建习惯").color(text())).fill(accent_soft());
             if ui.add(new_habit).clicked() {
                 app.editor = Editor::Habit {
                     title: String::new(),
@@ -122,13 +122,13 @@ fn habit_card(app: &mut App, ui: &mut egui::Ui, habit: &Habit) {
 
     let mut frame = card_frame();
     if selected {
-        frame = frame.stroke(egui::Stroke::new(1.0, ACCENT));
+        frame = frame.stroke(egui::Stroke::new(1.0, accent()));
     }
     let card = frame.show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
             ui.label(title(display_name(habit), 19.0));
-            pill(ui, &habit.frequency.label(), ACCENT);
+            pill(ui, &habit.frequency.label(), accent());
         });
         ui.add_space(12.0);
 
@@ -155,10 +155,10 @@ fn habit_card(app: &mut App, ui: &mut egui::Ui, habit: &Habit) {
             let button = egui::Button::new(
                 RichText::new(if checked { "撤销" } else { "打卡" })
                     .size(12.0)
-                    .color(if checked { TEXT_DIM } else { OK }),
+                    .color(if checked { text_dim() } else { ok() }),
             )
             .fill(Color32::TRANSPARENT)
-            .stroke(egui::Stroke::new(1.0, LINE));
+            .stroke(egui::Stroke::new(1.0, line()));
             if ui.add(button).clicked() {
                 action = Some(CardAction::CheckIn {
                     habit_id: habit.id.clone(),
@@ -314,7 +314,7 @@ fn archived_section(app: &mut App, ui: &mut egui::Ui) {
         for habit in &archived {
             ui.horizontal(|ui| {
                 ui.label(dim(display_name(habit)));
-                pill(ui, "已归档", TEXT_MUTED);
+                pill(ui, "已归档", text_muted());
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui
                         .add(egui::Button::new(muted("恢复")).frame(false))
@@ -380,7 +380,7 @@ fn heatmap(ui: &mut egui::Ui, checkins: &[HabitCheckin], habit_id: &str, today: 
             painter.rect_filled(
                 egui::Rect::from_min_size(min, egui::vec2(CELL, CELL)),
                 egui::CornerRadius::same(2),
-                if done { OK } else { empty },
+                if done { ok() } else { empty },
             );
         }
     }

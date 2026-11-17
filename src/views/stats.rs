@@ -61,7 +61,7 @@ fn header(ui: &mut egui::Ui) -> u32 {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.label(title("统计", 26.0));
-                pill(ui, &format!("近 {days} 天"), ACCENT);
+                pill(ui, &format!("近 {days} 天"), accent());
             });
             ui.label(muted("完成率、每日完成数与打卡热力图"));
         });
@@ -70,16 +70,16 @@ fn header(ui: &mut egui::Ui) -> u32 {
                 let selected = days == option;
                 let text = RichText::new(format!("{option} 天"))
                     .size(13.0)
-                    .color(if selected { TEXT } else { TEXT_DIM });
+                    .color(if selected { text() } else { text_dim() });
                 let button = egui::Button::new(text)
                     .fill(if selected {
-                        ACCENT_SOFT
+                        accent_soft()
                     } else {
                         Color32::TRANSPARENT
                     })
                     .stroke(egui::Stroke::new(
                         1.0,
-                        if selected { ACCENT } else { LINE },
+                        if selected { accent() } else { line() },
                     ));
                 if ui.add(button).clicked() {
                     days = option;
@@ -113,7 +113,7 @@ fn rate_card(ui: &mut egui::Ui, done: u32, total: u32, days: u32) {
             });
         });
         ui.add_space(10.0);
-        progress(ui, ratio, ACCENT);
+        progress(ui, ratio, accent());
         ui.add_space(6.0);
         ui.label(muted(format!(
             "平均每天 {:.1} 条",
@@ -158,7 +158,7 @@ fn chart_card(ui: &mut egui::Ui, series: &[(String, DayStat)]) {
         painter.hline(
             rect.x_range(),
             base_y,
-            egui::Stroke::new(1.0, LINE_SOFT),
+            egui::Stroke::new(1.0, line_soft()),
         );
 
         let count = series.len().max(1);
@@ -173,9 +173,9 @@ fn chart_card(ui: &mut egui::Ui, series: &[(String, DayStat)]) {
                     egui::vec2(bar_w, height),
                 );
                 let color = if stat.total > 0 && stat.done == stat.total {
-                    OK
+                    ok()
                 } else {
-                    ACCENT
+                    accent()
                 };
                 painter.rect_filled(filled, egui::CornerRadius::same(3), color);
             } else {
@@ -196,7 +196,7 @@ fn chart_card(ui: &mut egui::Ui, series: &[(String, DayStat)]) {
                     egui::Align2::CENTER_CENTER,
                     label,
                     egui::FontId::proportional(9.5),
-                    TEXT_MUTED,
+                    text_muted(),
                 );
             }
         }
@@ -253,7 +253,7 @@ fn draw_heatmap(ui: &mut egui::Ui, checkins: &[HabitCheckin], today: NaiveDate, 
             let color = match count {
                 0 => Color32::from_rgba_premultiplied(255, 255, 255, 14),
                 1..=2 => Color32::from_rgba_unmultiplied(94, 170, 198, 110),
-                _ => ACCENT,
+                _ => accent(),
             };
             let min = egui::pos2(
                 rect.left() + week as f32 * (CELL + GAP),
@@ -274,7 +274,7 @@ fn legend(ui: &mut egui::Ui) {
         for (color, label) in [
             (Color32::from_rgba_premultiplied(255, 255, 255, 14), "0"),
             (Color32::from_rgba_unmultiplied(94, 170, 198, 110), "1 到 2"),
-            (ACCENT, "3 以上"),
+            (accent(), "3 以上"),
         ] {
             let (rect, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
             ui.painter()
@@ -322,10 +322,10 @@ fn overview_card(app: &mut App, ui: &mut egui::Ui, today: NaiveDate) {
                 ui.allocate_exact_size(egui::vec2(width, 32.0), egui::Sense::click());
             if response.hovered() {
                 ui.painter()
-                    .rect_filled(rect, egui::CornerRadius::same(6), CARD_HI);
+                    .rect_filled(rect, egui::CornerRadius::same(6), card_hi());
             } else if app.selected_habit.as_deref() == Some(habit.id.as_str()) {
                 ui.painter()
-                    .rect_filled(rect, egui::CornerRadius::same(6), ACCENT_SOFT);
+                    .rect_filled(rect, egui::CornerRadius::same(6), accent_soft());
             }
             let stats = app.store.habit_stats(habit, today);
             paint_row(
@@ -360,8 +360,8 @@ fn paint_row(
 ) {
     let pad = 10.0;
     let font = egui::FontId::proportional(if header { 10.5 } else { 13.0 });
-    let color = if header { TEXT_MUTED } else { TEXT };
-    let dim = if header { TEXT_MUTED } else { TEXT_DIM };
+    let color = if header { text_muted() } else { text() };
+    let dim = if header { text_muted() } else { text_dim() };
     let y = rect.center().y;
     painter.text(
         egui::pos2(rect.left() + pad, y),

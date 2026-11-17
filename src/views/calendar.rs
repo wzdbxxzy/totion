@@ -74,7 +74,7 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
             24.0,
         ));
         if !app.is_writable() {
-            pill(ui, "只读视角", WARN);
+            pill(ui, "只读视角", warn());
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let (done, total) = month_completion(app, app.date.year(), app.date.month());
@@ -132,7 +132,7 @@ fn month_grid(app: &mut App, ui: &mut egui::Ui, fixed_cell_h: Option<f32>) {
                 Align2::CENTER_CENTER,
                 name,
                 FontId::proportional(11.0),
-                TEXT_MUTED,
+                text_muted(),
             );
         }
     });
@@ -168,17 +168,17 @@ fn day_cell(
     let radius = CornerRadius::same(9);
 
     let base = if !in_month {
-        FIELD
+        field()
     } else if hovered || selected {
-        CARD_HI
+        card_hi()
     } else {
-        CARD
+        card()
     };
-    let fill = if is_today { tint(base, ACCENT, 0.18) } else { base };
+    let fill = if is_today { tint(base, accent(), 0.18) } else { base };
 
     let painter = ui.painter();
     if selected {
-        painter.rect_filled(rect, radius, ACCENT);
+        painter.rect_filled(rect, radius, accent());
         painter.rect_filled(rect.shrink(1.6), radius, fill);
     } else {
         painter.rect_filled(rect, radius, fill);
@@ -186,13 +186,13 @@ fn day_cell(
 
     // 日期数字
     let num_color = if !in_month {
-        TEXT_MUTED
+        text_muted()
     } else if is_today {
-        ACCENT
+        accent()
     } else if selected {
-        TEXT
+        text()
     } else {
-        TEXT_DIM
+        text_dim()
     };
     painter.text(
         rect.left_top() + Vec2::new(7.0, 5.0),
@@ -213,20 +213,20 @@ fn day_cell(
             let c = egui::pos2(x + 4.0, y + 5.0);
             painter.line_segment(
                 [egui::pos2(c.x - 3.0, c.y), egui::pos2(c.x - 1.0, c.y + 2.2)],
-                Stroke::new(1.2_f32, OK),
+                Stroke::new(1.2_f32, ok()),
             );
             painter.line_segment(
                 [egui::pos2(c.x - 1.0, c.y + 2.2), egui::pos2(c.x + 3.2, c.y - 2.4)],
-                Stroke::new(1.2_f32, OK),
+                Stroke::new(1.2_f32, ok()),
             );
             x += 10.0;
         }
         let color = if block.checked {
-            TEXT_MUTED
+            text_muted()
         } else if in_month {
-            TEXT_DIM
+            text_dim()
         } else {
-            TEXT_MUTED
+            text_muted()
         };
         let text = fit_text(&block.text, rect.right() - 8.0 - x, 10.5);
         painter.text(
@@ -244,7 +244,7 @@ fn day_cell(
         painter.circle_filled(
             egui::pos2(rect.right() - 8.0, rect.bottom() - 8.0),
             2.5,
-            ACCENT,
+            accent(),
         );
     }
 
@@ -269,9 +269,9 @@ fn day_panel(app: &mut App, ui: &mut egui::Ui) {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
             ui.label(title(format!("{} 月 {} 日", date.month(), date.day()), 20.0));
-            pill(ui, weekday_cn(date), ACCENT);
+            pill(ui, weekday_cn(date), accent());
             if date == today {
-                pill(ui, "今天", OK);
+                pill(ui, "今天", ok());
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.label(muted(format!("{} 条", total)));
@@ -293,13 +293,13 @@ fn day_panel(app: &mut App, ui: &mut egui::Ui) {
                     let (rect, response) =
                         ui.allocate_exact_size(Vec2::new(18.0, 18.0), Sense::click());
                     let stroke = if block.checked {
-                        Stroke::new(1.5_f32, OK)
+                        Stroke::new(1.5_f32, ok())
                     } else {
-                        Stroke::new(1.2_f32, TEXT_MUTED)
+                        Stroke::new(1.2_f32, text_muted())
                     };
                     ui.painter().circle_stroke(rect.center(), 7.5, stroke);
                     if block.checked {
-                        ui.painter().circle_filled(rect.center(), 4.5, OK);
+                        ui.painter().circle_filled(rect.center(), 4.5, ok());
                     }
                     if response.clicked() {
                         toggle = Some((block.id.clone(), block.version, !block.checked));
@@ -307,10 +307,10 @@ fn day_panel(app: &mut App, ui: &mut egui::Ui) {
 
                     let text = if block.checked {
                         RichText::new(block.text.clone())
-                            .color(TEXT_MUTED)
+                            .color(text_muted())
                             .strikethrough()
                     } else {
-                        RichText::new(block.text.clone()).color(TEXT)
+                        RichText::new(block.text.clone()).color(text())
                     };
                     ui.add(egui::Label::new(text).truncate());
                 });
@@ -349,8 +349,8 @@ fn new_todo_input(app: &mut App, ui: &mut egui::Ui, date_key: &str, writable: bo
     let mut open = ui.memory(|m| m.data.get_temp::<bool>(open_id).unwrap_or(false));
 
     if !open {
-        let button = egui::Button::new(RichText::new("＋ 新建待办").color(TEXT))
-            .fill(ACCENT_SOFT)
+        let button = egui::Button::new(RichText::new("＋ 新建待办").color(text()))
+            .fill(accent_soft())
             .min_size(Vec2::new(ui.available_width(), 32.0));
         if ui.add(button).clicked() {
             if writable {
@@ -439,7 +439,7 @@ fn summary_card(app: &mut App, ui: &mut egui::Ui, date_key: &str, writable: bool
 
         let mut open = ui.memory(|m| m.data.get_temp::<bool>(open_id).unwrap_or(false));
         if !open {
-            let button = egui::Button::new(RichText::new("＋ 写总结").color(TEXT_DIM))
+            let button = egui::Button::new(RichText::new("＋ 写总结").color(text_dim()))
                 .frame(false);
             if ui.add(button).clicked() {
                 if writable {

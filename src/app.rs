@@ -111,7 +111,6 @@ pub struct App {
     pub editor: Editor,
     pub dialog: Dialog,
     toast: Option<(String, Instant, bool)>,
-    pub glass_alpha: u8,
     started: Instant,
     logged: bool,
     hwnd: Option<isize>,
@@ -158,7 +157,6 @@ impl App {
             editor: Editor::None,
             dialog: Dialog::None,
             toast: None,
-            glass_alpha: load_glass_alpha(),
             started: Instant::now(),
             logged: false,
             hwnd: None,
@@ -311,9 +309,9 @@ impl App {
                     };
                 }
                 let (dot, text) = if self.status.starts_with("已连接") {
-                    (OK, "在线")
+                    (ok(), "在线")
                 } else {
-                    (WARN, "连接中")
+                    (warn(), "连接中")
                 };
                 ui.horizontal(|ui| {
                     let (rect, _) =
@@ -350,14 +348,14 @@ impl App {
                     egui::pos2(rect.left(), rect.center().y - 9.0),
                     egui::Vec2::new(3.0, 18.0),
                 );
-                ui.painter().rect_filled(bar, egui::CornerRadius::same(2), ACCENT);
+                ui.painter().rect_filled(bar, egui::CornerRadius::same(2), accent());
             }
             ui.painter().text(
                 egui::pos2(rect.left() + 20.0, rect.center().y),
                 egui::Align2::LEFT_CENTER,
                 view.label(),
                 egui::FontId::proportional(14.5),
-                if active { ACCENT } else { TEXT_DIM },
+                if active { accent() } else { text_dim() },
             );
             if response.clicked() {
                 self.view = view;
@@ -399,8 +397,8 @@ impl App {
             ui.label(dim("一个人的清晨观测站，也是几个人的共享空间"));
             ui.add_space(28.0);
             egui::Frame::new()
-                .fill(CARD)
-                .stroke(egui::Stroke::new(1.0, LINE))
+                .fill(card())
+                .stroke(egui::Stroke::new(1.0, line()))
                 .corner_radius(egui::CornerRadius::same(RADIUS))
                 .inner_margin(egui::Margin::same(22))
                 .show(ui, |ui| {
@@ -429,11 +427,11 @@ impl App {
                     }
                     if let Some(error) = &self.login_error {
                         ui.add_space(8.0);
-                        ui.label(RichText::new(error).color(DANGER).size(13.0));
+                        ui.label(RichText::new(error).color(danger()).size(13.0));
                     }
                     ui.add_space(16.0);
-                    let button = egui::Button::new(RichText::new("连接").size(15.0).color(TEXT))
-                        .fill(ACCENT_SOFT)
+                    let button = egui::Button::new(RichText::new("连接").size(15.0).color(text()))
+                        .fill(accent_soft())
                         .min_size(egui::Vec2::new(ui.available_width(), 36.0));
                     if ui.add(button).clicked() {
                         self.connect_from_form();
@@ -452,7 +450,7 @@ impl App {
                             .fill(Color32::from_rgb(20, 27, 39))
                             .stroke(egui::Stroke::new(
                                 1.0,
-                                if *error { DANGER } else { LINE },
+                                if *error { danger() } else { line() },
                             ))
                             .corner_radius(egui::CornerRadius::same(10))
                             .inner_margin(egui::Margin::symmetric(16, 9))
@@ -460,7 +458,7 @@ impl App {
                                 ui.label(
                                     RichText::new(message.clone())
                                         .size(13.0)
-                                        .color(if *error { DANGER } else { TEXT }),
+                                        .color(if *error { danger() } else { text() }),
                                 );
                             });
                     });
@@ -491,12 +489,15 @@ impl App {
         let rect = crate::desktop::window_rect(hwnd);
         crate::desktop::log_line("setup: loading wallpaper");
         self.backdrop = crate::desktop::wallpaper_path().and_then(|path| {
-            let rect = crate::desktop::window_rect(hwnd)?;
-            crate::wallpaper::Backdrop::from_wallpaper(
+            let (x, y, w, h) = crate::desktop::window_rect(hwnd)?;
+            let scale = ctx.pixels_per_point();
+            let margin = (MARGIN * scale) as i32;
+            crate::wallpaper::Backdrop::from_wallpaper_rounded(
                 ctx,
                 &path,
                 crate::desktop::screen_size(),
-                rect,
+                (x + margin, y + margin, w - margin * 2, h - margin * 2),
+                (26.0 * scale).max(14.0),
             )
         });
         crate::desktop::log_line("setup: backdrop done");
@@ -521,28 +522,29 @@ impl App {
         self.desktop_ready = true;
     }
 
-    /// 半透明底：整块窗口压一层深色玻璃，壁纸从后面透出来。
+    /// 半透明底：留出页边距，画一块圆角磨砂面板。
     fn paint_backdrop(&self, ctx: &egui::Context) {
         let rect = ctx.screen_rect();
+        let panel = rect.shrink(MARGIN);
         let painter = ctx.layer_painter(egui::LayerId::background());
         if let Some(backdrop) = &self.backdrop {
             painter.image(
                 backdrop.texture.id(),
-                rect,
+                panel,
                 egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                Color32::WHITE,
+                egui::Color32::WHITE,
             );
         }
         painter.rect_filled(
-            rect,
-            0.0,
-            Color32::from_rgba_unmultiplied(226, 240, 252, self.glass_alpha),
+            panel,
+            egui::CornerRadius::same(26),
+            egui::Color32::from_rgba_unmultiplied(226, 240, 252, crate::theme::glass_alpha()),
         );
-        // 左边缘一条细线，给面板一个边界。
-        painter.vline(
-            rect.left() + 0.5,
-            rect.y_range(),
-            egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 26)),
+        painter.rect_stroke(
+            panel,
+            egui::CornerRadius::same(26),
+            egui::Stroke::new(1.0_f32, crate::theme::line()),
+            egui::StrokeKind::Inside,
         );
     }
 }
@@ -582,7 +584,12 @@ impl eframe::App for App {
             .frame(
                 egui::Frame::new()
                     .fill(Color32::TRANSPARENT)
-                    .inner_margin(egui::Margin::symmetric(18, 10)),
+                    .inner_margin(egui::Margin {
+                        left: 34,
+                        right: 34,
+                        top: 22,
+                        bottom: 4,
+                    }),
             )
             .show(ctx, |ui| self.top_bar(ui));
         let _ = top;
@@ -592,8 +599,13 @@ impl eframe::App for App {
             .exact_width(232.0)
             .frame(
                 egui::Frame::new()
-                    .fill(SIDEBAR)
-                    .inner_margin(egui::Margin::symmetric(14, 8)),
+                    .fill(Color32::TRANSPARENT)
+                    .inner_margin(egui::Margin {
+                        left: 30,
+                        right: 14,
+                        top: 14,
+                        bottom: 20,
+                    }),
             )
             .show(ctx, |ui| self.sidebar(ui));
         let _ = side;
@@ -602,7 +614,12 @@ impl eframe::App for App {
             .frame(
                 egui::Frame::new()
                     .fill(Color32::TRANSPARENT)
-                    .inner_margin(egui::Margin::symmetric(20, 14)),
+                    .inner_margin(egui::Margin {
+                        left: 24,
+                        right: 34,
+                        top: 10,
+                        bottom: 26,
+                    }),
             )
             .show(ctx, |ui| {
                 self.content(ui);
@@ -613,30 +630,7 @@ impl eframe::App for App {
     }
 }
 
-fn prefs_path() -> std::path::PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("glasswing")
-        .join("glass.json")
-}
-
-fn load_glass_alpha() -> u8 {
-    std::fs::read_to_string(prefs_path())
-        .ok()
-        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
-        .and_then(|value| value.get("glass_alpha").and_then(|v| v.as_u64()))
-        .map(|v| v.clamp(20, 200) as u8)
-        .unwrap_or(104)
-}
-
-pub fn save_glass_alpha(alpha: u8) {
-    let path = prefs_path();
-    if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let raw = serde_json::json!({ "glass_alpha": alpha }).to_string();
-    let _ = std::fs::write(path, raw);
-}
+pub const MARGIN: f32 = 16.0;
 
 pub fn weekday_cn(date: NaiveDate) -> &'static str {
     const NAMES: [&str; 7] = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];

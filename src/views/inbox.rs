@@ -25,7 +25,7 @@ pub fn draw(app: &mut App, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 ui.label(title("留言", 26.0));
                 if unresolved > 0 {
-                    pill(ui, &format!("{unresolved} 条未解决"), WARN);
+                    pill(ui, &format!("{unresolved} 条未解决"), warn());
                 }
             });
             ui.label(muted("按时间倒序 · 点「跳到对象」回到原处"));
@@ -88,20 +88,20 @@ fn comment_card(app: &mut App, ui: &mut egui::Ui, comment: &Comment) {
             ui.label(dim(comment.author_name.clone()));
             ui.label(muted(rel_time(comment.created_at)));
             if comment.resolved {
-                pill(ui, "已解决", OK);
+                pill(ui, "已解决", ok());
             } else {
-                pill(ui, "未解决", WARN);
+                pill(ui, "未解决", warn());
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
-                if action_button(ui, "回复", TEXT_DIM) {
+                if action_button(ui, "回复", text_dim()) {
                     reply = true;
                 }
-                if action_button(ui, "删除", DANGER) {
+                if action_button(ui, "删除", danger()) {
                     delete = true;
                 }
                 let label = if comment.resolved { "取消解决" } else { "解决" };
-                if action_button(ui, label, TEXT_DIM) {
+                if action_button(ui, label, text_dim()) {
                     resolve = true;
                 }
             });
@@ -114,7 +114,7 @@ fn comment_card(app: &mut App, ui: &mut egui::Ui, comment: &Comment) {
         let jump_button = egui::Button::new(
             RichText::new(format!("跳到对象 · {}", info.label))
                 .size(12.0)
-                .color(TEXT_DIM),
+                .color(text_dim()),
         )
         .small();
         if ui.add(jump_button).clicked() {

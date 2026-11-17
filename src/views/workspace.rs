@@ -93,10 +93,10 @@ fn page_list(app: &mut App, ui: &mut egui::Ui, pages: &[Page]) {
         ui.horizontal(|ui| {
             section(ui, "页面");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let color = if app.is_writable() { TEXT } else { TEXT_MUTED };
+                let color = if app.is_writable() { text() } else { text_muted() };
                 let button =
                     egui::Button::new(RichText::new("＋ 新建页面").size(12.0).color(color))
-                        .fill(ACCENT_SOFT);
+                        .fill(accent_soft());
                 if ui.add(button).clicked() {
                     if app.is_writable() {
                         app.editor = Editor::Page {
@@ -143,9 +143,9 @@ fn page_row(app: &mut App, ui: &mut egui::Ui, page: &Page) {
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(width, 32.0), Sense::click());
 
     let fill = if selected {
-        Color32::from_rgba_premultiplied(ACCENT.r(), ACCENT.g(), ACCENT.b(), 26)
+        Color32::from_rgba_premultiplied(accent().r(), accent().g(), accent().b(), 26)
     } else if resp.hovered() {
-        CARD_HI
+        card_hi()
     } else {
         Color32::TRANSPARENT
     };
@@ -157,7 +157,7 @@ fn page_row(app: &mut App, ui: &mut egui::Ui, page: &Page) {
             Vec2::new(3.0, 16.0),
         );
         ui.painter()
-            .rect_filled(bar, egui::CornerRadius::same(2), ACCENT);
+            .rect_filled(bar, egui::CornerRadius::same(2), accent());
     }
 
     let more_rect = Rect::from_center_size(
@@ -171,7 +171,7 @@ fn page_row(app: &mut App, ui: &mut egui::Ui, page: &Page) {
     );
     if more.hovered() {
         ui.painter()
-            .rect_filled(more_rect, egui::CornerRadius::same(6), CARD_HI);
+            .rect_filled(more_rect, egui::CornerRadius::same(6), card_hi());
     }
 
     ui.painter().text(
@@ -179,14 +179,14 @@ fn page_row(app: &mut App, ui: &mut egui::Ui, page: &Page) {
         Align2::LEFT_CENTER,
         ellipsize(&page.title, 12),
         FontId::new(13.5, FontFamily::Proportional),
-        if selected { TEXT } else { TEXT_DIM },
+        if selected { text() } else { text_dim() },
     );
     ui.painter().text(
         more_rect.center(),
         Align2::CENTER_CENTER,
         "⋯",
         FontId::new(15.0, FontFamily::Proportional),
-        if more.hovered() { TEXT } else { TEXT_MUTED },
+        if more.hovered() { text() } else { text_muted() },
     );
 
     if more.clicked() {
@@ -249,10 +249,10 @@ fn page_header(app: &mut App, ui: &mut egui::Ui, page: &Page) {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let writable = app.is_writable();
             let todo = egui::Button::new(
-                RichText::new("＋ 待办").color(if writable { TEXT } else { TEXT_MUTED }),
+                RichText::new("＋ 待办").color(if writable { text() } else { text_muted() }),
             )
             .fill(if writable {
-                ACCENT_SOFT
+                accent_soft()
             } else {
                 Color32::TRANSPARENT
             });
@@ -263,9 +263,9 @@ fn page_header(app: &mut App, ui: &mut egui::Ui, page: &Page) {
                     app.toast("他人视角只读，可留言", true);
                 }
             }
-            let text = egui::Button::new(RichText::new("＋ 文本").color(TEXT_DIM))
+            let text = egui::Button::new(RichText::new("＋ 文本").color(text_dim()))
                 .fill(Color32::TRANSPARENT)
-                .stroke(Stroke::new(1.0_f32, LINE));
+                .stroke(Stroke::new(1.0_f32, line()));
             if ui.add(text).clicked() {
                 if writable {
                     open_draft(ui, &page.id, BlockKind::Text, None);
@@ -314,7 +314,7 @@ fn block_row(app: &mut App, ui: &mut egui::Ui, block: &Block) {
 
     let row = egui::Frame::new()
         .fill(if was_hovered {
-            CARD_HI
+            card_hi()
         } else {
             Color32::TRANSPARENT
         })
@@ -334,29 +334,29 @@ fn block_row(app: &mut App, ui: &mut egui::Ui, block: &Block) {
                     ui.allocate_exact_size(Vec2::new(18.0, 18.0), lead_sense);
                 if block.kind == BlockKind::Todo {
                     let stroke = if block.checked {
-                        Stroke::new(1.5_f32, OK)
+                        Stroke::new(1.5_f32, ok())
                     } else {
                         Stroke::new(
                             1.2_f32,
                             if lead_resp.hovered() {
-                                ACCENT
+                                accent()
                             } else {
-                                TEXT_MUTED
+                                text_muted()
                             },
                         )
                     };
                     ui.painter().circle_stroke(lead_rect.center(), 7.5, stroke);
                     if block.checked {
-                        ui.painter().circle_filled(lead_rect.center(), 4.5, OK);
+                        ui.painter().circle_filled(lead_rect.center(), 4.5, ok());
                     }
                     if lead_resp.clicked() {
                         toggle = true;
                     }
                 } else {
                     let (radius, color) = if block.kind == BlockKind::Heading {
-                        (2.5, ACCENT)
+                        (2.5, accent())
                     } else {
-                        (1.6, TEXT_MUTED)
+                        (1.6, text_muted())
                     };
                     ui.painter().circle_filled(lead_rect.center(), radius, color);
                 }
@@ -370,7 +370,7 @@ fn block_row(app: &mut App, ui: &mut egui::Ui, block: &Block) {
                         ui.add(
                             egui::Label::new(
                                 RichText::new(block.text.clone())
-                                    .color(TEXT_MUTED)
+                                    .color(text_muted())
                                     .strikethrough(),
                             )
                             .wrap(),
@@ -414,10 +414,10 @@ fn block_row(app: &mut App, ui: &mut egui::Ui, block: &Block) {
                         ui.add_space(2.0);
                         ui.horizontal(|ui| {
                             if open > 0 {
-                                pill(ui, &format!("留言 {open}"), WARN);
+                                pill(ui, &format!("留言 {open}"), warn());
                             }
                             if journals > 0 {
-                                pill(ui, &format!("总结 {journals}"), ACCENT);
+                                pill(ui, &format!("总结 {journals}"), accent());
                             }
                         });
                     }
@@ -426,13 +426,13 @@ fn block_row(app: &mut App, ui: &mut egui::Ui, block: &Block) {
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.spacing_mut().item_spacing.x = 3.0;
                     if was_hovered {
-                        if action_button(ui, "删除", DANGER) {
+                        if action_button(ui, "删除", danger()) {
                             delete = true;
                         }
-                        if action_button(ui, "留言", TEXT_DIM) {
+                        if action_button(ui, "留言", text_dim()) {
                             comment = true;
                         }
-                        if action_button(ui, "编辑", TEXT_DIM) {
+                        if action_button(ui, "编辑", text_dim()) {
                             edit = true;
                         }
                     } else {
@@ -508,7 +508,7 @@ fn recent_card(app: &mut App, ui: &mut egui::Ui) {
             let width = ui.available_width();
             let (rect, resp) = ui.allocate_exact_size(Vec2::new(width, 44.0), Sense::click());
             let fill = if resp.hovered() {
-                CARD_HI
+                card_hi()
             } else {
                 Color32::TRANSPARENT
             };

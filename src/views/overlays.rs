@@ -20,7 +20,7 @@ pub fn draw(app: &mut App, ctx: &egui::Context) {
 fn window_frame() -> egui::Frame {
     egui::Frame::new()
         .fill(Color32::from_rgba_unmultiplied(236, 244, 252, 236))
-        .stroke(egui::Stroke::new(1.0, LINE))
+        .stroke(egui::Stroke::new(1.0, line()))
         .corner_radius(egui::CornerRadius::same(16))
         .inner_margin(egui::Margin::same(20))
         .shadow(egui::epaint::Shadow {
@@ -124,7 +124,7 @@ fn editor_window(app: &mut App, ctx: &egui::Context) {
                         if let Some(existing) = block {
                             if ui
                                 .add(egui::Button::new(
-                                    RichText::new("删除").color(DANGER),
+                                    RichText::new("删除").color(danger()),
                                 ))
                                 .clicked()
                             {
@@ -214,7 +214,7 @@ fn editor_window(app: &mut App, ctx: &egui::Context) {
                     if let Some(existing) = page {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             if ui
-                                .add(egui::Button::new(RichText::new("删除页面").color(DANGER)))
+                                .add(egui::Button::new(RichText::new("删除页面").color(danger())))
                                 .clicked()
                             {
                                 save = Some(Command::UpdatePage {
@@ -306,7 +306,7 @@ fn comments_window(app: &mut App, ctx: &egui::Context) {
                 .show(ui, |ui| {
                     for comment in &comments {
                         egui::Frame::new()
-                            .fill(if comment.resolved { FIELD } else { CARD })
+                            .fill(if comment.resolved { field() } else { card() })
                             .corner_radius(egui::CornerRadius::same(10))
                             .inner_margin(egui::Margin::same(10))
                             .show(ui, |ui| {
@@ -464,9 +464,9 @@ fn invites_window(app: &mut App, ctx: &egui::Context) {
                 ui.horizontal(|ui| {
                     ui.label(metric(invite.code.clone(), 15.0));
                     if invite.revoked {
-                        pill(ui, "已撤销", DANGER);
+                        pill(ui, "已撤销", danger());
                     } else {
-                        pill(ui, "可用", OK);
+                        pill(ui, "可用", ok());
                     }
                     ui.label(muted(format!(
                         "已用 {}/{}",
@@ -591,16 +591,77 @@ fn settings_window(app: &mut App, ctx: &egui::Context) {
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .frame(window_frame())
         .show(ctx, |ui| {
-            let mut alpha = app.glass_alpha;
-            section(ui, "玻璃透明度");
-            if ui
-                .add(egui::Slider::new(&mut alpha, 20..=180).text("浓度"))
-                .changed()
-            {
-                app.glass_alpha = alpha;
-                crate::app::save_glass_alpha(alpha);
+            let mut palette = crate::theme::palette();
+            let mut changed = false;
+            section(ui, "玻璃");
+            changed |= ui
+                .add(egui::Slider::new(&mut palette.glass_alpha, 0..=200).text("浓度"))
+                .changed();
+            changed |= ui
+                .add(egui::Slider::new(&mut palette.card_alpha, 0..=255).text("卡片"))
+                .changed();
+            changed |= ui
+                .add(egui::Slider::new(&mut palette.line_alpha, 0..=255).text("描边"))
+                .changed();
+            ui.add_space(10.0);
+            section(ui, "颜色");
+            ui.horizontal(|ui| {
+                let mut accent = egui::Color32::from_rgb(
+                    palette.accent[0],
+                    palette.accent[1],
+                    palette.accent[2],
+                );
+                if ui.color_edit_button_srgba(&mut accent).changed() {
+                    palette.accent = [accent.r(), accent.g(), accent.b()];
+                    changed = true;
+                }
+                ui.label(muted("强调色"));
+            });
+            ui.horizontal(|ui| {
+                let mut color = egui::Color32::from_rgb(
+                    palette.text[0],
+                    palette.text[1],
+                    palette.text[2],
+                );
+                if ui.color_edit_button_srgba(&mut color).changed() {
+                    palette.text = [color.r(), color.g(), color.b()];
+                    changed = true;
+                }
+                ui.label(muted("正文"));
+            });
+            ui.horizontal(|ui| {
+                let mut color = egui::Color32::from_rgb(
+                    palette.text_dim[0],
+                    palette.text_dim[1],
+                    palette.text_dim[2],
+                );
+                if ui.color_edit_button_srgba(&mut color).changed() {
+                    palette.text_dim = [color.r(), color.g(), color.b()];
+                    changed = true;
+                }
+                ui.label(muted("次级文字"));
+            });
+            ui.horizontal(|ui| {
+                let mut color = egui::Color32::from_rgb(
+                    palette.text_muted[0],
+                    palette.text_muted[1],
+                    palette.text_muted[2],
+                );
+                if ui.color_edit_button_srgba(&mut color).changed() {
+                    palette.text_muted = [color.r(), color.g(), color.b()];
+                    changed = true;
+                }
+                ui.label(muted("弱化文字"));
+            });
+            if ui.button("恢复默认配色").clicked() {
+                palette = crate::theme::Palette::default();
+                changed = true;
             }
-            ui.add_space(8.0);
+            if changed {
+                crate::theme::set_palette(palette);
+                crate::theme::refresh(ui.ctx());
+            }
+            ui.add_space(12.0);
             kv(ui, "账号", app.me.clone());
             kv(ui, "空间", app.store.workspace_name.clone());
             kv(ui, "成员", format!("{} 人", app.store.users.len()));

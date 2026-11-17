@@ -16,6 +16,17 @@ impl Backdrop {
         screen: (i32, i32),
         rect: (i32, i32, i32, i32),
     ) -> Option<Self> {
+        Self::from_wallpaper_rounded(ctx, path, screen, rect, 26.0)
+    }
+
+    /// 同上，但把圆角烘进贴图的 alpha，窗口边缘之外保持透明。
+    pub fn from_wallpaper_rounded(
+        ctx: &Context,
+        path: &str,
+        screen: (i32, i32),
+        rect: (i32, i32, i32, i32),
+        radius: f32,
+    ) -> Option<Self> {
         let image = image::open(path).ok()?.to_rgb8();
         let (iw, ih) = (image.width() as f32, image.height() as f32);
         let (sw, sh) = (screen.0 as f32, screen.1 as f32);
@@ -53,16 +64,23 @@ impl Backdrop {
         for _ in 0..4 {
             box_blur(&mut small, cols, rows);
         }
-        let pixels: Vec<Color32> = small
-            .iter()
-            .map(|c| {
-                Color32::from_rgb(
+        let step_px = rw / cols as f32;
+        let row_step = rh / rows as f32;
+        let mut pixels: Vec<Color32> = Vec::with_capacity(cols * rows);
+        for row in 0..rows {
+            for col in 0..cols {
+                let c = small[row * cols + col];
+                let px = col as f32 * step_px + step_px / 2.0;
+                let py = row as f32 * row_step + row_step / 2.0;
+                let alpha = rounded_alpha(px, py, rw, rh, radius);
+                pixels.push(Color32::from_rgba_unmultiplied(
                     c[0].clamp(0.0, 255.0) as u8,
                     c[1].clamp(0.0, 255.0) as u8,
                     c[2].clamp(0.0, 255.0) as u8,
-                )
-            })
-            .collect();
+                    alpha,
+                ));
+            }
+        }
         let texture = ctx.load_texture(
             "wallpaper-glass",
             ColorImage {
@@ -104,4 +122,20 @@ fn box_blur(pixels: &mut [[f32; 3]], width: usize, height: usize) {
         }
     }
     pixels.copy_from_slice(&buffer);
+}
+
+/// 圆角矩形的覆盖率（0..=255），边缘 1px 抗锯齿。
+fn rounded_alpha(x: f32, y: f32, w: f32, h: f32, r: f32) -> u8 {
+    let cx = x.clamp(r, w - r);
+    let cy = y.clamp(r, h - r);
+    let dx = x - cx;
+    let dy = y - cy;
+    let distance = (dx * dx + dy * dy).sqrt() - r;
+    if distance <= -1.0 {
+        255
+    } else if distance >= 1.0 {
+        0
+    } else {
+        ((1.0 - distance) * 0.5 * 255.0).clamp(0.0, 255.0) as u8
+    }
 }
