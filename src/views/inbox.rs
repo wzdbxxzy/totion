@@ -25,7 +25,7 @@ pub fn draw(app: &mut App, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 ui.label(title("留言", 26.0));
                 if unresolved > 0 {
-                    pill(ui, &format!("{unresolved} 条未解决"), warn());
+                    pill(ui, &format!("{unresolved} 条未解决"), text_dim());
                 }
             });
             ui.label(muted("按时间倒序 · 点「跳到对象」回到原处"));
@@ -88,9 +88,9 @@ fn comment_card(app: &mut App, ui: &mut egui::Ui, comment: &Comment) {
             ui.label(dim(comment.author_name.clone()));
             ui.label(muted(rel_time(comment.created_at)));
             if comment.resolved {
-                pill(ui, "已解决", ok());
+                pill(ui, "已解决", text_muted());
             } else {
-                pill(ui, "未解决", warn());
+                pill(ui, "未解决", text_dim());
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
@@ -258,8 +258,7 @@ fn jump_to_page(app: &mut App, page_id: &str) {
 // ---------------------------------------------------------------------------
 
 fn action_button(ui: &mut egui::Ui, text: &str, color: Color32) -> bool {
-    ui.add(egui::Button::new(RichText::new(text).size(12.0).color(color)).small())
-        .clicked()
+    ghost(ui, text, color).clicked()
 }
 
 fn first_line(text: &str, max: usize) -> String {

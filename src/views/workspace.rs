@@ -736,8 +736,7 @@ fn draft_window(app: &mut App, ctx: &egui::Context) {
 // ---------------------------------------------------------------------------
 
 fn action_button(ui: &mut egui::Ui, text: &str, color: Color32) -> bool {
-    ui.add(egui::Button::new(RichText::new(text).size(12.0).color(color)).small())
-        .clicked()
+    ghost(ui, text, color).clicked()
 }
 
 fn first_line(text: &str, max: usize) -> String {

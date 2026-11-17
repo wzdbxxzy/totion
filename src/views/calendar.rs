@@ -74,7 +74,7 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
             24.0,
         ));
         if !app.is_writable() {
-            pill(ui, "只读视角", warn());
+            pill(ui, "只读视角", text_dim());
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let (done, total) = month_completion(app, app.date.year(), app.date.month());

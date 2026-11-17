@@ -386,6 +386,31 @@ pub fn progress(ui: &mut egui::Ui, ratio: f32, color: Color32) {
     }
 }
 
+/// 悬停才出现的轻量按钮：没有常驻边框，鼠标移上来才淡入一层底。
+pub fn ghost(ui: &mut egui::Ui, label: &str, color: Color32) -> egui::Response {
+    let font = FontId::proportional(12.5);
+    let galley = ui
+        .painter()
+        .layout_no_wrap(label.to_owned(), font, color);
+    let padding = Vec2::new(11.0, 6.0);
+    let size = galley.size() + padding * 2.0;
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let t = ui
+        .ctx()
+        .animate_bool_with_time(response.id, response.hovered(), 0.12);
+    if t > 0.0 {
+        let alpha = (t * 30.0).clamp(0.0, 255.0) as u8;
+        ui.painter().rect_filled(
+            rect,
+            CornerRadius::same(7),
+            Color32::from_rgba_unmultiplied(255, 255, 255, alpha),
+        );
+    }
+    let pos = rect.center() - galley.size() * 0.5;
+    ui.painter().galley(pos, galley, color);
+    response
+}
+
 /// 一行「标签 …… 数值」。
 pub fn kv(ui: &mut egui::Ui, label: &str, value: impl Into<String>) {
     ui.horizontal(|ui| {

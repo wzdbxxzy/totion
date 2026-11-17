@@ -79,7 +79,7 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
                 ui.label(title("习惯", 26.0));
                 pill(ui, &format!("{active} 个进行中"), accent());
                 if !app.is_writable() {
-                    pill(ui, "只读视角", warn());
+                    pill(ui, "只读视角", text_dim());
                 }
             });
             ui.label(muted(format!(

@@ -41,7 +41,7 @@ fn header(app: &mut App, ui: &mut egui::Ui, _date_key: &str) {
                 pill(ui, "今天", accent());
             }
             if !app.is_writable() {
-                pill(ui, "只读", warn());
+                pill(ui, "只读", text_dim());
             }
         });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
