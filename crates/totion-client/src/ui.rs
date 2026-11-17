@@ -1161,6 +1161,31 @@ fn draw_calendar(frame: &mut Frame, area: Rect, main: &MainState) {
         },
     );
 
+    let arrow_left = Rect {
+        x: inner.x + 1,
+        y: inner.y,
+        width: 3,
+        height: 1,
+    };
+    let arrow_right = Rect {
+        x: inner.x + inner.width.saturating_sub(4),
+        y: inner.y,
+        width: 4,
+        height: 1,
+    };
+    frame.render_widget(
+        Paragraph::new(" ‹ ").style(Style::default().fg(Color::Cyan)),
+        arrow_left,
+    );
+    frame.render_widget(
+        Paragraph::new(" › ")
+            .alignment(Alignment::Right)
+            .style(Style::default().fg(Color::Cyan)),
+        arrow_right,
+    );
+    main.push_mouse_hit(arrow_left, MouseAction::PrevMonth);
+    main.push_mouse_hit(arrow_right, MouseAction::NextMonth);
+
     let weekday_labels = ["一", "二", "三", "四", "五", "六", "日"];
     let cell_w = inner.width / 7;
     for (index, label) in weekday_labels.iter().enumerate() {
@@ -2021,7 +2046,23 @@ fn draw_search(frame: &mut Frame, state: &SearchState) {
 }
 
 fn draw_help(frame: &mut Frame) {
-    let area = centered_rect(72, 92, frame.area());
+    let screen = frame.area();
+    let width = screen
+        .width
+        .saturating_sub(8)
+        .clamp(40, 82)
+        .min(screen.width);
+    let height = screen
+        .height
+        .saturating_sub(4)
+        .clamp(10, 30)
+        .min(screen.height);
+    let area = Rect {
+        x: screen.x + (screen.width.saturating_sub(width)) / 2,
+        y: screen.y + (screen.height.saturating_sub(height)) / 2,
+        width,
+        height,
+    };
     frame.render_widget(Clear, area);
     let lines = vec![
         Line::from(Span::styled(

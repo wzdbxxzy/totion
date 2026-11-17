@@ -1,0 +1,251 @@
+use super::*;
+
+use ratatui::{backend::TestBackend, Terminal};
+use totion_core::WorkspaceInfo;
+
+fn sample_user(id: &str, name: &str) -> User {
+    User {
+        id: id.to_string(),
+        name: name.to_string(),
+        public_key: format!("key-{id}"),
+        created_at: chrono::Utc::now(),
+    }
+}
+
+fn sample_block(id: &str, text: &str, owner: &str, date: &str, time: &str) -> Block {
+    Block {
+        id: id.to_string(),
+        page_id: "p1".to_string(),
+        kind: BlockKind::Todo,
+        text: text.to_string(),
+        checked: false,
+        due_date: Some(date.to_string()),
+        streak: 0,
+        position: 0,
+        version: 1,
+        updated_at: chrono::Utc::now(),
+        updated_by: if owner == "u1" { "Guan" } else { "Bob" }.to_string(),
+        deleted: false,
+        start_time: Some(time.to_string()),
+        end_time: None,
+        completed_at: None,
+        completed_by: None,
+        section: None,
+        owner_id: owner.to_string(),
+    }
+}
+
+fn sample_state() -> MainState {
+    let today = Local::now().date_naive().format("%Y-%m-%d").to_string();
+    let page = Page {
+        id: "p1".to_string(),
+        title: "收件箱".to_string(),
+        icon: "📄".to_string(),
+        kind: PageKind::Todo,
+        position: 0,
+        version: 1,
+        updated_at: chrono::Utc::now(),
+        updated_by: "Guan".to_string(),
+        deleted: false,
+        date: None,
+    };
+    let habit = Habit {
+        id: "h1".to_string(),
+        title: "阅读".to_string(),
+        icon: "📖".to_string(),
+        note: String::new(),
+        frequency: HabitFrequency::Daily,
+        position: 0,
+        archived: false,
+        version: 1,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        updated_by: "Guan".to_string(),
+        deleted: false,
+        owner_id: "u1".to_string(),
+    };
+    let snapshot = Snapshot {
+        workspace: WorkspaceInfo {
+            name: "测试空间".to_string(),
+            users: vec![sample_user("u1", "Guan"), sample_user("u2", "Bob")],
+        },
+        pages: vec![page],
+        blocks: vec![
+            sample_block("b1", "我的待办", "u1", &today, "09:00"),
+            sample_block("b2", "Bob 的待办", "u2", &today, "10:00"),
+        ],
+        habits: vec![habit],
+        checkins: Vec::new(),
+        comments: Vec::new(),
+        journals: Vec::new(),
+        last_seq: 0,
+        api_version: 5,
+    };
+    MainState::new(
+        Api::new("http://127.0.0.1:9"),
+        "Guan".to_string(),
+        "u1".to_string(),
+        snapshot,
+    )
+}
+
+struct Harness {
+    app: App,
+}
+
+impl Harness {
+    fn new() -> Self {
+        Self {
+            app: App {
+                screen: Screen::Main(sample_state()),
+                should_quit: false,
+            },
+        }
+    }
+
+    fn state(&self) -> &MainState {
+        match &self.app.screen {
+            Screen::Main(state) => state,
+            Screen::Setup(_) => panic!("测试应处于主界面"),
+        }
+    }
+
+    fn state_mut(&mut self) -> &mut MainState {
+        match &mut self.app.screen {
+            Screen::Main(state) => state,
+            Screen::Setup(_) => panic!("测试应处于主界面"),
+        }
+    }
+
+    fn render(&mut self, width: u16, height: u16) {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).expect("创建测试终端");
+        let app = &self.app;
+        terminal
+            .draw(|frame| crate::ui::draw(frame, app))
+            .expect("绘制界面");
+    }
+
+    fn action_rect(&self, action: MouseAction) -> Rect {
+        self.state()
+            .mouse_hits
+            .borrow()
+            .iter()
+            .find(|(_, kind)| *kind == action)
+            .map(|(rect, _)| *rect)
+            .unwrap_or_else(|| panic!("找不到点击区域: {action:?}"))
+    }
+
+    fn click_action(&mut self, action: MouseAction) {
+        let rect = self.action_rect(action);
+        let event = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: rect.x + rect.width / 2,
+            row: rect.y,
+            modifiers: KeyModifiers::empty(),
+        };
+        self.app.handle_mouse(event);
+    }
+
+    fn press(&mut self, code: KeyCode) {
+        self.state_mut()
+            .handle_today_key(KeyEvent::new(code, KeyModifiers::NONE));
+    }
+}
+
+#[test]
+fn nav_bar_switches_every_view() {
+    let mut harness = Harness::new();
+    harness.render(140, 40);
+    for view in [
+        View::Today,
+        View::Workspace,
+        View::Calendar,
+        View::Habits,
+        View::Stats,
+        View::Inbox,
+    ] {
+        harness.render(140, 40);
+        harness.click_action(MouseAction::SwitchView(view));
+        assert_eq!(harness.state().view(), view);
+    }
+}
+
+#[test]
+fn clicking_today_rows_selects_items_and_habits() {
+    let mut harness = Harness::new();
+    harness.render(140, 40);
+    harness.click_action(MouseAction::SelectTodayItem(1));
+    assert_eq!(harness.state().today_focus(), TodayFocus::Items);
+    assert_eq!(harness.state().selected_today_index(), 1);
+
+    harness.render(140, 40);
+    harness.click_action(MouseAction::SelectTodayHabit(0));
+    assert_eq!(harness.state().today_focus(), TodayFocus::Habits);
+    assert_eq!(harness.state().selected_today_habit_index(), 0);
+}
+
+#[test]
+fn member_view_is_read_only_and_filters_data() {
+    let mut harness = Harness::new();
+    harness.state_mut().apply_member_view(2);
+    let state = harness.state();
+    assert!(state.read_only());
+    let items = state.today_items();
+    assert_eq!(items.len(), 1);
+    match &items[0] {
+        TodayRow::Todo(block) => assert_eq!(block.text, "Bob 的待办"),
+        other => panic!("应为待办行: {other:?}"),
+    }
+    assert!(state.today_habits().is_empty());
+}
+
+#[test]
+fn week_view_includes_today_and_pages_forward() {
+    let mut harness = Harness::new();
+    let today = harness.state().today();
+    harness.state_mut().view_date = today - ChronoDuration::days(1);
+    harness.state_mut().open_week_view();
+
+    {
+        let state = harness.state();
+        assert!(state.week_mode());
+        assert_eq!(state.week_end(), today);
+        assert_eq!(state.week_selected(), 5);
+        let overview = state.week_overview();
+        assert_eq!(overview.len(), 7);
+        assert_eq!(overview[6].0, today);
+        assert_eq!(overview[6].2.len(), 2);
+    }
+
+    harness.press(KeyCode::Char('l'));
+    assert_eq!(
+        harness.state().week_end(),
+        harness.state().today() + ChronoDuration::days(1)
+    );
+
+    harness.press(KeyCode::Enter);
+    assert!(!harness.state().week_mode());
+    // 窗口向前平移一天后，原来指向「昨天」的第 5 行现在是今天。
+    assert_eq!(harness.state().view_date(), harness.state().today());
+}
+
+#[test]
+fn week_view_keeps_far_past_date_in_window() {
+    let mut harness = Harness::new();
+    let old = harness.state().today() - ChronoDuration::days(20);
+    harness.state_mut().view_date = old;
+    harness.state_mut().open_week_view();
+    let state = harness.state();
+    assert_eq!(state.week_end(), old);
+    assert_eq!(state.week_selected(), 6);
+}
+
+#[test]
+fn switching_views_clears_transient_modes() {
+    let mut harness = Harness::new();
+    harness.state_mut().open_week_view();
+    assert!(harness.state().week_mode());
+    harness.state_mut().set_view(View::Calendar);
+    assert!(!harness.state().week_mode());
+}

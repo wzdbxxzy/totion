@@ -257,6 +257,8 @@ pub enum MouseAction {
     WeekSelect(usize),
     PrevDay,
     NextDay,
+    PrevMonth,
+    NextMonth,
     OpenWeek,
     OpenMembers,
     OpenInvites,
@@ -1730,9 +1732,13 @@ impl MainState {
 
     fn open_week_view(&mut self) {
         self.week_mode = true;
-        // 窗口最后一天取「当前查看日」和「今天」里较晚的那个，
-        // 这样从昨天进入周视图时也能看到今天和未来。
-        self.week_end = self.view_date.max(self.today);
+        // 当前查看日离今天不超过 6 天时，窗口对齐到今天（包含今天和未来）；
+        // 更早的日期则让窗口以它结尾，避免被挤到窗口外。
+        self.week_end = if self.view_date >= self.today - ChronoDuration::days(6) {
+            self.today.max(self.view_date)
+        } else {
+            self.view_date
+        };
         let start = self.week_end - ChronoDuration::days(6);
         self.week_selected = (self.view_date - start).num_days().clamp(0, 6) as usize;
     }
@@ -1860,6 +1866,15 @@ impl MainState {
     }
 
     fn handle_inbox_key(&mut self, key: KeyEvent) {
+        if self.read_only()
+            && matches!(
+                key.code,
+                KeyCode::Char('r') | KeyCode::Char('e') | KeyCode::Char('d')
+            )
+        {
+            self.status = "正在查看他人视角（只读），只能回复评论".to_string();
+            return;
+        }
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => self.move_inbox(-1),
             KeyCode::Down | KeyCode::Char('j') => self.move_inbox(1),
@@ -2983,6 +2998,7 @@ impl MainState {
                 self.focus = Focus::Pages;
                 self.selected_page_index = index;
                 self.selected_block_index = 0;
+                self.workspace_journal_mode = false;
                 self.clamp();
             }
             MouseAction::SelectBlock(index) => {
@@ -3014,6 +3030,8 @@ impl MainState {
                 self.view_date += ChronoDuration::days(1);
                 self.clamp();
             }
+            MouseAction::PrevMonth => self.shift_month(-1),
+            MouseAction::NextMonth => self.shift_month(1),
             MouseAction::OpenWeek => self.open_week_view(),
             MouseAction::OpenMembers => self.open_members(),
             MouseAction::OpenInvites => self.open_invites(),
@@ -3290,17 +3308,28 @@ impl MainState {
         let Some(mut modal) = self.modal.take() else {
             return;
         };
-        // 他人视角下议程只允许浏览，不允许勾选/编辑/删除/新建。
+        // 他人视角下议程只读；评论面板只能浏览和新增，不能改/删/解决。
         let read_only_blocked = self.read_only()
-            && matches!(&modal, Modal::Agenda(_))
-            && !matches!(
-                key.code,
-                KeyCode::Esc
-                    | KeyCode::Up
-                    | KeyCode::Down
-                    | KeyCode::Char('j')
-                    | KeyCode::Char('k')
-            );
+            && match &modal {
+                Modal::Agenda(_) => !matches!(
+                    key.code,
+                    KeyCode::Esc
+                        | KeyCode::Up
+                        | KeyCode::Down
+                        | KeyCode::Char('j')
+                        | KeyCode::Char('k')
+                ),
+                Modal::Comments(_) => !matches!(
+                    key.code,
+                    KeyCode::Esc
+                        | KeyCode::Up
+                        | KeyCode::Down
+                        | KeyCode::Char('j')
+                        | KeyCode::Char('k')
+                        | KeyCode::Char('a')
+                ),
+                _ => false,
+            };
         if read_only_blocked {
             self.status = "正在查看他人视角（只读），可以评论但不能修改".to_string();
             self.modal = Some(modal);
@@ -3790,3 +3819,7 @@ impl HabitForm {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "app_tests.rs"]
+mod tests;
