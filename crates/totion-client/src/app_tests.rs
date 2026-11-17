@@ -925,6 +925,55 @@ fn scrolled_page_list_keeps_group_header_sticky() {
 }
 
 #[test]
+fn multiline_editing_moves_cursor_between_lines() {
+    let mut harness = Harness::new();
+    harness.state_mut().editing = Some(Editing {
+        target: EditTarget::NewComment {
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+        },
+        buffer: "ab\ncdef".to_string(),
+        cursor: 7,
+        multiline: true,
+    });
+
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(harness.state().editing.as_ref().unwrap().cursor, 2);
+
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    assert_eq!(harness.state().editing.as_ref().unwrap().cursor, 5);
+
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+    assert_eq!(harness.state().editing.as_ref().unwrap().cursor, 3);
+
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
+    assert_eq!(harness.state().editing.as_ref().unwrap().cursor, 7);
+
+    // 中文按字符移动，不会把字节切开。
+    harness.state_mut().editing = Some(Editing {
+        target: EditTarget::NewComment {
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+        },
+        buffer: "你好\n世界".to_string(),
+        cursor: 13,
+        multiline: true,
+    });
+    harness
+        .app
+        .handle_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(harness.state().editing.as_ref().unwrap().cursor, 6);
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();

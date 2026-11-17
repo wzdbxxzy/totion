@@ -522,6 +522,53 @@ impl App {
     }
 }
 
+/// 光标所在行的起始字节位置。
+fn line_start(buffer: &str, cursor: usize) -> usize {
+    buffer[..cursor]
+        .rfind('\n')
+        .map(|index| index + 1)
+        .unwrap_or(0)
+}
+
+/// 光标所在行的结束字节位置（不含换行符）。
+fn line_end(buffer: &str, cursor: usize) -> usize {
+    buffer[cursor..]
+        .find('\n')
+        .map(|offset| cursor + offset)
+        .unwrap_or(buffer.len())
+}
+
+/// 行内第 `column` 个字符的字节位置，越界时贴到行尾。
+fn position_in_line(buffer: &str, start: usize, column: usize) -> usize {
+    let end = line_end(buffer, start);
+    buffer[start..end]
+        .char_indices()
+        .nth(column)
+        .map(|(offset, _)| start + offset)
+        .unwrap_or(end)
+}
+
+fn cursor_line_up(buffer: &str, cursor: usize) -> usize {
+    let start = line_start(buffer, cursor);
+    if start == 0 {
+        return cursor;
+    }
+    let previous_end = start - 1;
+    let previous_start = line_start(buffer, previous_end);
+    let column = buffer[start..cursor].chars().count();
+    position_in_line(buffer, previous_start, column)
+}
+
+fn cursor_line_down(buffer: &str, cursor: usize) -> usize {
+    let start = line_start(buffer, cursor);
+    let end = line_end(buffer, start);
+    if end >= buffer.len() {
+        return cursor;
+    }
+    let column = buffer[start..cursor].chars().count();
+    position_in_line(buffer, end + 1, column)
+}
+
 fn login(api: &Api, identity: &Identity) -> Result<AuthResponse, ApiError> {
     let challenge = api.challenge(&identity.public_key)?;
     let signature = identity
@@ -2252,6 +2299,12 @@ impl MainState {
                     editing.buffer.remove(editing.cursor);
                 }
             }
+            KeyCode::Up if editing.multiline => {
+                editing.cursor = cursor_line_up(&editing.buffer, editing.cursor);
+            }
+            KeyCode::Down if editing.multiline => {
+                editing.cursor = cursor_line_down(&editing.buffer, editing.cursor);
+            }
             KeyCode::Left => {
                 if editing.cursor > 0 {
                     editing.cursor = editing.buffer[..editing.cursor]
@@ -2270,8 +2323,8 @@ impl MainState {
                     }
                 }
             }
-            KeyCode::Home => editing.cursor = 0,
-            KeyCode::End => editing.cursor = editing.buffer.len(),
+            KeyCode::Home => editing.cursor = line_start(&editing.buffer, editing.cursor),
+            KeyCode::End => editing.cursor = line_end(&editing.buffer, editing.cursor),
             KeyCode::Char(c) => {
                 editing.buffer.insert(editing.cursor, c);
                 editing.cursor += c.len_utf8();
