@@ -35,9 +35,7 @@ fn main() {
         imp::set_wallpaper(&args[2]);
         return;
     }
-    let opacity = arg_value(&args, "--opacity").unwrap_or(150).clamp(60, 235) as u32;
-    let width = arg_value(&args, "--width").unwrap_or(38).clamp(33, 50);
-    imp::run(opacity, width);
+    imp::run(crate::GlassPrefs::from_args(&args));
 }
 
 #[cfg(windows)]
@@ -46,6 +44,85 @@ fn arg_value(args: &[String], name: &str) -> Option<i32> {
         .position(|arg| arg == name)
         .and_then(|index| args.get(index + 1))
         .and_then(|value| value.parse().ok())
+}
+
+#[cfg(windows)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct GlassPrefs {
+    #[serde(default = "default_opacity")]
+    pub opacity: u32,
+    #[serde(default = "default_width")]
+    pub width: i32,
+    #[serde(default)]
+    pub topmost: bool,
+}
+
+#[cfg(windows)]
+fn default_opacity() -> u32 {
+    150
+}
+
+#[cfg(windows)]
+fn default_width() -> i32 {
+    38
+}
+
+#[cfg(windows)]
+impl GlassPrefs {
+    pub fn from_args(args: &[String]) -> Self {
+        let mut prefs = Self::load();
+        let mut dirty = false;
+        if let Some(value) = arg_value(args, "--opacity") {
+            prefs.opacity = value as u32;
+            dirty = true;
+        }
+        if let Some(value) = arg_value(args, "--width") {
+            prefs.width = value;
+            dirty = true;
+        }
+        if args.iter().any(|arg| arg == "--topmost") {
+            prefs.topmost = true;
+            dirty = true;
+        }
+        if args.iter().any(|arg| arg == "--no-topmost") {
+            prefs.topmost = false;
+            dirty = true;
+        }
+        prefs.opacity = prefs.opacity.clamp(60, 235);
+        prefs.width = prefs.width.clamp(33, 50);
+        if dirty {
+            prefs.save();
+        }
+        prefs
+    }
+
+    fn path() -> std::path::PathBuf {
+        dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("totion")
+            .join("glass.json")
+    }
+
+    fn load() -> Self {
+        std::fs::read_to_string(Self::path())
+            .ok()
+            .and_then(|raw| serde_json::from_str(&raw).ok())
+            .unwrap_or(Self {
+                opacity: default_opacity(),
+                width: default_width(),
+                topmost: false,
+            })
+    }
+
+    fn save(&self) {
+        let path = Self::path();
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(raw) = serde_json::to_string_pretty(self) {
+            let _ = std::fs::write(path, raw);
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -75,11 +152,11 @@ mod imp {
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW,
         GetWindowRect, LoadCursorW, PostQuitMessage, RegisterClassW, SetCursor,
-        SetForegroundWindow, SetTimer, ShowWindow, SystemParametersInfoW, TranslateMessage,
-        UpdateLayeredWindow, CS_DBLCLKS, IDC_ARROW, SW_SHOW, ULW_ALPHA, WM_CHAR, WM_CLOSE,
-        WM_CREATE, WM_DESTROY, WM_KEYDOWN, WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_MOUSEWHEEL,
-        WM_RBUTTONUP, WM_SETCURSOR, WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_POPUP,
-        WS_VISIBLE,
+        SetForegroundWindow, SetTimer, SetWindowPos, ShowWindow, SystemParametersInfoW,
+        TranslateMessage, UpdateLayeredWindow, CS_DBLCLKS, HWND_NOTOPMOST, HWND_TOPMOST, IDC_ARROW,
+        SWP_NOMOVE, SWP_NOSIZE, SW_SHOW, ULW_ALPHA, WM_CHAR, WM_CLOSE, WM_CREATE, WM_DESTROY,
+        WM_KEYDOWN, WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONUP, WM_SETCURSOR,
+        WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP, WS_VISIBLE,
     };
 
     use crate::app::{App, Screen};
@@ -137,8 +214,8 @@ mod imp {
         }
     }
 
-    pub fn run(opacity: u32, width_percent: i32) {
-        OPACITY.with(|value| value.set(opacity));
+    pub fn run(prefs: crate::GlassPrefs) {
+        OPACITY.with(|value| value.set(prefs.opacity));
         unsafe {
             SetProcessDPIAware();
             let instance = GetModuleHandleW(ptr::null());
@@ -165,7 +242,7 @@ mod imp {
             CURSOR_HAND.with(|value| value.set(hand_cursor as isize));
 
             build_app();
-            create_canvas(width_percent);
+            create_canvas(prefs.width);
 
             let mut work = RECT {
                 left: 0,
@@ -185,8 +262,12 @@ mod imp {
             let x = work.right - panel_w - MARGIN;
             let y = work.top + MARGIN;
 
+            let mut ex_style = WS_EX_LAYERED | WS_EX_TOOLWINDOW;
+            if prefs.topmost {
+                ex_style |= WS_EX_TOPMOST;
+            }
             let hwnd = CreateWindowExW(
-                WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+                ex_style,
                 class_name.as_ptr(),
                 wide("totion").as_ptr(),
                 WS_POPUP | WS_VISIBLE,
@@ -200,6 +281,12 @@ mod imp {
                 ptr::null(),
             );
             ShowWindow(hwnd, SW_SHOW);
+            let insert_after = if prefs.topmost {
+                HWND_TOPMOST
+            } else {
+                HWND_NOTOPMOST
+            };
+            SetWindowPos(hwnd, insert_after, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
             SetForegroundWindow(hwnd);
             SetFocus(hwnd);
             render(hwnd);
@@ -856,6 +943,21 @@ mod imp {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn prefs_roundtrip_and_defaults() {
+            let prefs = crate::GlassPrefs {
+                opacity: 120,
+                width: 42,
+                topmost: true,
+            };
+            let raw = serde_json::to_string(&prefs).expect("序列化");
+            let back: crate::GlassPrefs = serde_json::from_str(&raw).expect("反序列化");
+            assert_eq!((back.opacity, back.width, back.topmost), (120, 42, true));
+            let defaults: crate::GlassPrefs = serde_json::from_str("{}").expect("默认值");
+            assert_eq!((defaults.opacity, defaults.width), (150, 38));
+            assert!(!defaults.topmost);
+        }
 
         #[test]
         fn pixel_maps_to_cell() {

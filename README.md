@@ -300,7 +300,8 @@ cargo run --release -p totion-client --bin totion-glass
 - 内部就是完整的 TUI：`1`–`6` 切换界面、`j/k` 移动、`Space` 勾选、`C` 评论、`i` 邀请码、`/` 搜索、`?` 帮助、`q` 退出，和终端版一致。
 - 点击面板获得焦点后即可用键盘；面板内的点击（标签、列表、日期、勾选框）和滚轮都会转发给 TUI；右键退出。
 - 鼠标悬停在可点击区域时会轻微提亮并变成手型光标；内容四周留出内边距，顶部略深、底部略透。
-- `--opacity 150` 调整不透明度（60–235，越小越透）。
+- `--opacity 150` 调整不透明度（60–235，越小越透）；`--topmost` / `--no-topmost` 切换是否置顶。
+- 这些偏好会记在 `%APPDATA%	otion\glass.json`，下次启动自动沿用；传参时覆盖并写回。
 - 复用客户端已经保存的身份（`%APPDATA%	otion\identity.json`），第一次需要先运行 `totion` 连接服务器。
 - 内置壁纸命令：`totion-glass --wallpaper "D:\壁纸\wallpaper.jpg"`。
 - 仅 Windows 可用；macOS / Linux 上运行会提示不支持。

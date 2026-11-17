@@ -25,6 +25,7 @@
 - `totion-glass --wallpaper <图片>` 可以把 Windows 桌面壁纸设置为指定图片（jpg / png / bmp）。
 - 桌面面板接入鼠标：点击标签、列表、日期和勾选框，以及滚轮滚动，都会转发给 TUI。
 - 桌面面板加入悬停反馈：可点击区域轻微提亮、光标变手型；内容整体内缩 2 个单元格，并加轻微透明度渐变和内侧细边，更接近毛玻璃质感。
+- 桌面面板记忆偏好：`%APPDATA%	otion\glass.json` 保存透明度、宽度和是否置顶；`--opacity` / `--width` / `--topmost` / `--no-topmost` 覆盖并写回。
 - 实验性 `totion-glass` 桌面面板（仅 Windows）：屏幕右侧 1/3–1/2 的毛玻璃侧栏，内部直接复用完整 TUI（1-6 界面、邀请码、搜索等），键位与终端版一致；支持 `--opacity` / `--width` / `--wallpaper`，右键退出。
 
 ### 优化
