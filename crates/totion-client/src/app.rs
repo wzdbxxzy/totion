@@ -498,6 +498,16 @@ impl App {
     }
 
     pub fn handle_mouse(&mut self, mouse: MouseEvent) {
+        // 滚轮复用上下键：列表/弹窗里滚动即移动选中项（lazygit/yazi 风格）。
+        let wheel = match mouse.kind {
+            MouseEventKind::ScrollUp => Some(KeyCode::Up),
+            MouseEventKind::ScrollDown => Some(KeyCode::Down),
+            _ => None,
+        };
+        if let Some(code) = wheel {
+            self.handle_key(KeyEvent::new(code, KeyModifiers::NONE));
+            return;
+        }
         if let Screen::Main(main) = &mut self.screen {
             main.handle_mouse(mouse);
         }

@@ -150,6 +150,20 @@ impl Harness {
         self.app.handle_mouse(event);
     }
 
+    fn wheel(&mut self, down: bool) {
+        let kind = if down {
+            MouseEventKind::ScrollDown
+        } else {
+            MouseEventKind::ScrollUp
+        };
+        self.app.handle_mouse(MouseEvent {
+            kind,
+            column: 0,
+            row: 0,
+            modifiers: KeyModifiers::empty(),
+        });
+    }
+
     fn press(&mut self, code: KeyCode) {
         self.state_mut()
             .handle_today_key(KeyEvent::new(code, KeyModifiers::NONE));
@@ -407,6 +421,17 @@ fn selected_rows_use_shared_highlight_style() {
     let other = harness.action_rect(MouseAction::SelectTodayItem(1));
     let cell = buffer.cell((other.x + 2, other.y)).expect("未选中行单元格");
     assert_ne!(cell.bg, crate::ui::SELECTION_BG);
+}
+
+#[test]
+fn mouse_wheel_moves_selection() {
+    let mut harness = Harness::new();
+    harness.render(120, 30);
+    assert_eq!(harness.state().selected_today_index(), 0);
+    harness.wheel(true);
+    assert_eq!(harness.state().selected_today_index(), 1);
+    harness.wheel(false);
+    assert_eq!(harness.state().selected_today_index(), 0);
 }
 
 #[test]
