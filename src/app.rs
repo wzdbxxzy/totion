@@ -607,6 +607,7 @@ impl eframe::App for App {
         }
 
         let top = egui::TopBottomPanel::top("top")
+            .show_separator_line(false)
             .frame(
                 egui::Frame::new()
                     .fill(Color32::TRANSPARENT)
@@ -621,6 +622,7 @@ impl eframe::App for App {
         let _ = top;
 
         let side = egui::SidePanel::left("side")
+            .show_separator_line(false)
             .resizable(false)
             .exact_width(196.0)
             .frame(
