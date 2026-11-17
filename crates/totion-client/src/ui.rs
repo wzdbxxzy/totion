@@ -360,7 +360,7 @@ fn comment_suffix(count: usize) -> String {
 }
 
 fn draw_editing(frame: &mut Frame, area: Rect, editing: &Editing) {
-    let lines = editing_preview(editing);
+    let lines = editing_preview(editing, area.width);
     let cursor = editing.cursor.min(editing.buffer.len());
     let before = &editing.buffer[..cursor];
     let line = before.matches('\n').count() + 1;
@@ -378,24 +378,38 @@ fn draw_editing(frame: &mut Frame, area: Rect, editing: &Editing) {
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
-fn editing_preview(editing: &Editing) -> Vec<Line<'static>> {
+fn editing_preview(editing: &Editing, width: u16) -> Vec<Line<'static>> {
+    let width = width.max(4) as usize;
+    let visible = width.saturating_sub(1);
     let cursor = editing.cursor.min(editing.buffer.len());
     let before = &editing.buffer[..cursor];
     let line_index = before.matches('\n').count();
+    let line_offset = before.rfind('\n').map(|position| position + 1).unwrap_or(0);
+    let column = before[line_offset..].chars().count();
     let lines: Vec<&str> = editing.buffer.split('\n').collect();
     let start = line_index.saturating_sub(1);
-    let end = (line_index + 2).min(lines.len());
+    let end = (line_index + 3).min(lines.len());
+    // 长行横向滚动，保证光标始终在可视范围内。
+    let offset = column.saturating_sub(visible.saturating_sub(2));
     let mut output = Vec::new();
     for (index, line) in lines.iter().enumerate().take(end).skip(start) {
-        let text = if index == line_index {
-            let offset = before.rfind('\n').map(|position| position + 1).unwrap_or(0);
-            let column = (cursor - offset).min(line.len());
-            let (left, right) = (*line).split_at(column);
-            format!(" {left}█{right}")
+        let chars: Vec<char> = line.chars().skip(offset).take(visible).collect();
+        if index == line_index {
+            let local = column.saturating_sub(offset);
+            let mut text = String::new();
+            for (position, ch) in chars.iter().enumerate() {
+                if position == local {
+                    text.push('█');
+                }
+                text.push(*ch);
+            }
+            if local >= chars.len() {
+                text.push('█');
+            }
+            output.push(Line::from(format!(" {text}")));
         } else {
-            format!(" {line}")
-        };
-        output.push(Line::from(text));
+            output.push(Line::from(format!(" {}", chars.iter().collect::<String>())));
+        }
     }
     output
 }

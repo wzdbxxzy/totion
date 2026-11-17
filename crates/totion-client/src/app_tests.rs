@@ -1035,6 +1035,24 @@ fn editing_header_reflects_multiline_mode() {
 }
 
 #[test]
+fn long_edit_line_scrolls_horizontally() {
+    let mut harness = Harness::new();
+    harness.state_mut().editing = Some(Editing {
+        target: EditTarget::NewComment {
+            target_kind: CommentTargetKind::Block,
+            target_id: "b1".to_string(),
+        },
+        buffer: "a".repeat(60),
+        cursor: 60,
+        multiline: false,
+    });
+    harness.render(40, 24);
+    let text = buffer_text(harness.buffer.as_ref().expect("buffer"));
+    assert!(text.contains('█'), "长行时光标应保持在可视区内");
+    assert!(!text.contains(&"a".repeat(40)), "超宽行不应整行绘制");
+}
+
+#[test]
 fn switching_views_clears_transient_modes() {
     let mut harness = Harness::new();
     harness.state_mut().open_week_view();
